@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Serveur de développement en HTTP sur la boucle locale (adb reverse) :
+         accepté par le seul build debug, qui surcharge cette valeur. -->
+    <bool name="allow_localhost_server">false</bool>
+</resources>

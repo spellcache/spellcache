@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nom distinct : l'app de développement s'installe à côté de la release. -->
+    <string name="app_name">spellcache dev</string>
+    <string name="title_activity_main">spellcache dev</string>
+</resources>

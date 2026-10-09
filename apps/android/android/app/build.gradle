@@ -37,6 +37,12 @@ android {
         }
     }
     buildTypes {
+        // Identifiant distinct : signée avec la clé de debug, l'app de
+        // développement ne pourrait pas remplacer la release installée.
+        debug {
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+        }
         release {
             if (releaseKeystore) {
                 signingConfig signingConfigs.release

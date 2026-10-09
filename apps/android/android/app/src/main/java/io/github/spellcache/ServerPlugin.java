@@ -32,6 +32,7 @@ public class ServerPlugin extends Plugin {
     public void getOrigin(PluginCall call) {
         JSObject result = new JSObject();
         result.put("origin", savedOrigin());
+        result.put("allowLocalhost", allowsLocalhost());
         call.resolve(result);
     }
 
@@ -54,7 +55,7 @@ public class ServerPlugin extends Plugin {
         // `false` : chargée dans la WebView. `null` : décision laissée à
         // Capacitor, qui ouvre les domaines inconnus dans le navigateur.
         boolean sameOrigin =
-            "https".equals(url.getScheme()) &&
+            server.getScheme().equals(url.getScheme()) &&
             server.getHost().equalsIgnoreCase(url.getHost()) &&
             server.getPort() == url.getPort();
         return sameOrigin ? Boolean.FALSE : null;
@@ -64,13 +65,22 @@ public class ServerPlugin extends Plugin {
         return prefs().getString(KEY_ORIGIN, null);
     }
 
-    // Origine HTTPS seule (schéma, hôte, port), telle que la produit
-    // `URL.origin` côté écran local : le port par défaut est donc absent.
-    private static Uri parseOrigin(String origin) {
+    // Origine seule (schéma, hôte, port), telle que la produit `URL.origin`
+    // côté écran local : le port par défaut est donc absent. HTTPS, sauf la
+    // boucle locale en HTTP pour le build debug (`pnpm dev` via adb reverse).
+    private Uri parseOrigin(String origin) {
         if (origin == null) return null;
         Uri uri = Uri.parse(origin);
-        if (!"https".equals(uri.getScheme()) || uri.getHost() == null) return null;
-        return uri;
+        String host = uri.getHost();
+        if (host == null) return null;
+        if ("https".equals(uri.getScheme())) return uri;
+        boolean loopback = "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host);
+        if ("http".equals(uri.getScheme()) && loopback && allowsLocalhost()) return uri;
+        return null;
+    }
+
+    private boolean allowsLocalhost() {
+        return getContext().getResources().getBoolean(R.bool.allow_localhost_server);
     }
 
     private SharedPreferences prefs() {

@@ -7,7 +7,8 @@
   "scripts": {
     "sync": "node scripts/copy-runtime.mjs && cap sync android",
     "open": "cap open android",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "node scripts/dev.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

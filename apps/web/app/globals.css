@@ -348,14 +348,20 @@
      `fixed` : plus aucune réserve de défilement ne lui est due, et l'ancien
      `--spacing-tab-bar-reserve` (96px) a disparu avec elle. */
   --spacing-tab-bar-height: 67.4px;
-  /* Bas de la barre d'onglets : les 10px du design, plus la zone sûre
-     de l'appareil (indicateur d'accueil d'un iPhone). Vaut exactement 10px
-     partout où `env()` est nul, donc sur tout le desktop. */
-  --spacing-tab-bar-bottom: calc(10px + env(safe-area-inset-bottom));
+  /* Bas de la barre d'onglets : la zone sûre de l'appareil (barre de gestes
+     Android, indicateur d'accueil d'un iPhone) remplace les 10px du design
+     au lieu de s'y ajouter — sinon les onglets flottent loin du bord. Vaut
+     exactement 10px partout où `env()` est nul, donc sur tout le desktop. */
+  --spacing-tab-bar-bottom: max(10px, env(safe-area-inset-bottom));
   /* Ce qu'une barre flottante doit dégager pour se poser juste au-dessus de
-     la barre d'onglets : sa hauteur peinte, zone sûre comprise cette fois —
-     puisque c'est la barre elle-même qui la paie en padding. */
-  --spacing-above-tab-bar: calc(var(--spacing-tab-bar-height) + env(safe-area-inset-bottom));
+     la barre d'onglets : sa hauteur peinte (10px de bas compris), dont le
+     bas est remplacé par celui qu'elle paie réellement en padding. */
+  --spacing-above-tab-bar: calc(
+    var(--spacing-tab-bar-height) - 10px + var(--spacing-tab-bar-bottom)
+  );
+  /* Haut de la coquille : la barre d'état, sous laquelle l'app Android dessine
+     (bord à bord). Nul dans un onglet de navigateur et sur desktop. */
+  --spacing-safe-top: env(safe-area-inset-top);
   /* Écart entre la rangée de boutons et le titre de l'en-tête de binder
      illustré (`margin-bottom:130px`) — nommé plutôt qu'un entier qui
      tomberait juste par hasard (conventions de docs/development.md), même

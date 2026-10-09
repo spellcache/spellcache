@@ -1,0 +1,56 @@
+# dépendances
+node_modules/
+.pnpm-store/
+
+# build
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# environnement / secrets
+.env
+.env.*
+!.env.example
+
+# tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# données locales (dumps, imports bulk) — pas les migrations Drizzle commitées
+# ni l'échantillon de test (tests/integration/import-bulk.test.ts)
+data/
+thumbs/
+*.jsonl
+*.jsonl.gz
+*.sql
+*.sql.gz
+*.enc
+!**/migrations/**/*.sql
+!**/tests/fixtures/**/*.jsonl
+
+# outils
+.vercel/
+.turbo/
+.cache/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local, never published
+**/scripts/tmp/
+
+# symboles de mana (propriété de Wizards of the Coast) — téléchargés depuis
+# Scryfall par scripts/fetch-mana.mjs, jamais versionnés
+**/public/mana/

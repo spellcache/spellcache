@@ -1,0 +1,27 @@
+{
+  "name": "@spellcache/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Worker de spellcache : import du bulk Scryfall, prix et valorisations nocturnes, file des jobs manuels.",
+  "scripts": {
+    "start": "node --env-file-if-exists=../../.env src/index.ts",
+    "import:bulk": "node --env-file-if-exists=../../.env src/import-bulk.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@spellcache/core": "workspace:*",
+    "ioredis": "^6.0.0",
+    "pg": "^8.13.1",
+    "pg-copy-streams": "^7.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/pg-copy-streams": "^1.2.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

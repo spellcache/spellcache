@@ -1,0 +1,26 @@
+{
+  "name": "@spellcache/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Code partagé par l'app web et le worker : client et schémas Scryfall, URLs d'images, contrat de la file de jobs. Aucune dépendance à Next.js.",
+  "exports": {
+    "./images": "./src/images.ts",
+    "./jobs": "./src/jobs.ts",
+    "./scryfall/client": "./src/scryfall/client.ts",
+    "./scryfall/resolve-missing": "./src/scryfall/resolve-missing.ts",
+    "./scryfall/schemas": "./src/scryfall/schemas.ts"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

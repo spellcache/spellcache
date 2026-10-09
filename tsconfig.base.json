@@ -1,0 +1,21 @@
+{
+  // Options communes à tous les packages du workspace. Chaque package a son
+  // propre `tsconfig.json` qui étend celui-ci et lance son `typecheck`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    // Le worker et les packages partagés s'exécutent en TypeScript natif
+    // sous Node, sans bundler : leurs imports relatifs portent l'extension
+    // `.ts` explicite, requise par la résolution ESM de Node.
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true
+  }
+}

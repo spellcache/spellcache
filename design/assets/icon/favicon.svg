@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="spellcache">
+  <rect width="64" height="64" rx="14.5" fill="#16141F"></rect>
+  <g transform="translate(1.9 1) scale(0.62)">
+    <path d="M45 10 H75 V74 L60 62 L45 74 Z" fill="none" stroke="#E8B44A" stroke-width="8" stroke-linejoin="round"></path>
+    <path d="M22 22 H58 V94 L40 80 L22 94 Z" fill="#16141F" stroke="#16141F" stroke-width="9" stroke-linejoin="round"></path>
+    <path d="M22 22 H58 V94 L40 80 L22 94 Z" fill="#E8B44A"></path>
+  </g>
+</svg>

@@ -1,0 +1,184 @@
+# Auto-hébergement de spellcache : web, worker, postgres, redis. Le HTTPS et le
+# reverse proxy restent à la charge de l'hébergeur (nginx, Traefik, Caddy,
+# Cloudflare Tunnel…) : le service web est publié sur la boucle locale.
+#
+#   cp .env.example .env      # puis le remplir
+#   docker compose -f docker-compose.example.yml up -d
+#
+# Les images viennent de GHCR, publiées à chaque release
+# (`SPELLCACHE_VERSION`, `latest` par défaut). Voir docs/self-hosting.md.
+#
+# L'interpolation `${...}` ci-dessous lit le fichier `.env` du répertoire du
+# projet. Aucune valeur réelle n'existe dans le dépôt.
+#
+# Taillé pour un serveur de 4 Go : chaque service porte une limite mémoire
+# explicite, sans quoi `postgres` et l'import bulk peuvent l'épuiser à eux deux.
+# Total plafonné ici à 2,8 Go, le reste revient à l'hôte.
+
+name: spellcache
+
+x-logging: &logging
+  # Journalisation bornée : sur un VPS de 4 Go, un journal non tourné remplit
+  # le disque avant qu'on ne s'en aperçoive.
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Paramètres taillés pour 4 Go de RAM partagés entre quatre services : les
+    # défauts de l'image sont plus généreux et se cumulent mal avec le worker
+    # d'import.
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - effective_cache_size=768MB
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      # Boucle locale du VPS uniquement, jamais `0.0.0.0` : c'est par là que
+      # `deploy/backup.sh` et `deploy/restore.sh` joignent la base depuis
+      # l'hôte (ils ont besoin d'openssl et de la clé SSH de l'hôte, ils ne
+      # peuvent donc pas tourner dans un conteneur). Voir deploy/cron.md.
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  redis:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    logging: *logging
+    # `volatile-lru`, jamais `allkeys-*` : les clés du cache de recherche
+    # portent un TTL et sont donc évinçables, la file de jobs et le verrou
+    # nocturne n'en portent pas — les évincer perdrait une nuit
+    # entière. `noeviction` ferait l'inverse : le cache saturerait la file.
+    command:
+      - valkey-server
+      - --save
+      - '60 1'
+      - --maxmemory
+      - 192mb
+      - --maxmemory-policy
+      - volatile-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'valkey-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  web:
+    image: ghcr.io/spellcache/web:${SPELLCACHE_VERSION:-latest}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      # `output: 'standalone'` déplace le répertoire d'exécution : le chemin du
+      # cache disque des vignettes est posé explicitement, et le volume monté
+      # au même endroit — sinon il repart de zéro à chaque déploiement.
+      THUMBNAILS_DIR: /app/thumbs
+      # `:?` : le démarrage échoue si la valeur manque, plutôt que de tourner
+      # avec un lien magique construit depuis l'en-tête Host (AUTH_URL vide),
+      # sans envoi possible (RESEND_API_KEY) ou avec un premier admin ouvert
+      # à n'importe qui (ADMIN_EMAIL).
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set in .env}
+      AUTH_URL: ${AUTH_URL:?AUTH_URL must be set in .env}
+      # Auth.js v5 derrière un reverse proxy : sans cela, les liens magiques
+      # sont construits depuis l'hôte interne du conteneur.
+      AUTH_TRUST_HOST: 'true'
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY must be set in .env}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:?RESEND_FROM_EMAIL must be set in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL must be set in .env}
+    ports:
+      # Boucle locale par défaut : le reverse proxy de l'hôte se place
+      # devant. `WEB_BIND=0.0.0.0` pour l'exposer
+      # directement, en connaissance de cause (pas de HTTPS).
+      - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000'
+    volumes:
+      - thumbnails:/app/thumbs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # `start_period` couvre l'application des migrations, qui précède
+    # l'ouverture du port : le service reste `starting`,
+    # pas `unhealthy`, pendant ce temps.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  worker:
+    image: ghcr.io/spellcache/worker:${SPELLCACHE_VERSION:-latest}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      WORKER_NIGHTLY_AT: ${WORKER_NIGHTLY_AT}
+      WORKER_TIMEZONE: ${WORKER_TIMEZONE}
+      WORKER_HEALTH_PORT: '8081'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Le worker n'applique jamais les migrations : il attend que `web` les
+      # ait appliquées (un seul conteneur les applique).
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8081/health >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+volumes:
+  postgres-data:
+  redis-data:
+  # Cache disque des vignettes du proxy d'images, monté sur `/app/thumbs`
+  # dans `web` — le même chemin que `THUMBNAILS_DIR`.
+  thumbnails:

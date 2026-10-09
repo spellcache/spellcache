@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Signet de design/assets/icon/spellcache-icon.svg, recentré dans la
+     grille 108 dp des icônes adaptatives (zone sûre : cercle de 66 dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="28.65"
+        android:translateY="27.35"
+        android:scaleX="0.52"
+        android:scaleY="0.52">
+        <path
+            android:pathData="M44.5,10.5 H73.5 V73 L59,62 L44.5,73 Z"
+            android:strokeColor="#E8B44A"
+            android:strokeWidth="5"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M24,22 H58 V92 L41,79 L24,92 Z"
+            android:fillColor="#16141F"
+            android:strokeColor="#16141F"
+            android:strokeWidth="7"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M24,22 H58 V92 L41,79 L24,92 Z"
+            android:fillColor="#E8B44A" />
+        <path
+            android:pathData="M41,35 Q43.6,45.4 54,48 Q43.6,50.6 41,61 Q38.4,50.6 28,48 Q38.4,45.4 41,35 Z"
+            android:fillColor="#16141F" />
+    </group>
+</vector>

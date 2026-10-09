@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "packages": {
+    ".": {
+      "package-name": "spellcache",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "apps/web/package.json",
+          "jsonpath": "$.version"
+        },
+        "apps/android/android/app/build.gradle"
+      ]
+    }
+  }
+}

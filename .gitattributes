@@ -1,0 +1,15 @@
+# Fins de ligne des fichiers exécutés sous Linux.
+#
+# Un `.sh` ou un `Dockerfile` extrait en CRLF sur un poste Windows puis copié
+# dans une image casse à l'exécution : `/bin/sh^M: bad interpreter`, et un
+# `RUN` dont la dernière commande porte un `\r`. Ces fichiers restent en LF
+# quel que soit `core.autocrlf` du poste.
+*.sh text eol=lf
+*.mjs text eol=lf
+Dockerfile text eol=lf
+Dockerfile.worker text eol=lf
+
+# Wrapper Gradle de l'app Android : lancé tel quel par la CI Linux.
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

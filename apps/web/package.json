@@ -1,0 +1,49 @@
+{
+  "name": "@spellcache/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Application web Next.js de spellcache.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "copy-assets": "node scripts/copy-assets.mjs",
+    "fetch:mana": "node scripts/fetch-mana.mjs",
+    "predev": "node scripts/fetch-mana.mjs",
+    "prebuild": "node scripts/copy-assets.mjs && node scripts/fetch-mana.mjs"
+  },
+  "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.3",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-popover": "^1.1.23",
+    "@spellcache/core": "workspace:*",
+    "@spellcache/db": "workspace:*",
+    "@tanstack/react-query": "^5.102.3",
+    "@tanstack/react-virtual": "^3.14.10",
+    "drizzle-orm": "^0.45.3",
+    "ioredis": "^6.0.0",
+    "lucide-react": "^0.469.0",
+    "next": "15.5.27",
+    "next-auth": "5.0.0-beta.32",
+    "pg": "^8.13.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "resend": "^6.22.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

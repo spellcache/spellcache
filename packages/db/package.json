@@ -1,0 +1,32 @@
+{
+  "name": "@spellcache/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Schéma Drizzle, migrations SQL versionnées et client PostgreSQL de spellcache.",
+  "exports": {
+    ".": "./src/client.ts",
+    "./array-param": "./src/array-param.ts",
+    "./errors": "./src/errors.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "seed:collector": "node --env-file-if-exists=../../.env scripts/seed-collector.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@spellcache/core": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

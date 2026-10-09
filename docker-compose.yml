@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spellcache
+      POSTGRES_PASSWORD: spellcache
+      POSTGRES_DB: spellcache
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U spellcache']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Base éphémère pour `pnpm test` (tests/integration) — profil dédié, jamais
+  # démarrée par un simple `docker compose up -d`. Stockage en tmpfs : aucune
+  # donnée ne survit à l'arrêt du conteneur.
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: ['test']
+    environment:
+      POSTGRES_USER: spellcache
+      POSTGRES_PASSWORD: spellcache
+      POSTGRES_DB: spellcache_test
+    ports:
+      - '127.0.0.1:5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U spellcache']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6379:6379'
+
+  # Ordonnancement local du worker nocturne : processus worker autonome
+  # (conteneur worker du Compose) avec un ordonnanceur interne, qui doit
+  # fonctionner ici, en local, via ce Compose de développement — le
+  # déploiement en production et le cron système vivent ailleurs
+  # (`docker-compose.example.yml`, `deploy/cron.md`). Construit localement
+  # depuis le même Dockerfile que la production : un montage du dépôt ne
+  # tient pas dans un workspace pnpm, dont
+  # les `node_modules` de chaque package sont des liens symboliques en chemins
+  # absolus de l'hôte, qui pendraient dans le vide dans le conteneur. Après
+  # une modification du worker : `docker compose up -d --build worker`.
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Hôtes du réseau du Compose, jamais `localhost` (spec `.env.example`,
+      # écrit pour un process hors conteneur).
+      DATABASE_URL: postgres://spellcache:spellcache@postgres:5432/spellcache
+      REDIS_URL: redis://redis:6379
+      # Heure UTC (0-23) du sondage nocturne — repli
+      # sur 3 dans `apps/worker/src/index.ts` si absente ou hors bornes.
+      WORKER_NIGHTLY_HOUR_UTC: '3'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # L'app web construite comme en production, pour tester l'image en local :
+  # `docker compose --profile full up -d --build`. Le développement courant
+  # reste `pnpm dev` sur l'hôte (même port 3000 : l'un ou l'autre). L'image
+  # tourne en `NODE_ENV=production` : la connexion exige `RESEND_API_KEY`
+  # dans le `.env` racine, d'où viennent aussi `AUTH_SECRET` et `ADMIN_EMAIL`.
+  web:
+    profiles: ['full']
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://spellcache:spellcache@postgres:5432/spellcache
+      REDIS_URL: redis://redis:6379
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: 'true'
+      THUMBNAILS_DIR: /app/thumbs
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - thumbnails:/app/thumbs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  # Vignettes de carte mises en cache par le proxy d'images — déclaré dès
+  # le socle pour que le proxy n'ait pas à modifier la structure de ce fichier.
+  thumbnails:

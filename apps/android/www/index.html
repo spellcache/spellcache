@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src https:; img-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <meta name="color-scheme" content="dark light" />
+    <title>spellcache</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <img class="logo" src="icon.svg" alt="" width="72" height="72" />
+      <h1>spellcache</h1>
+
+      <p class="status" id="opening" hidden>Opening <span id="opening-host"></span>…</p>
+
+      <form id="server-form" novalidate hidden>
+        <label for="server">Your spellcache server</label>
+        <input
+          id="server"
+          name="server"
+          type="url"
+          inputmode="url"
+          autocomplete="url"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="https://spellcache.example"
+          required
+        />
+        <p class="hint">The address you open spellcache at in your browser.</p>
+        <p class="error" id="error" role="alert" hidden></p>
+        <button type="submit" id="connect">Connect</button>
+      </form>
+    </main>
+    <script src="capacitor.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

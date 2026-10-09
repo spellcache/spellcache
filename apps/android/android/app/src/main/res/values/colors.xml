@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond de l'app (token color-bg sombre de globals.css), aussi celui du
+         lancement : pas d'éclair blanc avant le premier rendu. -->
+    <color name="app_background">#0A090E</color>
+</resources>

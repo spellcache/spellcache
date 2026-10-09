@@ -1,0 +1,19 @@
+{
+  "name": "@spellcache/android",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Application Android de spellcache : coque Capacitor qui ouvre l'instance choisie par l'utilisateur.",
+  "scripts": {
+    "sync": "node scripts/copy-runtime.mjs && cap sync android",
+    "open": "cap open android",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}

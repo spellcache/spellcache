@@ -1,0 +1,113 @@
+/* Valeurs reprises des tokens de apps/web/app/globals.css (--color-*). */
+:root {
+  color-scheme: dark light;
+  --bg: light-dark(#f3f2f6, #0a090e);
+  --surface: light-dark(#ffffff, #14121a);
+  --text: light-dark(#16141f, #f1eff4);
+  --text-2: light-dark(#615d6e, #858190);
+  --border: light-dark(rgba(22, 20, 31, 0.12), rgba(255, 255, 255, 0.08));
+  --accent: #e8b44a;
+  --accent-ink: #16141f;
+  --danger: light-dark(#dc2626, #f87171);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.45 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 18vh) 24px 32px;
+}
+
+.logo {
+  border-radius: 16px;
+}
+
+h1 {
+  margin: 16px 0 32px;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+label {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.hint,
+.status {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.hint {
+  margin: 8px 0 0;
+}
+
+.error {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+button {
+  height: 48px;
+  margin-top: 24px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+[hidden] {
+  display: none !important;
+}

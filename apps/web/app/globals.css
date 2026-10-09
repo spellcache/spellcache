@@ -1,0 +1,1802 @@
+@import 'tailwindcss';
+@source not "../docs";
+
+@theme {
+  /* Couleurs */
+  --color-bg: light-dark(#f3f2f6, #0a090e);
+  --color-surface-1: light-dark(#ffffff, #14121a);
+  --color-surface-2: light-dark(#f6f5f9, #17151e);
+  --color-surface-3: light-dark(#ecebf1, #1b1923);
+  --color-surface-sunken: light-dark(#eceaf0, #100f15);
+
+  --color-accent: #e8b44a;
+  --color-accent-text: light-dark(#8f6410, #f0c060);
+  --color-accent-light: light-dark(#a87a1c, #f6d996);
+  --color-accent-bg: light-dark(#fbf0d9, #221c12);
+  /* Pastilles du sélecteur d'accent de Settings : chacune montre SA couleur,
+     quel que soit l'accent actif — d'où des tokens fixes, pas `--color-accent`
+     (variantes : blocs `:root[data-accent]` en fin de fichier). */
+  --color-swatch-gold: #e8b44a;
+  --color-swatch-blue: #3d7bff;
+  --color-swatch-violet: #7c3aed;
+  --color-swatch-silver: #c9cdd8;
+  /* Diamètre d'une pastille du sélecteur d'accent. */
+  --width-accent-swatch: 28px;
+  --height-accent-swatch: 28px;
+
+  --color-text: light-dark(#16141f, #f1eff4);
+  --color-text-2: light-dark(#615d6e, #858190);
+  --color-text-3: light-dark(#9a96a6, #4e4b5a);
+  --color-text-art: light-dark(#6c6879, #bcb8c8);
+
+  --color-danger: light-dark(#dc2626, #f87171);
+  --color-success: light-dark(#0f9f6e, #34d399);
+  --color-warning: light-dark(#c2570c, #fb8c3c);
+
+  --color-border: light-dark(rgba(22, 20, 31, 0.08), rgba(255, 255, 255, 0.05));
+  --color-border-device: light-dark(rgba(22, 20, 31, 0.12), rgba(255, 255, 255, 0.08));
+  --color-border-accent: rgba(232, 180, 74, 0.55);
+  --color-border-accent-subtle: rgba(232, 180, 74, 0.45);
+  --color-modal-veil: rgba(4, 5, 8, 0.6);
+  /* Bordure du bouton `New binder or list` de l'accueil Shelves — distincte
+     de `--color-border` (0.05, ligne pleine) : alpha propre à cette bordure
+     pointillée. */
+  --color-border-dashed: light-dark(rgba(22, 20, 31, 0.22), rgba(255, 255, 255, 0.14));
+  /* Bordure de la puce de filtre `Needs work` de l'écran `Decks` — distincte
+     de `--color-border-accent-subtle` (même rôle « bordure de puce active »,
+     teinte différente : cette puce porte l'identité `--color-warning`
+     plutôt que l'accent, qu'elle soit active ou non). */
+  --color-border-warning-subtle: rgba(251, 140, 60, 0.32);
+  /* Tuiles de synthèse de la feuille `Assemble` — deux alphas propres à ces
+     tuiles, ni `--color-border-warning-subtle` (0.32) ni
+     `--color-border-deck-status-warn` (0.28) : ce sont des bordures de
+     carte, pas de puce. La troisième tuile (`to buy`) réutilise
+     `--color-border` (0.05), déjà exact. */
+  --color-border-tile-owned: rgba(52, 211, 153, 0.25);
+  --color-border-tile-missing: rgba(251, 140, 60, 0.3);
+  /* Bordure de l'option non sélectionnée du sélecteur à deux vignettes
+     `StylePicker` — distincte de `--color-border` (0.05, ligne pleine
+     générique) : alpha propre à cette vignette. */
+  --color-border-style-picker: light-dark(rgba(22, 20, 31, 0.1), rgba(255, 255, 255, 0.07));
+  /* Puces en surimpression de `GridTile` — alpha 0.68, distinct de
+     `--color-modal-veil` (0.6, réutilisé tel quel pour la puce de quantité
+     de la même tuile). */
+  --color-tile-pill-veil: rgba(4, 5, 8, 0.68);
+  /* Boutons ronds de l'en-tête de binder illustré (fond `Card art`) — alpha
+     distinct de `--color-modal-veil` (0.6) et `--color-tile-pill-veil`
+     (0.68, autre rôle) : une pastille translucide propre à ce fond
+     illustré. */
+  --color-header-icon-veil: rgba(4, 5, 8, 0.55);
+  /* Pastille de l'initiale sur la carte de profil de Settings : disque encre
+     plein, initiale en accent — un blanc translucide
+     (`rgba(255,255,255,0.16)`) se fondait dans le dégradé or. */
+  --color-avatar-bg: #16141f;
+  /* Piste d'un interrupteur `Switch` à l'état inactif. */
+  --color-switch-off: light-dark(#cfcdd7, #2a3040);
+  /* Barres de l'aperçu miniature `Compact` du sélecteur à vignettes
+     (`StylePicker`, trois premières barres) — même valeur que
+     `--color-switch-off` mais rôle distinct (conventions de
+     docs/development.md : un nom par rôle). */
+  --color-style-preview: light-dark(#d9d7e0, #2a3040);
+  /* Quatrième barre du même aperçu, plus sombre — le design la distingue
+     des trois premières pour suggérer une ligne « au-delà du visible », pas
+     une simple répétition. Même valeur que la première tuile du bloc
+     `Shelves` ci-dessous, rôle distinct. */
+  --color-style-preview-muted: light-dark(#e6e4ec, #222733);
+  /* Première tuile de l'aperçu `Shelves` du même sélecteur, plus claire —
+     trois teintes distinctes composent chaque piste de deux tuiles, jamais
+     une seule couleur répétée. */
+  --color-style-preview-accent: light-dark(#c9c6d3, #2f3648);
+
+  /* Fonds de la puce de statut de deck (`components/decks/status-chip.tsx`),
+     ceux des rangées illustrée/dégradé de l'écran `Deck lists`. Le gabarit
+     `DeckStatusRow` (ci-dessous) porte une seconde alpha, 0.12, pour une
+     ligne sans art ni dégradé qu'aucune donnée de ce modèle ne produit
+     jamais ici : une ligne sans commandant ni format n'a par construction
+     que le statut `noFormat`, jamais `warn`/`ok` — voir le commentaire de
+     tête de `mf-deck-row.tsx`. */
+  --color-status-warn-bg: rgba(251, 140, 60, 0.16);
+  --color-status-ok-bg: rgba(52, 211, 153, 0.14);
+  /* Mêmes rôles, alphas propres à `DeckStatusRow` — un gabarit à fond plein
+     distinct de l'écran `Deck lists` (voir le commentaire de tête de
+     `components/decks/deck-status-row.tsx`), jamais les mêmes valeurs que
+     `--color-status-warn-bg`/`--color-status-ok-bg` ci-dessus recopiées à
+     l'approximation près (conventions de docs/development.md). */
+  --color-status-warn-bg-subtle: rgba(251, 140, 60, 0.12);
+  --color-status-ok-bg-subtle: rgba(52, 211, 153, 0.12);
+  /* Bordure de la variante `warn` de `DeckStatusRow` — distincte de
+     `--color-border-warning-subtle` (0.32, puce de filtre `Needs work`), un
+     rôle différent à la même alpha de base. */
+  --color-border-deck-status-warn: rgba(251, 140, 60, 0.28);
+  /* Bandeau d'avertissement de l'écran `Planning deck` — distinct de
+     `--color-status-warn-bg` (0.16, puce de statut) : ce bandeau porte sa
+     propre alpha, plus discrète. La bordure réutilise
+     `--color-border-warning-subtle` (0.32), déjà exactement cette valeur. */
+  --color-warning-banner-bg: rgba(251, 140, 60, 0.1);
+  /* Fond translucide du champ `Find in this deck...` et du bandeau de
+     couverture de l'écran `Planning deck` — les deux seuls éléments de
+     l'écran à porter cette alpha plutôt que `--color-surface-2` opaque
+     (`#141821`), pour laisser transparaître le fond commandant sous le
+     voile. */
+  --color-surface-translucent: light-dark(rgba(255, 255, 255, 0.85), rgba(18, 21, 28, 0.85));
+  /* Piste de `ManaCurveBar`/`ColorBar` — même valeur que `--color-border`
+     mais rôle distinct (conventions de docs/development.md : un nom par
+     rôle). */
+  --color-bar-track-bg: light-dark(rgba(22, 20, 31, 0.07), rgba(255, 255, 255, 0.05));
+
+  /* Carte de deck de 152px de la vue étagères de l'onglet `Decks`. */
+  --color-border-deck-card: light-dark(rgba(22, 20, 31, 0.1), rgba(255, 255, 255, 0.07));
+  /* Repli sans illustration de la même carte (fond et glyphe de cartes
+     empilées) — `#101319` est distinct de `--color-surface-sunken`
+     (`#0f1219`). */
+  --color-deck-card-art-fallback: light-dark(#e6e4ec, #101319);
+  --color-deck-card-glyph: light-dark(#b3b0be, #2f353f);
+  /* Nom de l'étagère `Unsorted` — même valeur que `--color-text-art` (texte
+     posé sur une illustration) mais rôle distinct : ici c'est un en-tête
+     d'étagère atténué, sur fond nu. */
+  --color-folder-unsorted: light-dark(#6c6879, #b3bccb);
+  /* Stub pointillé de fin de piste défilable — alpha distincte de
+     `--color-border-dashed` (0.14) et de `--color-border-new-deck-tile`
+     (0.13) ci-dessous. */
+  --color-border-shelf-stub: light-dark(rgba(22, 20, 31, 0.14), rgba(255, 255, 255, 0.1));
+  /* Tuile pointillée `New deck` de fin d'étagère courte. */
+  --color-border-new-deck-tile: light-dark(rgba(22, 20, 31, 0.2), rgba(255, 255, 255, 0.13));
+
+  /* Texte blanc pur sur une surface pleinement accentuée (carte de valeur,
+     segment actif du composant `Segmented`) — distinct de `--color-text`
+     (#eef1f6), qui reste la teinte par défaut même sur `bg-accent` pour les
+     boutons pleins existants (`invite-form.tsx`). */
+  --color-on-accent: #16141f;
+  /* Trois teintes de blanc translucide de la carte de valeur — trois alphas
+     distincts, jamais une seule couleur « blanc atténué ». */
+  --color-value-band-label: rgba(22, 20, 31, 0.75);
+  --color-value-band-chip: rgba(22, 20, 31, 0.85);
+  --color-value-band-caption: rgba(22, 20, 31, 0.7);
+
+  /* Bandeau de valeur totale — dégradé dédié, pas une couleur unie. */
+  --gradient-value-band: linear-gradient(150deg, #b07f26, #e8b44a);
+  /* Voile d'une ligne de binder illustrée — le plus dense exactement là où
+     le texte s'assoit : repris tel quel, jamais remplacé par un `rgba`
+     uniforme. */
+  --gradient-binder-veil: linear-gradient(
+    90deg,
+    rgba(8, 9, 12, 0.9) 0%,
+    rgba(8, 9, 12, 0.55) 58%,
+    rgba(8, 9, 12, 0.9) 100%
+  );
+  /* Voile d'une ligne de deck illustrée par l'art_crop du commandant —
+     paliers distincts de `--gradient-binder-veil` ci-dessus (0.5 à 60 %
+     plutôt que 0.55 à 58 %) : chaque ligne illustrée porte son propre voile,
+     jamais une approximation partagée (conventions de docs/development.md). */
+  --gradient-deck-veil: linear-gradient(
+    90deg,
+    rgba(8, 9, 12, 0.9) 0%,
+    rgba(8, 9, 12, 0.5) 60%,
+    rgba(8, 9, 12, 0.9) 100%
+  );
+  /* Voile de l'en-tête de binder en mode `Card art` — un dégradé vertical
+     distinct de `--gradient-binder-veil` ci-dessus (90deg, réservé à la
+     ligne de binder de l'accueil) : géométrie différente pour un fond de
+     ligne horizontal contre un bandeau d'en-tête vertical. La règle « une
+     seule définition, pas deux qui dérivent » s'applique en pratique à la
+     couleur/l'alpha réutilisés ici, pas à la forme du dégradé.
+     Palier intermédiaire à 52 % — la valeur exacte du design validé. Un
+     palier plus précoce supposerait que le titre s'assoit après lui, ce que
+     la mesure réelle infirme (le titre s'assoit à 190px sur 460, soit
+     41.3 %, avant 52 %). Le contraste ≥ 4.5:1 au pire cas reste garanti à
+     52 % par interpolation réelle de ce dégradé à la position du titre —
+     voir `lib/binders/gradients.ts#worstCaseTitleContrast`, prouvé par
+     `tests/unit/gradients.test.ts` — pas en avançant le palier. */
+  --gradient-binder-backdrop-art: linear-gradient(
+    180deg,
+    rgba(8, 9, 12, 0.15) 0%,
+    rgba(8, 9, 12, 0.72) 52%,
+    var(--color-bg) 100%
+  );
+  /* Dégradé du fond commandant de l'écran `Planning deck` — paliers
+     distincts de `--gradient-binder-backdrop-art` ci-dessus (0.2 à 0 % /
+     0.74 à 50 % contre 0.15 / 0.72 à 52 %) : chaque fond illustré porte son
+     propre dégradé, jamais une approximation partagée (conventions de
+     docs/development.md). Les deux bornes de 330px/440px se recouvrent
+     volontairement — ne pas les aligner. */
+  --gradient-deck-backdrop-art: linear-gradient(
+    180deg,
+    rgba(8, 9, 12, 0.2) 0%,
+    rgba(8, 9, 12, 0.74) 50%,
+    var(--color-bg) 100%
+  );
+  /* Remplissage de `ManaCurveBar` (courbe de mana). */
+  --gradient-mana-bar: linear-gradient(90deg, #c9952f, #e8b44a);
+
+  /* Rayons */
+  --radius-thumb: 4px;
+  --radius-chip: 12px;
+  --radius-control: 14px;
+  --radius-row: 18px;
+  --radius-card: 22px;
+  --radius-device: 26px;
+  /* Puce d'icône d'une ligne Settings/Administration — variante « puces,
+     segments » (9–12px) distincte de `--radius-chip`. */
+  --radius-row-icon: 9px;
+  /* Segment actif du composant `Segmented` générique — variante « puces,
+     segments » distincte de `--radius-row-icon` (même famille, valeur
+     différente). */
+  --radius-segment: 11px;
+  /* Conteneur de `CompactRow` — distinct de `--radius-row` (18px, lignes
+     pleines) : la ligne compacte a son propre rayon. */
+  --radius-row-compact: 12px;
+  /* Vignette de `CardRow` — distincte de `--radius-thumb` (4px, vignette
+     compacte/recherche). */
+  --radius-thumb-row: 6px;
+  /* Image de la feuille de détail de carte (même rayon que le panneau
+     d'aperçu desktop). */
+  --radius-detail-image: 12px;
+  /* Puces condition/foil/qty de `CardRow` et badges de `GridTile`. */
+  --radius-pill: 20px;
+  /* Toast `Undo`. */
+  --radius-toast: 16px;
+  /* Champs numériques `Price` de la feuille `Filters` — distinct de
+     `--radius-row-icon` (9px, autre rôle, même famille « puces,
+     segments »). */
+  --radius-filter-input: 10px;
+  /* Conteneur `Sort by` de la feuille `Sort & group`. */
+  --radius-sort-list: 16px;
+  /* Segmenté `High | Low` d'une ligne active de `Sort by` — distinct de
+     `--radius-row-icon` (9px). */
+  --radius-sort-toggle: 8px;
+  /* Coin d'une tuile d'illustration pure (`MiniTile`, variante étagère de
+     `GridTile`) — distinct de `--radius-thumb-row` (6px, autre rôle). */
+  --radius-tile-art: 7px;
+  /* Pastille de dégradé de la feuille `Binder look`. */
+  --radius-swatch: 16px;
+  /* Carte groupée qui réunit les lignes d'une feuille de menu ou de
+     réglages (`SheetGroup`, components/ui/sheet-controls.tsx) : les lignes
+     n'ont pas de bordure propre, c'est le groupe qui porte le rayon et
+     découpe ses enfants. Même valeur que `--radius-swatch` ci-dessus, rôle
+     distinct (conventions de docs/development.md : un nom par rôle). */
+  --radius-sheet-group: 16px;
+  /* Segmenté `None | Colour | Card art` de la même feuille — distinct de
+     `--radius-control` (14px, `Segmented` générique : cette feuille a son
+     propre gabarit, plus compact). */
+  --radius-control-compact: 12px;
+  /* Segment actif/inactif du même contrôle — distinct de `--radius-segment`
+     (11px). */
+  --radius-segment-compact: 9px;
+  /* Rail `Intensity` de la même feuille. */
+  --radius-rail: 3px;
+  /* Piste d'un interrupteur `Switch` (20px sur une piste de 26px de haut —
+     capé visuellement à une capsule pleine par le navigateur, valeur
+     reprise telle quelle). */
+  --radius-switch: 20px;
+  /* Barres et tuiles de l'aperçu miniature du sélecteur à vignettes
+     (`StylePicker`) — distinct de `--radius-rail` (même valeur, rôle
+     différent). */
+  --radius-style-preview: 3px;
+  /* Bandeau d'avertissement et bandeau de couverture de l'écran
+     `Planning deck` — même valeur que `--radius-swatch`/`--radius-toast`
+     mais rôle distinct (conventions de docs/development.md). */
+  --radius-banner: 16px;
+  /* Piste et remplissage de `ManaCurveBar`/`ColorBar` — même valeur que
+     `--radius-thumb` mais rôle distinct. */
+  --radius-bar: 4px;
+  /* Carte de deck de la vue étagères, son stub de fin de piste et sa tuile
+     `New deck` — même valeur que `--radius-row` mais rôle distinct
+     (conventions de docs/development.md). */
+  --radius-deck-card: 18px;
+
+  /* Grille d'espacement. Échelle dynamique de Tailwind 4 désactivée
+     (docs/development.md, Coding conventions) : un pas numérique vaut
+     toujours sa valeur littérale déclarée ci-dessous, jamais
+     `calc(var(--spacing) * N)`. Un pas absent de cette liste n'émet aucune
+     classe plutôt que de produire silencieusement une mauvaise valeur. */
+  --spacing: initial;
+  --spacing-0: 0px;
+  /* Décalage de la sous-ligne set/numéro/condition de `CompactRow`. */
+  --spacing-1: 1px;
+  --spacing-2: 2px;
+  /* Espace texte/légende sous un titre de ligne (nav row, ligne de binder) et
+     puce de variation de la carte de valeur. */
+  --spacing-3: 3px;
+  /* Décalage du libellé de section (« Administration », « Users »…) sous
+     son bloc (`margin:0 0 10px 4px`) — Tailwind 4 résout un `ml-4` sans
+     token via son échelle dynamique (`calc(var(--spacing) * 4)` = 16px, pas
+     4px) : la valeur doit donc être posée ici, pas laissée à l'échelle
+     par défaut. */
+  --spacing-4: 4px;
+  /* Décalage du montant sous le libellé « TOTAL COLLECTION VALUE ». */
+  --spacing-5: 5px;
+  --spacing-6: 6px;
+  /* Espace icône/texte des boutons pleine largeur `Find a card` / `Import`. */
+  --spacing-7: 7px;
+  --spacing-8: 8px;
+  /* Padding vertical d'un segment du composant `Segmented` — même piège que
+     `--spacing-4` : `py-9` sans token vaudrait 36px, pas 9px. */
+  --spacing-9: 9px;
+  --spacing-10: 10px;
+  --spacing-11: 11px;
+  --spacing-12: 12px;
+  /* Padding vertical d'une ligne Settings/Administration
+     (`padding:13px 14px`) — même piège que `--spacing-4` : `py-13` sans
+     token vaut 52px, pas 13px. */
+  --spacing-13: 13px;
+  --spacing-14: 14px;
+  /* Padding du bouton `New binder or list` de l'accueil Shelves — même piège
+     que `--spacing-4` : `py-15` sans token vaudrait 60px, pas 15px. */
+  --spacing-15: 15px;
+  /* Padding d'une ligne de binder (`padding:17px 14px`). */
+  --spacing-17: 17px;
+  --spacing-16: 16px;
+  --spacing-18: 18px;
+  /* Padding vertical d'un écran mobile de `(app)` (`px-16 py-20`) — même
+     piège que `--spacing-4`. */
+  --spacing-20: 20px;
+  --spacing-22: 22px;
+  /* Padding bas de la section de l'accueil Shelves
+     (`padding:16px 16px 24px`). */
+  --spacing-24: 24px;
+  /* Retrait gauche du champ `Find in this deck...` de l'écran
+     `Planning deck` (`padding:10px 10px 10px 32px`) — distinct de
+     `--spacing-34` (autre champ de recherche). */
+  --spacing-32: 32px;
+  /* Retrait gauche du champ de recherche de la barre de commande
+     (`padding:10px 12px 10px 34px`, place l'icône `search` en surimpression
+     à gauche). */
+  --spacing-34: 34px;
+  /* Hauteur réellement peinte de `TabBar` (`components/ui/tab-bar.tsx`),
+     zone sûre exclue — relevée dans le navigateur (`getBoundingClientRect`).
+     La barre est dans le flux de la coquille depuis qu'elle a cessé d'être
+     `fixed` : plus aucune réserve de défilement ne lui est due, et l'ancien
+     `--spacing-tab-bar-reserve` (96px) a disparu avec elle. */
+  --spacing-tab-bar-height: 67.4px;
+  /* Bas de la barre d'onglets : les 10px du design, plus la zone sûre
+     de l'appareil (indicateur d'accueil d'un iPhone). Vaut exactement 10px
+     partout où `env()` est nul, donc sur tout le desktop. */
+  --spacing-tab-bar-bottom: calc(10px + env(safe-area-inset-bottom));
+  /* Ce qu'une barre flottante doit dégager pour se poser juste au-dessus de
+     la barre d'onglets : sa hauteur peinte, zone sûre comprise cette fois —
+     puisque c'est la barre elle-même qui la paie en padding. */
+  --spacing-above-tab-bar: calc(var(--spacing-tab-bar-height) + env(safe-area-inset-bottom));
+  /* Écart entre la rangée de boutons et le titre de l'en-tête de binder
+     illustré (`margin-bottom:130px`) — nommé plutôt qu'un entier qui
+     tomberait juste par hasard (conventions de docs/development.md), même
+     convention que `--spacing-tab-bar-reserve`. */
+  --spacing-binder-title-gap: 130px;
+  /* Décalage bas du toast `Undo` (`bottom:150px`) : il doit dégager la barre
+     d'onglets *et* la barre d'action groupée qui se pose dessus, ce que les
+     112px précédents ne faisaient pas — le toast passait derrière elle.
+     Zone sûre ajoutée, comme pour les deux barres. */
+  --spacing-toast-offset: calc(150px + env(safe-area-inset-bottom));
+  /* Décalage haut du fil d'ariane de l'écran `Planning deck`, quand un fond
+     (commandant, dégradé d'identité ou dérogation) est peint derrière. Le
+     design ne pose que 104px de `margin-bottom` entre la rangée de boutons
+     flottants et le fil d'ariane — mais cette rangée et le fil d'ariane y
+     partagent la même boîte (un seul conteneur `padding:20px 16px…`), alors
+     que `DeckBackdrop` (rangée de boutons) et le contenu défilant de
+     `DeckView` (fil d'ariane) sont deux boîtes soeurs distinctes ici, chacune
+     avec son propre haut. Ce jeton porte donc le décalage total mesuré
+     depuis le haut de l'écran (la rangée de boutons flottants +
+     `margin-bottom:104px` = y:160, pas seulement les 104px de marge) : 20px
+     (le `pt-20` du bouton retour, identique des deux côtés) + 36px
+     (`--height-back-button`, la rangée de boutons) + 104px (la marge du
+     design) = 160px. Un deck sans fond (aucun format, surface nue) reste
+     sur `pt-20`, rien à décaler sous. */
+  --spacing-deck-header-gap: 160px;
+  /* Réserve basse du contenu défilant de l'écran `Planning deck`, au-dessus
+     du pied fixe `Add cards`/`Assemble` — hauteur du pied
+     (`--height-deck-footer` ci-dessous) plus un espacement de 16px, même
+     convention que `--spacing-toast-offset`. La barre d'onglets, elle, est
+     dans le flux et ne demande plus aucune réserve. */
+  --spacing-deck-content-bottom-reserve: 83px;
+
+  /* Dimensions — aucune valeur littérale en dur dans un composant
+     (docs/development.md) ; une taille absente d'ici signale un token manquant. */
+  /* Vignette de `SearchRow`. */
+  --width-thumb-search: 44px;
+  --height-thumb-search: 61px;
+  /* Squelette de chargement de l'onglet Search : même hauteur hors-tout que
+     `SearchRow` (`--height-thumb-search` + deux fois le padding vertical
+     `py-10` + les deux bordures de la ligne), pour que le squelette n'imite
+     pas un motif visuel absent du design. Les bordures manquaient au
+     compte, le bloc était 2px trop court. */
+  --height-row-search-skeleton: 83px;
+  /* Squelettes des écrans qui n'en avaient pas — un `loading.tsx` par route.
+     Les hauteurs sont celles des éléments réellement remplacés, relevées à
+     390px de large dans le navigateur. Elles dépendent maintenant de la
+     police que la machine résout pour `--font-sans` : l'app n'en charge
+     aucune, ces valeurs sont donc celles d'un poste sans Inter installée, et
+     un poste qui l'a rendra quelques pixels plus court : un bloc d'une autre
+     hauteur ferait sauter la mise en page au remplacement, ce qui est le
+     contraire du but. Les deux largeurs, elles, sont choisies — un titre ou
+     une légende occupe une fraction de sa colonne, et un bloc pleine largeur
+     ne ressemblerait pas à ce qu'il annonce. */
+  --height-title-skeleton: 39.2px;
+  --width-title-skeleton: 148px;
+  --height-profile-skeleton: 96px;
+  --height-label-skeleton: 16px;
+  --width-label-skeleton: 104px;
+  /* Une ligne de réglage — relevée elle aussi, à 56px : `py-13` autour d'une
+     puce d'icône de 30px, qui l'emporte sur la ligne de texte et fixe seule
+     la hauteur. La valeur précédente (46px) était déduite à la main d'un
+     texte à `line-height: 1.5`, et se trompait deux fois. */
+  --height-row-setting-skeleton: 56px;
+  /* Le champ de recherche de l'onglet Search, sa coquille comprise —
+     relevée à 37.6px (`py-10` autour d'une ligne de 13.5px au socle
+     `line-height: normal`). */
+  --height-row-search-field: 37.6px;
+  /* Puce d'icône d'une ligne Settings/Administration. */
+  --width-row-icon: 30px;
+  --height-row-icon: 30px;
+  /* Boutons ronds de l'en-tête `Collection` (bouton `···` et bouton `+`
+     accent). */
+  --width-header-action: 38px;
+  --height-header-action: 38px;
+  --width-header-add: 42px;
+  --height-header-add: 42px;
+  /* Boutons ronds `search`/`···` de l'en-tête de l'accueil Shelves —
+     distincts de `--width-header-action` (38px, style Compact) : les deux
+     styles n'ont pas les mêmes boutons. */
+  --width-header-action-shelf: 36px;
+  --height-header-action-shelf: 36px;
+  /* Bouton `+` accent de l'en-tête Shelves — distinct de
+     `--width-header-add` (42px, Compact). */
+  --width-header-add-shelf: 40px;
+  --height-header-add-shelf: 40px;
+  /* `MiniTile` de la section `Recently added` de l'accueil Shelves. */
+  --width-mini-tile: 76px;
+  --height-mini-tile: 106px;
+  /* Ligne de deck (`DeckRow`) : hauteur fixe, celle d'une ligne avec sa puce
+     de statut — une ligne sans puce (`noRules`) ne rétrécit plus et la liste
+     garde un rythme régulier. */
+  --height-deck-row: 108px;
+  /* Largeur fixe d'une tuile de piste d'étagère (variante d'étagère de
+     `GridTile`, `GridTileShelf`) — `--aspect-card` fixe la hauteur. */
+  --width-shelf-tile: 66px;
+  /* Puce d'icône d'une ligne de navigation `All collection` / `Decks`. */
+  --width-nav-icon: 46px;
+  --height-nav-icon: 46px;
+  /* Bouton `···` de `DeckStatusRow` — distinct de `--width-header-action`
+     (38px, en-têtes d'écran, autre rôle) : pas de hauteur propre, la ligne
+     (`items-stretch`) l'étire à celle de son bouton frère. */
+  --width-deck-status-more-button: 40px;
+  /* Bouton de fermeture rond d'une feuille (`Sheet`). */
+  --width-close-button: 32px;
+  --height-close-button: 32px;
+  /* Vignette de `CompactRow`. */
+  --width-thumb-compact: 30px;
+  --height-thumb-compact: 42px;
+  /* Vignette de `CardRow` — 44×61 reproduits tels quels, en flux : c'est
+     elle qui fixe la hauteur de la ligne (`ROW_HEIGHT.rows = 84`), la
+     colonne de texte culminant à ~62px à côté. */
+  --width-thumb-row: 44px;
+  --height-thumb-row: 61px;
+  /* Icône de set du pied de `GridTile` — une boîte carrée forcée en CSS,
+     pas seulement en attributs HTML `width`/`height` : le preflight Tailwind
+     pose `img { height: auto }`, qui l'emporte sur l'attribut HTML et fait
+     dépendre la hauteur rendue du ratio intrinsèque du SVG de set (mesuré
+     jusqu'à 235.1875px de tuile au lieu de 233.1875px selon le set).
+     Un utilitaire `h-icon-set-tile`/`w-icon-set-tile` (couche Tailwind
+     utilities) vient après le preflight (couche base) dans la cascade et
+     regagne la main ; `object-fit` n'est pas posé, l'icône est étirée dans
+     la boîte 14×14, comme dans le design validé. */
+  --width-icon-set-tile: 14px;
+  --height-icon-set-tile: 14px;
+  /* Image de la feuille de détail de carte (même largeur que le panneau
+     d'aperçu desktop) — le ratio 5/7 fixe la hauteur (`--aspect-card`
+     ci-dessous). */
+  --width-detail-image: 150px;
+  /* Zone tactile élargie autour d'un bouton `+`/`−` : 44px minimum,
+     distincte de la taille visuelle du bouton (`--width-qty-button`
+     ci-dessous, 22px). */
+  --width-touch-target: 44px;
+  --height-touch-target: 44px;
+  /* Bouton rond `+`/`−` de `QtyStepper`. */
+  --width-qty-button: 22px;
+  --height-qty-button: 22px;
+  /* Bouton de retour rond d'un écran de container (sans design mobile
+     dédié) — le bouton rond de retour du design validé, réutilisé pour
+     l'écran `/container/[id]` non illustré. */
+  --width-back-button: 36px;
+  --height-back-button: 36px;
+  /* Boutons `palette`/`···` de l'en-tête de binder illustré — même 36px que
+     `--width-back-button`/`--height-back-button` ci-dessus (même gabarit de
+     bouton rond, prévu pour cette réutilisation, voir le commentaire
+     ci-dessus). */
+  /* Bouton `+` accent de l'en-tête de binder illustré — distinct de
+     `--width-header-add` (42px, accueil Compact) et
+     `--width-header-add-shelf` (40px, accueil Shelves, rôle différent :
+     nommé à part malgré la valeur identique). */
+  --width-header-add-binder: 40px;
+  --height-header-add-binder: 40px;
+  /* Pastille de dégradé de la feuille `Binder look`. */
+  --width-swatch: 52px;
+  --height-swatch: 52px;
+  /* Rail `Intensity` de la même feuille. */
+  --width-intensity-rail: 130px;
+  --height-intensity-rail: 5px;
+  /* Poignée du rail `Intensity`. */
+  --width-intensity-handle: 17px;
+  --height-intensity-handle: 17px;
+  /* Bandeau d'en-tête illustré d'un binder : hauteur de l'illustration
+     (`--height-binder-backdrop-image`) et hauteur totale du voile qui la
+     recouvre et se prolonge après elle jusqu'au fond plein
+     (`--height-binder-backdrop`) — deux hauteurs distinctes, pas une seule
+     approximée en commun. */
+  --height-binder-backdrop-image: 340px;
+  /* 430px : hauteur unique du fond illustré (demande produit, au lieu des
+     460px du design initial). */
+  --height-binder-backdrop: 430px;
+  /* Case de sélection ronde d'une ligne. */
+  --width-selection-circle: 18px;
+  --height-selection-circle: 18px;
+  /* Boutons `Cancel`/`Select all` de l'en-tête de sélection. */
+  --height-selection-header-button: 36px;
+
+  /* Fond commandant de l'écran `Planning deck` : illustration (330px) et
+     dégradé qui la recouvre et se prolonge après elle — deux hauteurs
+     distinctes qui se recouvrent volontairement, même patron que
+     `--height-binder-backdrop-image`/`--height-binder-backdrop`. Fond peint
+     sur 430px, comme celui du binder. */
+  --height-deck-backdrop-image: 330px;
+  --height-deck-backdrop: 430px;
+  /* Vignette de `AddRow` (tiroir d'ajout) — distincte de
+     `--width-thumb-compact` (30×42) : ce tiroir a sa propre vignette. */
+  --width-thumb-add: 32px;
+  --height-thumb-add: 45px;
+  /* Bouton d'ajout rond de `AddRow` — distinct de `--width-qty-button`
+     (22px, autre rôle). */
+  --width-add-row-button: 32px;
+  --height-add-row-button: 32px;
+  /* Piste de `ManaCurveBar`/`ColorBar`. */
+  --height-bar-track: 15px;
+  /* Libellé de palier de `ManaCurveBar` (`0`…`7+`). */
+  --width-bar-label: 18px;
+  /* Compteur aligné à droite de `ManaCurveBar`/`ColorBar`. */
+  --width-bar-count: 22px;
+  /* Libellé de couleur de `ColorBar`. */
+  --width-color-bar-label: 66px;
+  /* Poignée du tiroir d'ajout persistant de l'écran de construction. */
+  --width-drawer-handle: 38px;
+  --height-drawer-handle: 4px;
+  /* Fermeture ronde du tiroir d'ajout — distincte de `--width-close-button`
+     (32px, `Sheet` générique) : ce tiroir n'est pas un `Sheet`, il ne se
+     ferme jamais au clic extérieur (un tiroir qui se ferme après un ajout
+     est précisément ce que ce tiroir persistant supprime). */
+  --width-drawer-close: 30px;
+  --height-drawer-close: 30px;
+  /* Pied fixe `Add cards`/`Assemble` de l'écran `Planning deck` : padding
+     vertical 10px × 2 plus un bouton `padding:13px 0` sur un libellé 13.5px
+     à interligne Tailwind par défaut (`leading-normal`, 1.5 → 20.25px) —
+     2×10 + 2×13 + 20.25 ≈ 66.25px, arrondi à l'entier supérieur pour ne
+     jamais rogner le bouton (nommé plutôt qu'un entier qui tomberait juste
+     par hasard, conventions de docs/development.md). Consommé par
+     `--spacing-deck-content-bottom-reserve` ci-dessus. */
+  --height-deck-footer: 67px;
+
+  /* Carte de deck de la vue étagères de l'onglet `Decks` : 152px de large,
+     illustration de 92px de haut. Les deux valeurs sont posées en CSS,
+     jamais en attributs HTML `width`/`height` : le preflight Tailwind pose
+     `img { height: auto }`, qui l'emporte sur un attribut (même piège que
+     `--width-icon-set-tile`). Mesurées dans Chromium par
+     `tests/unit/row-heights.test.tsx`. */
+  --width-deck-card: 152px;
+  --height-deck-card-art: 92px;
+  /* Symbole de mana de la rangée de pips de cette carte — distinct de
+     `--width-icon-set-tile` (14px) : même piège de preflight, gabarit propre
+     à cette carte. */
+  --width-deck-card-pip: 11px;
+  --height-deck-card-pip: 11px;
+  /* Stub pointillé de fin de piste défilable. La tuile `New deck` de fin
+     d'étagère courte reprend `--width-deck-card` (152px). */
+  --width-shelf-stub: 60px;
+  /* Hauteur hors-tout d'une carte de deck — mesurée
+     (`getBoundingClientRect`, Chromium contre la feuille compilée, même
+     méthode que `--spacing-tab-bar-height`) :
+     `tests/unit/row-heights.test.tsx` la relève à 177px sur les trois
+     habillages (bande de 92px, corps `10px 11px 12px`, trois lignes de texte
+     au `line-height: normal` du socle). Consommée en `min-h-deck-card` par
+     la seule tuile pointillée `New deck` : dans une étagère peuplée,
+     l'étirement flex de la piste lui donne déjà la hauteur des cartes, mais
+     une étagère vide (un dossier qui vient d'être créé, ne contenant que la
+     tuile `New deck`) n'a aucune carte pour la dicter. */
+  --height-deck-card: 177px;
+
+  /* Pastille d'initiale de la carte de profil de Settings. */
+  --width-avatar: 56px;
+  --height-avatar: 56px;
+  /* Point de sélection d'une vignette du sélecteur `StylePicker` — distinct
+     de `--width-selection-circle` (18px, autre rôle). */
+  --width-style-dot: 14px;
+  --height-style-dot: 14px;
+  /* Tuile de l'aperçu miniature `Shelves` du même sélecteur. */
+  --width-style-preview-tile: 16px;
+  --height-style-preview-tile: 22px;
+  /* Barre de l'aperçu miniature `Compact` du même sélecteur (largeur
+     pleine — pas de token de largeur, `w-full`). */
+  --height-style-preview-bar: 9px;
+  /* Bouton du sélecteur de densité de Settings — distinct de
+     `--width-density-button` (32px, barre de commande : gabarit propre à
+     cet écran-ci). */
+  --width-settings-density-button: 30px;
+  --height-settings-density-button: 28px;
+  /* Piste d'un interrupteur `Switch`. */
+  --width-switch: 44px;
+  --height-switch: 26px;
+  /* Poignée du même interrupteur. */
+  --width-switch-knob: 20px;
+  --height-switch-knob: 20px;
+
+  /* Case de couleur de la feuille `Filters` — le symbole de mana qu'elle
+     porte est forcé en boîte CSS (`--width-icon-color-cell`/
+     `--height-icon-color-cell`), pas seulement en attributs HTML
+     `width`/`height` : même piège que `--width-icon-set-tile` (le preflight
+     Tailwind pose `img { height: auto }`, qui l'emporte sur l'attribut
+     HTML). */
+  --width-color-cell: 44px;
+  --height-color-cell: 44px;
+  /* Bouton du sélecteur de densité à trois icônes de la barre de commande —
+     gabarit de la barre de commande desktop, réutilisé tel quel sur mobile
+     (docs/development.md, anti-patterns : aucun langage visuel nouveau). */
+  --width-density-button: 32px;
+  --height-density-button: 32px;
+  --width-icon-color-cell: 24px;
+  --height-icon-color-cell: 24px;
+  /* Champs numériques `Price` (min/max) de la feuille `Filters`. */
+  --width-price-input: 62px;
+
+  /* Épaisseur de bordure — `border-thin` lit le thème `--border-width-*`
+     (namespace Tailwind 4 distinct de `--width-*`, vérifié sur la feuille de
+     style compilée). Case de couleur non sélectionnée de la feuille
+     `Filters` (`border:1.5px solid rgba(255,255,255,0.05)`) — absente de
+     `border`/`border-2` (l'échelle statique de Tailwind). */
+  --border-width-thin: 1.5px;
+
+  /* Largeur maximale de la carte centrée des écrans Login / Onboarding
+     username : `max-w-*` lit le
+     thème `--max-width-*`, distinct de `--width-*` en Tailwind 4. */
+  --max-width-auth-card: 400px;
+  /* Largeur maximale du paragraphe d'introduction de l'onboarding username. */
+  --max-width-auth-card-copy: 320px;
+  /* Popover desktop `Filters`/`Sort & group` — le design ne montre que la
+     variante feuille mobile : largeur alignée sur le device mobile (390px)
+     plutôt qu'une valeur arbitraire, seule mise en page neuve nécessaire
+     pour la variante desktop (mêmes tokens, aucun langage visuel neuf). */
+  --width-popover: 390px;
+
+  /* Hauteur maximale de la feuille `Filters` — opt-in via
+     `Sheet({ maxHeight: true })`, jamais le défaut : les autres feuilles
+     restent bornées à leur contenu. */
+  --max-height-sheet: 770px;
+  /* Hauteur maximale de la feuille `Assemble` — distincte de
+     `--max-height-sheet` (770px), opt-in via
+     `Sheet({ maxHeight: 'assemble' })`. */
+  --max-height-sheet-assemble: 812px;
+  /* Hauteur fixe du tiroir d'ajout persistant — pas un `Sheet` (voir
+     ci-dessus), donc pas `--max-height-sheet`. */
+  --height-add-drawer: min(640px, calc(100dvh - var(--keyboard-inset, 0px) - 24px));
+
+  /* Liste défilante du sélecteur de carte de la feuille `Binder look` (le
+     sélecteur liste les cartes du binder, pas le catalogue) — sans design
+     dédié (seul le mode `Colour` est dessiné) : bornée pour que la feuille reste sous
+     `--max-height-sheet` même pour un grand binder, plutôt qu'une valeur
+     arbitraire. */
+  --max-height-card-picker: 260px;
+
+  /* Largeur minimale — `min-w-*` lit le thème `--min-width-*`, un namespace
+     Tailwind 4 distinct de `--width-*` (même piège que `--max-width-*`
+     ci-dessus). */
+  /* Prix de `CompactRow` aligné à droite. */
+  --min-width-price-compact: 52px;
+  /* Chiffre de quantité de `QtyStepper`. */
+  --min-width-qty-value: 14px;
+  /* Pastille du nombre de filtres actifs sur le bouton `Filters` de la
+     barre de commande — sans design dédié (aucun filtre actif n'est
+     dessiné), taille alignée sur `--width-icon-color-cell`/24px de la même
+     feuille pour rester dans la même famille de contrôles plutôt qu'une
+     valeur arbitraire. */
+  --min-width-filter-badge: 18px;
+  --height-filter-badge: 18px;
+
+  /* Ratio d'une illustration de carte — `aspect-*` lit le thème `--aspect-*`
+     de Tailwind 4. Utilisé par `GridTile` et l'image de la feuille de détail
+     — jamais un `aspect-[5/7]` arbitraire (docs/development.md). */
+  --aspect-card: 5 / 7;
+
+  /* Tailles de police */
+  --text-title-screen: 30px;
+  /* Titre d'écran de l'accueil Shelves — distinct de `--text-title-screen`
+     (30px, style Compact) : les deux styles n'ont pas le même titre. */
+  --text-title-screen-shelf: 18px;
+  --text-title-subscreen: 22px;
+  --text-title-sheet: 17px;
+  --text-value-total: 36px;
+  --text-card-name: 15.5px;
+  --text-card-name-compact: 13.5px;
+  /* Nom de carte (et prix) de `SearchRow` — troisième variante. */
+  --text-card-name-search: 14.5px;
+  /* Libellé d'une ligne de type Settings/Administration (« Users »,
+     « Logout »…). */
+  --text-row-label: 14.5px;
+  /* Nombre de la carte de valeur (`1,284`, `742`, `12` — Inter, jamais
+     mono). */
+  --text-value-stat: 19px;
+  /* Légende sous un nombre de la carte de valeur (`cards`, `unique`,
+     `added this week`). */
+  --text-value-caption: 11.5px;
+  /* Valeur monétaire d'une ligne de binder — même valeur que
+     `--text-card-name-search` mais rôle différent, nommée à part comme
+     `--text-row-value` l'est déjà de `--text-card-name-compact`. */
+  --text-binder-value: 14.5px;
+  /* Titre d'une ligne de deck (`DeckRow`/`DeckStatusRow`) — distinct de
+     `--text-card-name` (15.5px, autre rôle). */
+  --text-deck-name: 16px;
+  /* Prix d'une ligne de deck — même valeur que `--text-binder-value` mais
+     rôle distinct (conventions de docs/development.md : un nom par rôle). */
+  --text-deck-value: 14.5px;
+  /* Libellé de la puce de statut d'une ligne de deck — même valeur que
+     `--text-chip-toggle` mais rôle distinct. */
+  --text-deck-status: 11.5px;
+  /* Fil d'ariane de l'écran `Planning deck` — distinct de
+     `--text-section-label` (11.5px, autre rôle). Tracking : réutilise
+     `--tracking-section-label` (0.06em), déjà exactement cette valeur. */
+  --text-breadcrumb-deck: 11px;
+  /* Titre de l'écran `Planning deck` — distinct de `--text-title-binder`
+     (27px). Tracking : réutilise `--tracking-title-binder` (-0.025em), déjà
+     exactement cette valeur. */
+  --text-title-deck: 26px;
+  /* Colonne « exemplaires voulus » de `SlotRow` (mono). */
+  --text-slot-need: 12px;
+  /* Statut `OWNED`/`MISSING` de `SlotRow` et badges `N owned`/`in deck ×N`
+     de `AddRow` — même gabarit dans les deux composants. */
+  --text-status-badge: 10px;
+  /* Prix de `SlotRow`/`AddRow` (mono) — même valeur que `--text-meta` mais
+     rôle distinct (conventions de docs/development.md). */
+  --text-row-price: 12.5px;
+  /* Libellé de palier et compteur de `ManaCurveBar` (mono pour le
+     libellé). */
+  --text-mana-bar-label: 11.5px;
+  /* Libellé de couleur de `ColorBar`. */
+  /* Nommé `identity-bar`, pas `color-bar` : Tailwind 4 réserve la séquence
+     `--text-color-*` (variante couleur de l'utilitaire `text-*`) et rejette
+     silencieusement tout token qui la reproduit sous `--text-*` (vérifié sur
+     la feuille compilée — `--width-color-bar-label` ci-dessus n'a pas ce
+     problème, seul le préfixe `--text-` le déclenche). */
+  --text-identity-bar-label: 12px;
+  /* En-tête `Add cards` du tiroir d'ajout persistant. */
+  --text-drawer-title: 16px;
+  /* Compteur `N to go` du même en-tête — distinct de `--text-value-strip`
+     (12px, autre rôle). */
+  --text-drawer-counter: 12px;
+  --text-body: 13px;
+  /* Écrans Login / Onboarding username : champ, bouton et texte d'appoint
+     dimensionnés pour le pouce. 16px pour le champ : sous ce seuil, les
+     navigateurs mobiles zooment sur la saisie. */
+  --text-auth-input: 16px;
+  --text-auth-button: 16px;
+  --text-auth-copy: 15px;
+  /* Valeur d'une ligne Settings (« Owner », « 3 accounts », « 0.9.0 »…) —
+     famille « Corps » (13–13.5px) mais nommée à part de
+     `--text-card-name-compact` : même valeur, rôle différent. */
+  --text-row-value: 13.5px;
+  /* Libellé d'une ligne de feuille groupée (`SheetRow`) — même valeur que
+     `--text-row-value` ci-dessus et que `--text-card-name-compact`, rôle
+     distinct. */
+  --text-sheet-row-label: 13.5px;
+  /* Sous-ligne explicative d'une `SheetRow` (« Your collection is not
+     affected ») — dit la conséquence de l'action, pas son nom. */
+  --text-sheet-row-hint: 11.5px;
+  /* Puce de filtre de la barre de commande : l'ouvre-filtres pointillé et
+     chaque filtre actif, retirable. */
+  --text-filter-chip: 11.5px;
+  /* `N shown` en fin de rangée de filtres — le nombre de lignes que la vue
+     rend réellement. */
+  --text-result-count: 11.5px;
+  /* Bouton secondaire d'une feuille (`SecondaryButton`) — un cran sous
+     `--text-button-primary` (15px), qui reste le bouton qui valide. */
+  --text-button-secondary: 14px;
+  --text-meta: 12.5px;
+  /* Sous-ligne set/numéro/rareté de `SearchRow` — même famille que
+     `--text-meta`. */
+  --text-meta-search: 12px;
+  --text-section-label: 11.5px;
+  --text-meta-mono: 11px;
+  --text-tab-label: 10.5px;
+  /* Badge `FOIL` de `CompactRow` et `GridTile`. */
+  --text-badge-foil: 9.5px;
+  /* Sous-ligne set/numéro/condition de `CompactRow`. */
+  --text-subline-compact: 11px;
+  /* Nom de carte de `CardRow` — troisième variante de nom de carte,
+     distincte de `--text-card-name`/`--text-card-name-compact` (même
+     famille, valeur propre à cette densité). */
+  --text-card-name-row: 14.5px;
+  /* Sous-ligne set/numéro de `CardRow`. */
+  --text-setline-row: 12px;
+  /* Prix de `CardRow`. */
+  --text-price-row: 14.5px;
+  /* Puces condition/foil/qty de `CardRow`. */
+  --text-pill-badge: 10.5px;
+  /* Valeur des tuiles de synthèse de la feuille `Assemble`
+     (`41`/`23`/`$182`), en `font-mono`/`font-extrabold` — utilitaires
+     Tailwind natifs, pas un nouveau jeton de poids. */
+  --text-assemble-stat-value: 18px;
+  /* Légende de ces mêmes tuiles (`you own`/`missing`/`to buy`) — même valeur
+     que `--text-pill-badge` mais rôle distinct (conventions de
+     docs/development.md). */
+  --text-assemble-stat-label: 10.5px;
+  /* Repli « …N more from <deck> » de la section `Taken from other decks`. */
+  --text-assemble-more-caption: 12px;
+  /* Badge de quantité en surimpression de `GridTile`. */
+  --text-tile-qty-badge: 11px;
+  /* Prix en surimpression de `GridTile`. */
+  --text-tile-price: 11.5px;
+  /* Pied set/numéro de `GridTile`. */
+  --text-tile-meta: 11px;
+  /* Prix de la feuille de détail (même taille que le panneau d'aperçu
+     desktop). Le nom de carte du même panneau (19px) n'a pas de token propre
+     ici : la feuille réutilise le titre de `Sheet` (`--text-title-sheet`)
+     plutôt que de dupliquer le nom une seconde fois dans le corps. */
+  --text-price-detail: 26px;
+  /* Puce `Type`/`Rarity · finish · condition` de la feuille `Filters`
+     (composant `components/ui/chip.tsx`) — même valeur que
+     `--text-setline-row` mais rôle différent, comme `--text-row-value`
+     l'est déjà de `--text-card-name-compact`. */
+  --text-chip: 12px;
+  /* Puce bascule `Multicolour only`/`Mono only` de la même feuille —
+     variante distincte de `--text-chip` (11.5px contre 12px, même
+     composant). */
+  --text-chip-toggle: 11.5px;
+  /* Puce `Group by` de la feuille `Sort & group` — troisième variante du
+     composant `Chip`, distincte de `--text-chip` (12px) et
+     `--text-chip-toggle` (11.5px). */
+  --text-chip-group: 12.5px;
+  /* Segmenté `High | Low` d'une ligne active de `Sort by` — même valeur que
+     `--text-chip-toggle` mais rôle distinct, nommé à part comme
+     `--text-row-value` l'est déjà de `--text-card-name-compact`. */
+  --text-sort-toggle: 11.5px;
+  /* Bouton primaire plein largeur des feuilles `Filters`/`Sort & group`
+     (`Show 98 cards`). */
+  --text-button-primary: 15px;
+  /* Ligne `Sort by` de la feuille `Sort & group` — même valeur
+     active/inactive, seul le poids change (700 vs 600). */
+  --text-sort-row: 14px;
+  /* Compteur de sélection de l'en-tête de sélection (`3 selected`). */
+  --text-selection-count: 15px;
+  /* Libellé d'un bouton de la barre d'action groupée (`Edit`/`Move`/
+     `Add to deck`/`Delete`) — distinct de `--text-tab-label` (10.5px,
+     `TabBar`) que cette barre remplace. */
+  --text-action-bar-label: 11px;
+  /* Nom d'étagère de `Shelf`. */
+  --text-shelf-name: 15px;
+  /* Méta d'étagère (`1,284 cards`, `3 decks · 264 cards`). */
+  --text-shelf-meta: 12px;
+  /* Prix d'étagère, mono. */
+  --text-shelf-price: 13px;
+
+  /* Vue étagères de l'onglet `Decks`. En-tête d'étagère : nom 16px/800,
+     compteur mono 11.5px, lien `See all` 12px/700. Chacun distinct des
+     jetons d'étagère de l'onglet Collection ci-dessus (`--text-shelf-name`,
+     15px) : les deux onglets partagent la mécanique de piste, pas la
+     typographie d'en-tête. */
+  --text-folder-name: 16px;
+  --text-folder-count: 11.5px;
+  --text-see-all: 12px;
+  /* Carte de deck de 152px : nom 14px/700, prix 11.5px/700, ligne de statut
+     11px/700 — trois rôles distincts des jetons de même valeur déjà posés
+     (`--text-sort-row` 14px, `--text-tile-price` 11.5px,
+     `--text-action-bar-label` 11px). */
+  --text-deck-card-name: 14px;
+  --text-deck-card-price: 11.5px;
+  --text-deck-card-status: 11px;
+  /* Interlignes explicites : avec l'interligne `normal`, la hauteur de la
+     carte dépend de la police que le système résout (177px sous Windows,
+     171px sous Linux), et la tuile `New deck` (`--height-deck-card`) ne
+     s'aligne plus. 19 + 15 + 15 + marges = 177px partout. */
+  --text-deck-card-name--line-height: 19px;
+  --text-deck-card-price--line-height: 15px;
+  --text-deck-card-status--line-height: 15px;
+  /* Tuile pointillée `New deck` de fin d'étagère courte. */
+  --text-new-deck-tile: 12.5px;
+  /* Bande de valeur collante de l'accueil Shelves. */
+  --text-value-strip: 12px;
+  /* Compteur `N this week` de `Recently added` sur l'accueil Shelves —
+     distinct de `--text-meta-search` (12px, rôle différent). */
+  --text-recently-count: 12px;
+  /* Titre de l'en-tête de binder illustré — distinct de
+     `--text-title-subscreen` (22px, en-tête de container non illustré). */
+  --text-title-binder: 27px;
+  /* Segmenté `None | Colour | Card art` de la feuille `Binder look` — même
+     valeur que `--text-chip-group` mais rôle différent, nommée à part comme
+     `--text-row-value` l'est déjà de `--text-card-name-compact`. */
+  --text-segment-compact: 12.5px;
+  /* Segmenté de zone `Main | Side | Cmdr` du tiroir d'ajout persistant —
+     même valeur que `--text-segment-compact` mais rôle distinct
+     (conventions de docs/development.md) : ce segmenté reprend par ailleurs
+     le gabarit `default` de `Segmented` pour le conteneur/le rayon des
+     segments (14px/11px), seul le padding vertical des segments diffère
+     (8px, pas 9px). */
+  --text-segment-drawer: 12.5px;
+  /* Libellé `Intensity` de la feuille `Binder look`. */
+  --text-intensity-label: 13.5px;
+  /* Texte d'aide sous les pastilles de dégradé (`line-height:1.45`). */
+  --text-look-hint: 12px;
+  /* Initiale de la carte de profil de Settings. */
+  --text-avatar-initial: 24px;
+  /* Nom d'utilisateur de la même carte. */
+  --text-profile-username: 18px;
+  /* Sous-titre d'une ligne Settings à deux lignes (« Desktop only —
+     replaces the card sheet », « Which market the values come from »…) —
+     distinct de `--text-meta`/`--text-meta-search` (autres rôles, même
+     famille « Métadonnée »). */
+  --text-row-subtitle: 12px;
+  /* Champ `Username` du bloc `Add a member` — distinct de `--text-body`
+     (13px, autre rôle) : ce champ précis n'a pas la même taille que le
+     corps de texte générique. */
+  --text-settings-input: 14px;
+  /* Champ de recherche du tiroir d'ajout persistant — distinct de
+     `--text-body` (13px) et du champ « Find in this deck... » de l'écran de
+     deck (`13.5px`, déjà `--text-body`) : les deux champs de recherche
+     voisins de cet écran ne portent délibérément pas la même taille. */
+  --text-add-drawer-search: 14px;
+
+  /* Suivi de lettres (« Libellé de section »). */
+  --tracking-section-label: 0.06em;
+  /* Titre d'écran `Collection`. */
+  --tracking-title-screen: -0.03em;
+  /* Montant de la carte de valeur. */
+  --tracking-value-amount: -0.02em;
+  /* Libellé `TOTAL COLLECTION VALUE`. */
+  --tracking-value-label: 0.04em;
+  /* Titre d'une feuille (`Sheet`). */
+  --tracking-sheet-title: -0.01em;
+  /* Titre d'un écran de container (aussi le fond de la feuille Filters et
+     le tiroir d'ajout du deck builder) — même famille que
+     `--tracking-title-screen`, valeur propre au titre 22px. */
+  --tracking-title-subscreen: -0.02em;
+  /* Badge `FOIL` de `CompactRow`/`GridTile`. */
+  --tracking-badge-foil: 0.04em;
+  /* Puces condition/foil/qty de `CardRow`. */
+  --tracking-pill-badge: 0.03em;
+  /* Code de set du pied de `GridTile`. */
+  --tracking-tile-setcode: 0.02em;
+  /* Nom d'étagère de `Shelf`. */
+  --tracking-shelf-name: -0.01em;
+  /* Titre d'écran de l'accueil Shelves. */
+  --tracking-title-screen-shelf: -0.02em;
+  /* Titre de l'en-tête de binder illustré — distinct de
+     `--tracking-title-subscreen` (-0.02em). */
+  --tracking-title-binder: -0.025em;
+  /* Nom d'utilisateur de la carte de profil de Settings — même valeur que
+     `--tracking-sheet-title` mais rôle distinct. */
+  --tracking-profile-username: -0.01em;
+  /* Statut de `SlotRow` et badges de `AddRow`. */
+  --tracking-status-badge: 0.03em;
+
+  /* Ombres */
+  --text-shadow-art: 0 1px 8px rgba(4, 5, 8, 0.8);
+  /* Toast `Undo`. */
+  --shadow-toast: 0 12px 30px rgba(4, 5, 8, 0.6);
+  /* Tiroir d'ajout persistant — distinct de `--shadow-toast` (autre rôle,
+     direction inverse). */
+  --shadow-drawer: 0 -18px 44px rgba(4, 5, 8, 0.7);
+  /* Titre de l'en-tête de binder illustré — distinct de `--text-shadow-art`
+     (0 1px 8px, ligne de binder de l'accueil). */
+  --text-shadow-binder-title: 0 2px 14px light-dark(rgba(255, 255, 255, 0.85), rgba(4, 5, 8, 0.7));
+  /* Titre de l'écran `Planning deck` — alpha distincte de
+     `--text-shadow-binder-title` (0.7). */
+  --text-shadow-deck-title: 0 2px 14px light-dark(rgba(255, 255, 255, 0.85), rgba(4, 5, 8, 0.75));
+
+  /* ---- Outils de table ---------------------------------------------- */
+
+  /* Badge `Soon`/`Planned` des trois lignes inertes du groupe Tools de
+     Settings (`font-weight:700;letter-spacing:0.04em`) — distinct de
+     `--text-status-badge` (10px) et de `--text-breadcrumb-deck` (11px,
+     autre rôle). Tracking : réutilise `--tracking-badge-foil` (0.04em),
+     déjà exactement cette valeur. */
+  --text-tool-badge: 11px;
+
+  /* Tuile d'app de l'onglet Tools (quatre tuiles `AppTile` de 132px).
+     Hauteur **fixe**, pas déduite du texte : les quatre descriptions n'ont
+     pas la même longueur et le design leur donne la même boîte. */
+  --height-app-tile: 132px;
+  --radius-app-tile: 20px;
+  /* Pastille d'icône de la tuile (`border-radius:13px`) — rayon distinct de
+     `--radius-row-icon` (9px, ligne de Settings). */
+  --width-app-tile-icon: 40px;
+  --height-app-tile-icon: 40px;
+  --radius-app-tile-icon: 13px;
+  /* Bordure d'une tuile à l'état `on` — alpha distincte de
+     `--color-border-accent-subtle` (0.45) et `--color-border-accent`
+     (0.55). */
+  --color-border-app-tile: rgba(232, 180, 74, 0.35);
+  /* Nom de l'app (`font-weight:700`). Tracking : réutilise
+     `--tracking-shelf-name` (-0.01em), déjà exactement cette valeur. */
+  --text-app-tile-name: 15px;
+  /* Étiquette d'état `ENABLED`/`PLANNED`/`OFF`
+     (`font-weight:700;letter-spacing:0.04em`) — même valeur que
+     `--text-section-label` mais rôle distinct. Tracking : réutilise
+     `--tracking-badge-foil` (0.04em). */
+  --text-app-tile-tag: 11.5px;
+  /* Description de l'app (`line-height:1.45`) — `--leading-*` propre plutôt
+     que `leading-normal` (1.5), la tuile ayant une hauteur fixe le
+     gonflement se verrait. */
+  --text-app-tile-desc: 12.5px;
+  --leading-app-tile-desc: 1.45;
+  /* Bannière d'explication d'un écran (« Cards in a list are not part of your
+     collection… ») : deux lignes serrées, elle informe sans se disputer la
+     place avec la liste. */
+  --leading-banner: 1.45;
+
+  /* Teintes de siège du compteur de vie — les couleurs de joueur viennent de
+     la palette des pips, aucune couleur nouvelle n'entre dans le système.
+     Les quatre premières sont celles du design validé, dans l'ordre des
+     sièges ; les deux dernières prolongent la même palette
+     (`lib/binders/gradients.ts`, teintes claires `purple` et `grey`) pour
+     les parties à 5 et 6 joueurs, que le design ne dessine pas. */
+  --color-seat-1: #3d7bff;
+  --color-seat-2: #34d399;
+  --color-seat-3: #fb8c3c;
+  --color-seat-4: #d05a44;
+  --color-seat-5: #8b5cf6;
+  --color-seat-6: #9aa0ac;
+
+  /* Pavé de vie — même valeur que `--radius-app-tile` mais autre
+     composant. */
+  --radius-life-pad: 20px;
+  /* Total de vie (`font-weight:800`, mono). */
+  --text-life-total: 78px;
+  --leading-life-total: 1.12;
+  --tracking-life-total: -0.05em;
+  /* Pastille de couronne du siège tiré. */
+  --width-crown-badge: 26px;
+  --height-crown-badge: 26px;
+  --color-crown-badge-bg: rgba(4, 5, 8, 0.5);
+
+  /* Rangée centrale de l'écran de partie : trois boutons ronds de 46px, une
+     pastille de compteur de 46px de haut et 24px de rayon, bordure
+     `rgba(255,255,255,0.07)`. */
+  --width-life-control: 46px;
+  --height-life-control: 46px;
+  --radius-life-count: 24px;
+  --text-life-count: 14px;
+  --color-border-life-control: light-dark(rgba(22, 20, 31, 0.1), rgba(255, 255, 255, 0.07));
+
+  /* Écran de setup : pastilles de joueurs en mono 17px/800, pastilles de vie
+     de départ en mono 15px/800, champ `Other` en mono 14px/700. */
+  --text-life-players: 17px;
+  --text-life-value: 15px;
+  --text-life-other: 14px;
+  /* Les deux lignes à interrupteur du setup — distinct de `--radius-row`
+     (18px, carte de groupe de Settings) et de `--radius-control` (14px). */
+  --radius-life-toggle: 16px;
+
+  /* Surbrillance du siège tiré : anneau + lueur, voile ambré, puce
+     `You start`. */
+  --shadow-first-seat: 0 0 0 3px #fb8c3c, 0 0 44px rgba(251, 140, 60, 0.55);
+  --color-first-seat-veil: rgba(251, 140, 60, 0.14);
+  --color-first-seat-chip: rgba(4, 5, 8, 0.72);
+  --text-first-seat-chip: 12px;
+  /* Décalage vertical de la puce `You start` par rapport au centre du pavé
+     (`position:relative;top:-80px`) — nommé plutôt qu'un pas de grille, ce
+     n'en est pas un (docs/development.md). */
+  --spacing-first-seat-chip-offset: 80px;
+
+  /* ------------------------------------------------------------------ */
+  /* Desktop                                                            */
+  /* ------------------------------------------------------------------ */
+
+  /* Points de bascule, déclarés une fois et utilisés partout. Jumeaux CSS de
+     `BREAKPOINTS` dans `lib/breakpoints.ts` ; `tests/unit/theme.test.ts`
+     échoue si les deux sources divergent. Produisent les variantes
+     `desktop:` (barre latérale + barre de commande sur une ligne) et `pane:`
+     (panneau d'aperçu). Aucun composant n'écrit `md:`/`xl:` pour ces deux
+     rôles : les variantes par défaut de Tailwind valent aujourd'hui le même
+     nombre, mais rien ne les rattache à ce contrat. */
+  --breakpoint-desktop: 900px;
+  --breakpoint-pane: 1280px;
+  /* Seuil téléphone / tablette (768px, le portrait d'une tablette) : sous
+     lui, Settings masque les réglages sans effet sur un téléphone
+     (`Card preview pane`). Produit `tablet:` et `max-tablet:`. */
+  --breakpoint-tablet: 768px;
+
+  /* Pas de grille manquants, consommés par le layout desktop : padding haut
+     de la barre latérale et de la colonne principale (30px), indentation du
+     sous-arbre (26px). */
+  --spacing-26: 26px;
+  --spacing-30: 30px;
+
+  /* Barre latérale 236px et panneau d'aperçu 426px. */
+  --width-sidebar: 236px;
+  --width-preview-pane: 426px;
+  /* Bouton de suppression du panneau — distinct de `--width-header-add`
+     (42px aussi, mais un rond d'en-tête : un nom par rôle, conventions de
+     docs/development.md). */
+  --width-preview-delete: 42px;
+  /* Vignettes `Other printings` : 46×64 — la même `MiniTile` que
+     `Recently added` (76×106), rendue à sa seconde taille. */
+  --width-printing-tile: 46px;
+  --height-printing-tile: 64px;
+
+  /* Rayons de la barre latérale et du panneau — valeurs déjà portées par
+     d'autres tokens, rôles distincts (conventions de docs/development.md). */
+  --radius-sidebar-item: 14px;
+  --radius-sidebar-child: 11px;
+  --radius-preview-pane: 20px;
+  --radius-preview-block: 14px;
+
+  /* Typographie de la barre latérale. */
+  --text-sidebar-brand: 16px;
+  --tracking-sidebar-brand: -0.02em;
+  --text-sidebar-username: 11.5px;
+  --text-sidebar-item: 14.5px;
+  --text-sidebar-child: 13.5px;
+
+  /* En-tête de la colonne principale : fil d'ariane 11px, titre 26px (le
+     `--tracking-title-screen` porte déjà -0.03em), libellé du bouton
+     `Add card` 13.5px. */
+  --text-breadcrumb-container: 11px;
+  --text-title-container: 26px;
+  --text-desktop-action: 13.5px;
+
+  /* Panneau d'aperçu. Le prix 26px mono réutilise `--text-price-detail`
+     (même rôle : le prix du détail d'une carte). */
+  --text-preview-name: 19px;
+  --tracking-preview-name: -0.02em;
+  --text-preview-rarity: 10.5px;
+  --tracking-preview-rarity: 0.05em;
+  --text-preview-block-label: 10.5px;
+  /* Interlignes explicites : le preflight Tailwind pose `line-height: 1.5`
+     partout, mais le design écrit 1.55 pour le texte d'oracle du panneau et
+     1.5 pour le corps des deux blocs — nommés plutôt que laissés à un
+     héritage qui se déplacerait sans bruit. */
+  --leading-preview-oracle: 1.55;
+  --leading-preview-block: 1.5;
+}
+
+/* Polices — les deux piles telles que le design les déclare
+   (`font-family: 'Inter', system-ui, sans-serif`), et rien de plus. Aucune
+   police n'est chargée par l'application : ni `next/font`, ni Google Fonts.
+   Une machine qui a Inter installée l'utilise, les autres rendent en
+   `system-ui`. */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+
+/* ── Socle : l'interligne du navigateur, sans reset ──────────────────────
+   Le design validé ne charge aucun reset CSS : son texte rend donc au
+   `line-height: normal` du navigateur (~1.21 en Inter), et c'est cette
+   hauteur-là que toutes ses géométries additionnent (une ligne de carte,
+   un pied de tuile, la bande de valeur). Le preflight de Tailwind pose
+   `line-height: 1.5` sur `html`, hérité partout, ce qui gonflait chaque
+   colonne de texte d'environ 25 % ; les composants portés le compensaient
+   un à un en `leading-none` (1.0), donc trop serré dans l'autre sens.
+   Rétabli ici une fois pour toutes — les blocs de prose qui veulent un
+   interligne large gardent leur `--leading-*` explicite. */
+html {
+  line-height: normal;
+}
+
+/* Le document lui-même ne défile jamais : la coquille fait exactement une
+   hauteur de fenêtre et le seul défilement d'un écran est celui de son corps
+   (`components/ui/screen.tsx`). C'est ce qui garde la barre de défilement sur
+   le contenu auquel elle appartient — elle commence sous l'en-tête et s'arrête
+   au-dessus de la barre d'onglets, au lieu de courir toute la fenêtre — et ce
+   qui empêche une barre de page d'apparaître puis de disparaître en décalant
+   la coquille. Le prix : la barre d'adresse d'un navigateur mobile ne se
+   replie plus, puisqu'elle réagit au défilement du *document* ; installée en
+   PWA, il n'y en a pas, et c'est le cas visé. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  /* `overflow: hidden` ne coupe pas le « tirer pour actualiser » de Chrome
+     Android : un geste vers le bas parti d'un en-tête rechargerait la page. */
+  overscroll-behavior: none;
+}
+
+/* Barres de défilement natives masquées partout, remplacées par la
+   surimpression de `components/ui/overlay-scrollbar.tsx` — voir le
+   commentaire de tête de ce fichier-là pour le pourquoi. */
+*,
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+:root {
+  /* Les formulaires natifs (champ, case, barre de défilement) suivent le
+     thème de l'app au lieu du blanc par défaut du navigateur. `color-scheme`
+     choisit aussi la branche de chaque token `light-dark(clair, sombre)` :
+     sombre par défaut, clair ou celui de l'OS selon `users.color_scheme`
+     (`data-scheme`, posé par le layout racine). */
+  color-scheme: dark;
+  /* Halo en haut de page, derrière le contenu. */
+  --color-bg-glow: light-dark(#ffffff, #14161c);
+}
+
+:root[data-scheme='light'] {
+  color-scheme: light;
+}
+
+:root[data-scheme='system'] {
+  color-scheme: light dark;
+}
+
+body {
+  background-color: var(--color-bg);
+  background-image: radial-gradient(120% 100% at 50% 0%, var(--color-bg-glow) 0%, var(--color-bg) 60%);
+  background-repeat: no-repeat;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  /* Lissage des polices : sans lui, Inter en 700/800 rend plus gras et plus
+     large sous Chromium que dans le design validé, ce qui se voit surtout sur
+     les gros nombres (bande de valeur, total de vie). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Chrome applicatif : appuyer sur l'interface ne pose pas de curseur de
+     texte, ne peint pas de sélection et ne flashe pas le halo tactile
+     d'Android. Les vraies zones de saisie reprennent le comportement natif
+     juste en dessous. */
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@theme {
+  /* Bas d'une bottom sheet : le padding du design (`padding:16px 16px 20px`)
+     plus la zone sûre de l'appareil, pour qu'une feuille collée au bas de
+     l'écran ne glisse pas sous l'indicateur d'accueil. */
+  /* 18px : le padding intérieur d'une sheet, dont le bas ajoute la zone de
+     sécurité. */
+  --spacing-sheet-bottom: calc(18px + env(safe-area-inset-bottom));
+  /* Même chose pour le tiroir `Add cards` et ses 16px de bas. */
+  --spacing-drawer-bottom: calc(16px + env(safe-area-inset-bottom));
+  /* Hauteur du clavier virtuel qui recouvre la page
+     (components/ui/keyboard-inset.tsx) : les feuilles et le tiroir d'ajout
+     s'y posent (`bottom-keyboard-inset`) au lieu du bas de la fenêtre. */
+  --spacing-keyboard-inset: var(--keyboard-inset, 0px);
+  /* Cadre de l'écran de partie du compteur de vie : 6px, plus les zones
+     sûres haute et basse — c'est le seul écran qui occupe la fenêtre
+     entière, encoche comprise. */
+  /* Onglet `Stats` d'un deck : la tuile de tête (nombre en mono) et le
+     titre d'une carte de statistiques. Nommés plutôt que repris d'un jeton
+     d'un autre rôle — ce sont les seuls endroits où ces tailles servent. */
+  /* Ligne d'édition d'une carte de deck (`components/decks/deck-card-row.tsx`) :
+     vignette, nom, code de set, puces de zone et compteur. Tailles propres —
+     cette ligne est plus dense que `CardRow`, dont elle ne partage aucune
+     mesure. */
+  --width-thumb-deck-row: 38px;
+  --height-thumb-deck-row: 53px;
+  --text-deck-row-name: 14px;
+  --text-deck-row-set: 11.5px;
+  --text-deck-row-qty: 13.5px;
+  --text-zone-chip: 10px;
+  --tracking-zone-chip: 0.02em;
+  --spacing-stepper-round: 24px;
+  --spacing-stepper-count: 16px;
+  /* Bandeau « N results / Clear filters » de la recherche : une hauteur
+     minimale pour que la liste ne saute pas quand le compte apparaît. */
+  --spacing-search-meta: 18px;
+  /* Squelette d'une ligne de set (`py-12` autour d'une icône de 32px). */
+  --height-row-set-skeleton: 56px;
+  /* Ligne de set de l'onglet `Sets` : la boîte de l'icône et l'icône
+     elle-même (`components/search/set-row.tsx`). */
+  --spacing-set-icon-box: 32px;
+  --width-icon-set-row: 24px;
+  --height-icon-set-row: 24px;
+  /* Champs de la fourchette de prix de la feuille de filtres de recherche. */
+  --width-price-input: 72px;
+  --text-stat-tile-value: 18px;
+  --text-stat-tile-label: 10.5px;
+  --text-stat-card-title: 12px;
+  /* Valeur totale du deck, ligne de tête de l'onglet `Infos`. */
+  --text-deck-total-value: 19px;
+  --spacing-17: 17px;
+  --spacing-life-frame-top: calc(6px + env(safe-area-inset-top));
+  --spacing-life-frame-bottom: calc(6px + env(safe-area-inset-bottom));
+  /* Curseur de la barre de défilement en surimpression : `--color-text-2`
+     en faible opacité plutôt qu'un aplat, pour qu'un même curseur se lise
+     sur le dégradé de la page comme sur une surface `#12151c` ou une
+     feuille `#181b22`, sans variante par surface. */
+  --color-scroll-thumb: light-dark(rgba(97, 93, 110, 0.45), rgba(125, 133, 149, 0.55));
+  --width-scroll-thumb: 6px;
+}
+
+/* Dans `@layer base`, et pas en dehors : une règle non calquée l'emporte sur
+   toutes les couches, y compris `utilities`. Posé hors couche, le
+   `a { color: inherit }` ci-dessous écrasait donc `text-accent` et
+   `text-text-2` sur chaque lien — l'onglet actif de la barre basse et les
+   entrées de la barre latérale rendaient tous dans la couleur de texte
+   héritée, sans mise en évidence. */
+@layer base {
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    cursor: auto;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Liste ouverte d'un `<select>` natif : sans ce bloc, le navigateur la
+     peint avec son propre gabarit (police système, angles droits, surbrillance
+     bleue OS). `appearance: base-select` la rend stylable ; elle reprend alors
+     le langage de la seule liste déroulante dessinée de l'app, la liste de
+     comptes de `members-group.tsx` (`bg-surface-3`, `rounded-control`, `p-4`,
+     `shadow-toast`, options `rounded-control-compact` `px-10 py-10`).
+     Amélioration progressive : Safari et Firefox gardent leur sélecteur natif
+     (la roue d'iOS reste la bonne interaction sur mobile). Le bouton fermé
+     n'est pas touché ici — ses utilitaires (couche `utilities`) priment. */
+  @supports (appearance: base-select) {
+    select,
+    ::picker(select) {
+      appearance: base-select;
+    }
+
+    /* Le triangle plein par défaut de `base-select` détonne à côté des
+       icônes lucide : remplacé par le tracé de `ChevronDown` (lucide,
+       `stroke-width: 1.75`), peint en masque pour suivre `color`. */
+    select::picker-icon {
+      content: '';
+      width: 16px;
+      height: 16px;
+      background-color: var(--color-text-2);
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+      transition: rotate 150ms;
+    }
+
+    select:open::picker-icon {
+      rotate: 180deg;
+    }
+
+    ::picker(select) {
+      margin-block: var(--spacing-6);
+      padding: var(--spacing-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+      background-color: var(--color-surface-3);
+      box-shadow: var(--shadow-toast);
+      color: var(--color-text);
+    }
+
+    option {
+      padding: var(--spacing-10);
+      border-radius: var(--radius-control-compact);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    option:hover,
+    option:focus-visible {
+      background-color: var(--color-accent-bg);
+      outline: none;
+    }
+
+    option:checked {
+      color: var(--color-accent-text);
+    }
+
+    option::checkmark {
+      color: var(--color-accent-text);
+    }
+  }
+}
+
+/* Fond en dégradé de la carte de valeur totale : une classe CSS simple
+   plutôt qu'un utilitaire Tailwind sur mesure (`bg-[...]`), interdit par
+   docs/development.md — consomme `--gradient-value-band` défini ci-dessus,
+   le seul endroit où sa valeur littérale existe. */
+.bg-gradient-value-band {
+  background-image: var(--gradient-value-band);
+}
+
+/* Voile d'une ligne de binder illustrée : même patron que
+   `.bg-gradient-value-band` ci-dessus — un nom de token sous `--gradient-*`
+   n'est pas dans le namespace `--background-image-*` que Tailwind 4
+   reconnaît pour générer un utilitaire `bg-*` tout seul (piège vérifié sur
+   la feuille de style compilée, conventions de docs/development.md). */
+.bg-gradient-binder-veil {
+  background-image: var(--gradient-binder-veil);
+}
+
+/* Voile d'une ligne de deck illustrée : même patron que
+   `.bg-gradient-binder-veil` ci-dessus. */
+.bg-gradient-deck-veil {
+  background-image: var(--gradient-deck-veil);
+}
+
+/* Voile de l'en-tête de binder en mode `Card art` : même patron que
+   `.bg-gradient-binder-veil` ci-dessus. */
+.bg-gradient-binder-backdrop-art {
+  background-image: var(--gradient-binder-backdrop-art);
+}
+
+/* Dégradé du fond commandant de l'écran `Planning deck` : même patron que
+   `.bg-gradient-binder-backdrop-art` ci-dessus. */
+.bg-gradient-deck-backdrop-art {
+  background-image: var(--gradient-deck-backdrop-art);
+}
+
+/* Remplissage de `ManaCurveBar` : même patron que `.bg-gradient-*`
+   ci-dessus. */
+.bg-gradient-mana-bar {
+  background-image: var(--gradient-mana-bar);
+}
+
+/* Teinte de l'icône de set dans le pied de `GridTile` — un `filter`
+   composite n'a pas de namespace `@theme` que Tailwind 4 reconnaisse pour
+   générer un utilitaire tout seul (même piège que `.bg-gradient-*`
+   ci-dessus, vérifié sur la feuille de style compilée, conventions de
+   docs/development.md), et une valeur `filter` arbitraire (`filter-[...]`)
+   est interdite (anti-patterns de docs/development.md). Fait passer une
+   icône de set monochrome noire au ton `--color-text-2`. */
+.icon-set-tint {
+  filter: invert(56%) sepia(8%) saturate(560%) hue-rotate(185deg);
+}
+
+/* Symbole de mana d'une case de couleur non sélectionnée — même patron que
+   `.icon-set-tint` ci-dessus : un `filter` composite n'a pas de namespace
+   `@theme`, et une valeur arbitraire (`filter-[...]`) est interdite
+   (anti-patterns de docs/development.md). */
+.color-cell-muted {
+  filter: grayscale(0.85) opacity(0.45);
+}
+
+/* Piste d'étagère défilante de l'accueil Shelves (aucune barre de
+   défilement visible) : masque la barre de défilement sans retirer le
+   défilement lui-même — hors de tout namespace que Tailwind 4 dérive de
+   `@theme` (même patron que `.icon-set-tint` ci-dessus), et une classe
+   arbitraire est interdite (docs/development.md). Le clavier reste opérant
+   malgré la barre masquée (`tabIndex` + flèches gauche/droite sur la piste,
+   `components/collection/shelf.tsx`). */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Tokens complémentaires ───────────────────────────────────────────────
+   Palette des pips de mana (repli lettré des symboles inconnus), gouttière
+   fluide et voie de scrollbar, bornes de la coquille desktop, géométrie des
+   sheets et du toast. */
+@theme {
+  /* Palette des pips W/U/B/R/G/C — un fond et un texte par couleur. */
+  --color-pip-w-bg: #efe9cf;
+  --color-pip-w-fg: #2b2a1e;
+  --color-pip-u-bg: #3b82c9;
+  --color-pip-u-fg: #eaf3ff;
+  --color-pip-b-bg: #4a4550;
+  --color-pip-b-fg: #cbc5d0;
+  --color-pip-r-bg: #d05a44;
+  --color-pip-r-fg: #fff0eb;
+  --color-pip-g-bg: #3f9d63;
+  --color-pip-g-fg: #eafff1;
+  --color-pip-c-bg: #9aa0ac;
+  --color-pip-c-fg: #1a1c22;
+  --color-pip-outline: rgba(0, 0, 0, 0.35);
+  /* Anneau de 1px autour d'une pastille lettrée — en ombre pour ne pas
+     changer la géométrie de la pastille. */
+  --shadow-pip-outline: 0 0 0 1px rgba(0, 0, 0, 0.35);
+
+  /* Gouttière d'écran fluide : 16px à 390px de large, 34px vers 970px. */
+  --spacing-gutter: clamp(16px, 3.5vw, 34px);
+  /* Voie réservée à la scrollbar en surimpression : le contenu paie
+     gouttière + voie à droite pour que le curseur ne morde jamais le texte. */
+  --spacing-scrollbar-lane: 8px;
+  --spacing-gutter-lane: calc(clamp(16px, 3.5vw, 34px) + 8px);
+
+  /* Coquille desktop : colonne bornée et centrée, gouttière de 28px entre
+     la barre latérale et le contenu. */
+  --spacing-shell-gap: 28px;
+  /* Namespace `--container-*` : celui que Tailwind 4 sert aux utilitaires
+     `max-w-*`. */
+  --container-shell: 1180px;
+  --container-shell-pane: 1600px;
+  --container-content: 820px;
+
+  /* Sheets : padding 18px (22px desktop), bornées à 85dvh, et au-delà du
+     point de bascule une modale centrée de 540px (82dvh, rayon plein). */
+  --spacing-sheet-pad: 18px;
+  --spacing-sheet-pad-desktop: 22px;
+  /* Clavier ouvert, la feuille remonte au-dessus de lui
+     (`--keyboard-inset`, components/ui/keyboard-inset.tsx) : la borne
+     retranche sa hauteur, sinon le haut de la feuille sortirait de l'écran. */
+  --max-height-sheet-default: min(85dvh, calc(100dvh - var(--keyboard-inset, 0px) - 24px));
+  --max-height-sheet-desktop: 82dvh;
+  /* Hauteur fixe (même borne) pour une feuille dont le contenu change sous
+     l'utilisateur — Assemble : la feuille ne saute plus à chaque bascule. */
+  --height-sheet-default: min(85dvh, calc(100dvh - var(--keyboard-inset, 0px) - 24px));
+  --height-sheet-desktop: 82dvh;
+  /* Feuille de détail d'une carte (`CardSheet`, `CardPreviewSheet`) : hauteur
+     fixe, un cran sous la borne générale — d'une carte à l'autre, seul le
+     contenu change, jamais la feuille. */
+  --height-sheet-card: min(75dvh, calc(100dvh - var(--keyboard-inset, 0px) - 24px));
+  --height-sheet-card-desktop: min(82dvh, 720px);
+  /* Carte agrandie en plein écran (ZoomableCardImage) : marge de voile
+     au-dessus et au-dessous. */
+  --max-height-card-zoom: 88dvh;
+  --container-sheet-desktop: 540px;
+
+  /* ScreenHeader partagé : méta 13px sous le titre, rangée de 46px
+     (l'en-tête de sélection doit en avoir exactement la hauteur), 130px
+     d'air entre contrôles et titre en `stacked`. */
+  --text-header-meta: 13px;
+  --min-height-header-row: 46px;
+  --spacing-header-stacked: 130px;
+
+  /* CardImage : rayon 12 du grand visuel des feuilles d'ajout et de
+     détail. */
+  --radius-card-image: 12px;
+
+  /* ConfirmDialog : message 14px, boutons 14.5px/700. */
+  --text-confirm-message: 14px;
+  --text-confirm-button: 14.5px;
+
+  /* Toast Undo : entre en glissant de 8px, et sur desktop se range en bas
+     à droite au lieu de traverser la fenêtre. */
+  --container-toast-desktop: 420px;
+  --spacing-toast-right-desktop: 28px;
+  --spacing-toast-bottom-desktop: 24px;
+  --animate-undo-toast-in: undo-toast-in 180ms ease-out;
+
+  @keyframes undo-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@theme {
+  /* Panneau d'aperçu desktop : état vide centré 340px min, prix 30px,
+     vignettes d'impression 52×73 rayon 6, boutons d'action 12.5px/700. */
+  --min-height-preview-empty: 340px;
+  --text-price-pane: 30px;
+  --width-printing-tile: 52px;
+  --height-printing-tile: 73px;
+  --radius-printing-tile: 6px;
+  --text-preview-action: 12.5px;
+}
+
+@theme {
+  /* Cases de couleur de `SearchFiltersSheet` (48×48, distinct des 44px de
+     `ColorCell` partagé, `components/ui/color-cell.tsx`) : ce composant est
+     réservé à la feuille de filtres de la recherche, tokens propres plutôt
+     qu'une approximation de ceux de `ColorCell` (conventions de
+     docs/development.md, un nom par rôle).
+     Symbole à 26px, même proportion (~54%) que 24/44 côté `ColorCell`. */
+  --width-color-cell-search: 48px;
+  --height-color-cell-search: 48px;
+  --width-icon-color-cell-search: 26px;
+  --height-icon-color-cell-search: 26px;
+}
+
+@theme {
+  /* Vignettes de StylePicker uniformes : les quatre barres de l'aperçu
+     Compact et les six tuiles de l'aperçu Shelves partagent une seule
+     teinte — des paliers accent/muted laisseraient croire à un sens que
+     l'aperçu ne porte pas. */
+  --color-style-preview-uniform: light-dark(#d9d7e0, #2a2f3a);
+
+  /* Voile et tuile du `FirstPlayerOverlay` bloquant du compteur de vie. */
+  --color-first-player-veil: rgba(4, 5, 8, 0.72);
+  --width-first-player-tile: 150px;
+  --height-first-player-tile: 150px;
+  --radius-first-player-tile: 28px;
+  --text-first-player-seat: 72px;
+  --text-first-player-label: 17px;
+  --container-first-player-actions: 320px;
+
+  /* Barre de partie du compteur de vie : fond `bg-surface-3` arrondi
+     derrière les quatre boutons plats icône+libellé, distinct de
+     `--radius-life-toggle` (rôle différent, l'écran de setup). */
+  --radius-life-bar: 18px;
+  --text-life-bar-label: 11px;
+
+  /* Liste déroulante de candidats du combobox « Add a member ». */
+  --max-height-member-candidates: 220px;
+}
+
+@theme {
+  /* Feuille Sort & group : hauteur minimale de 48px par ligne (le segmenté
+     directionnel ne doit jamais comprimer la ligne en dessous), et largeur
+     maximale du déclencheur de la barre de commande (`ArrowDownWideNarrow`
+     + libellé COURT), qui ellipse plutôt que de repousser le champ de
+     recherche vers son icône seule à 375px. */
+  --min-height-sort-row: 48px;
+  --width-sort-trigger: 132px;
+}
+
+@theme {
+  /* Correction du token précédent : le déclencheur de tri de la
+     barre de commande doit pouvoir rétrécir sous 132px (contenu court, ex.
+     « Qty ») — un `max-width` (`--container-*` → `max-w-*`),
+     jamais une largeur fixe. `--width-sort-trigger` ci-dessus reste inutilisé. */
+  --container-sort-trigger: 132px;
+}
+
+@theme {
+  /* Feuille `Binder look`, mode `Card art` : grille de vignettes d'art crop
+     (`repeat(auto-fill, minmax(96px,1fr))`, hauteur fixe 70px, rayon 8) et
+     borne de défilement `46dvh` — exprimée en hauteur de viewport, jamais
+     une valeur fixe qui déborderait sur un petit écran.
+     `--width-look-art-tile-min` est consommé par `var()` dans un style
+     inline (grid-template-columns), pas par une classe `w-*` directe — Tailwind
+     n'a pas d'utilitaire pour composer `minmax()` à partir d'un jeton. */
+  --width-look-art-tile-min: 96px;
+  --height-look-art-tile: 70px;
+  --radius-look-art-tile: 8px;
+  --max-height-look-art-grid: 46dvh;
+}
+
+@theme {
+  /* Accueil Shelves, pile de cartes superposées : tag encadré « LIST » à
+     côté du titre, bouton rond chevron de fin de pile, ombre portée gauche
+     des tuiles superposées. */
+  --radius-tag: 6px;
+  --text-tag-list: 10.5px;
+  --width-shelf-chevron: 40px;
+  --height-shelf-chevron: 40px;
+  --shadow-shelf-overlap: -6px 0 14px rgba(4, 5, 8, 0.55);
+}
+
+@theme {
+  /* Barre de commande translucide sur un fond d'art : trois couches
+     distinctes (champ/déclencheur de tri, bordure, pad du sélecteur de
+     densité), jamais la même teinte que `--color-surface-translucent`
+     (0.85, autre rôle — le voile plein écran d'un fond de deck).
+     Boutons de densité 30×30 — distincts de `--width-density-button`/
+     `--height-density-button` (32px, la hauteur de toute la rangée : champ,
+     déclencheur de tri, conteneur du sélecteur, inchangée). */
+  --color-command-bar-translucent: light-dark(rgba(255, 255, 255, 0.82), rgba(18, 21, 28, 0.82));
+  --color-command-bar-translucent-border: light-dark(rgba(22, 20, 31, 0.1), rgba(255, 255, 255, 0.09));
+  --color-command-bar-translucent-pad: light-dark(rgba(246, 245, 249, 0.9), rgba(20, 24, 33, 0.9));
+  --width-density-icon-button: 30px;
+  --height-density-icon-button: 30px;
+}
+
+@theme {
+  /* Feuille `Import & export` unifiée : boîte scrollable des lignes
+     ignorées de l'écran de résultat d'import. */
+  --max-height-import-errors: 160px;
+}
+
+@theme {
+  /* Pas de grille manquants, révélés par la marge basse de Settings (demande
+      produit) : `pb-28`/`pb-40` — le bas du corps de chaque écran (28px
+     mobile, 40px desktop) — n'émettaient
+     RIEN depuis le début, faute de ces deux tokens. */
+  --spacing-28: 28px;
+  --spacing-40: 40px;
+}
+
+@theme {
+  /* En-tête repliable des écrans à fond (demande produit) : réserve en flux
+     de la rangée retour/menu (20px de haut de page + bouton 40px), et zone
+     vide repliable = 160px (--spacing-deck-header-gap) − cette réserve. */
+  --spacing-deck-controls-reserve: 60px;
+  --spacing-deck-collapse-gap: 100px;
+}
+
+@theme {
+  /* Hauteur commune de la rangée de la barre de commande (demande
+     produit) : champ de recherche et bouton de tri s alignent sur la hauteur
+     réelle du groupe de densité (30px de boutons + 2×3px de padding). */
+  --height-command-control: 36px;
+}
+
+@theme {
+  /* En-tête repliable du binder illustré (demande produit, même patron que
+     --spacing-deck-controls-reserve/--spacing-deck-collapse-gap) :
+     réserve en flux de la rangée retour/···/+ (peinte par le fond absolu de
+     `BinderHeaderBackdrop`) — 20px de haut de page (`pt-20`) + 40px (le plus
+     haut des trois boutons de la rangée, `--height-header-add-binder`).
+     Aucun second token pour la zone repliable elle-même : au repos, le
+     titre reste à `reserve + --spacing-binder-title-gap` du haut de la
+     zone de défilement — exactement la position qu'il occupe déjà
+     aujourd'hui (`mb-binder-title-gap` sous la rangée de boutons) — donc le
+     spacer repliable réutilise directement `h-binder-title-gap`, sans
+     valeur dupliquée. */
+  --spacing-binder-controls-reserve: 60px;
+}
+
+/* Accents alternatifs (préférence `users.accent_color`, posée sur `<html>`
+   par le layout racine via `lib/theme.ts`). L'or reste le défaut du bloc
+   `@theme` ; chaque variante ne redéfinit que la famille d'accent — les
+   neutres, l'avertissement (orange) et les sièges du compteur de vie ne
+   bougent pas. Texte, clair et fond d'accent ont chacun leur valeur claire
+   (`light-dark`) : la teinte vive d'un accent ne se lit pas en texte sur
+   blanc. */
+:root[data-accent='blue'] {
+  --color-accent: #3d7bff;
+  --color-accent-text: light-dark(#1f5ae0, #5a90ff);
+  --color-accent-light: light-dark(#3b6fd8, #8fb2ff);
+  --color-accent-bg: light-dark(#e7eeff, #161d2e);
+  --color-border-accent: rgba(61, 123, 255, 0.55);
+  --color-border-accent-subtle: rgba(61, 123, 255, 0.45);
+  --color-border-app-tile: rgba(61, 123, 255, 0.35);
+  --color-on-accent: #fff;
+  --color-value-band-label: rgba(255, 255, 255, 0.75);
+  --color-value-band-chip: rgba(255, 255, 255, 0.85);
+  --color-value-band-caption: rgba(255, 255, 255, 0.7);
+  --gradient-value-band: linear-gradient(150deg, #2b4bd6, #4f8cff);
+  --gradient-mana-bar: linear-gradient(90deg, #3d7bff, #5a90ff);
+}
+
+:root[data-accent='violet'] {
+  --color-accent: #7c3aed;
+  --color-accent-text: light-dark(#6d28d9, #a78bfa);
+  --color-accent-light: light-dark(#7c3aed, #c4b5fd);
+  --color-accent-bg: light-dark(#f0eafe, #1b1530);
+  --color-border-accent: rgba(139, 92, 246, 0.55);
+  --color-border-accent-subtle: rgba(139, 92, 246, 0.45);
+  --color-border-app-tile: rgba(139, 92, 246, 0.35);
+  --color-on-accent: #fff;
+  --color-value-band-label: rgba(255, 255, 255, 0.75);
+  --color-value-band-chip: rgba(255, 255, 255, 0.85);
+  --color-value-band-caption: rgba(255, 255, 255, 0.7);
+  --gradient-value-band: linear-gradient(150deg, #5b21b6, #8b5cf6);
+  --gradient-mana-bar: linear-gradient(90deg, #7c3aed, #a78bfa);
+}
+
+:root[data-accent='silver'] {
+  /* En clair, l'argent pâle disparaîtrait sur fond blanc : il fonce en
+     graphite, et le texte posé dessus passe en blanc. */
+  --color-accent: light-dark(#5d6272, #c9cdd8);
+  --color-accent-text: light-dark(#4a4f5e, #d6d9e2);
+  --color-accent-light: light-dark(#5d6272, #e8eaf0);
+  --color-accent-bg: light-dark(#eceef3, #1d1e24);
+  --color-border-accent: light-dark(rgba(93, 98, 114, 0.55), rgba(201, 205, 216, 0.55));
+  --color-border-accent-subtle: light-dark(rgba(93, 98, 114, 0.45), rgba(201, 205, 216, 0.45));
+  --color-border-app-tile: light-dark(rgba(93, 98, 114, 0.35), rgba(201, 205, 216, 0.35));
+  --color-on-accent: light-dark(#ffffff, #16141f);
+  --color-value-band-label: rgba(22, 20, 31, 0.75);
+  --color-value-band-chip: rgba(22, 20, 31, 0.85);
+  --color-value-band-caption: rgba(22, 20, 31, 0.7);
+  --gradient-value-band: linear-gradient(150deg, #8e93a3, #d4d7e0);
+  --gradient-mana-bar: linear-gradient(90deg, #8e93a3, #c9cdd8);
+}
+
+/* Fond noir pur (préférence `users.pure_black`) : pour les écrans OLED. Le
+   fond passe à #000 et les surfaces descendent d'un cran, en gardant assez
+   d'écart pour que cartes et lignes restent lisibles sur le fond. Sans
+   effet en clair : la branche claire reprend les valeurs du bloc `@theme`. */
+:root[data-pure-black] {
+  --color-bg: light-dark(#f3f2f6, #000);
+  --color-surface-sunken: light-dark(#eceaf0, #060509);
+  --color-surface-1: light-dark(#ffffff, #0e0d12);
+  --color-surface-2: light-dark(#f6f5f9, #121117);
+  --color-surface-3: light-dark(#ecebf1, #17161c);
+  --color-bg-glow: light-dark(#ffffff, #000);
+}

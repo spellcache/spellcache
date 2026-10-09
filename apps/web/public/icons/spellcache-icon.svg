@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="spellcache">
+  <rect width="512" height="512" rx="116" fill="#16141F"></rect>
+  <g transform="translate(81.4 72.4) scale(3.6)">
+    <path d="M44.5 10.5 H73.5 V73 L59 62 L44.5 73 Z" fill="none" stroke="#E8B44A" stroke-width="5" stroke-linejoin="round"></path>
+    <path d="M24 22 H58 V92 L41 79 L24 92 Z" fill="#16141F" stroke="#16141F" stroke-width="7" stroke-linejoin="round"></path>
+    <path d="M24 22 H58 V92 L41 79 L24 92 Z" fill="#E8B44A"></path>
+    <path d="M41 35 Q43.6 45.4 54 48 Q43.6 50.6 41 61 Q38.4 50.6 28 48 Q38.4 45.4 41 35 Z" fill="#16141F"></path>
+  </g>
+</svg>

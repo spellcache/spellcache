@@ -1,0 +1,36 @@
+{
+  "name": "spellcache",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @spellcache/web dev",
+    "build": "pnpm --filter @spellcache/web build",
+    "start": "pnpm --filter @spellcache/web start",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r --workspace-concurrency=1 --no-bail test",
+    "test:e2e": "pnpm --filter @spellcache/web test:e2e",
+    "db:generate": "pnpm --filter @spellcache/db generate",
+    "db:migrate": "pnpm --filter @spellcache/db migrate",
+    "import:bulk": "pnpm --filter @spellcache/worker import:bulk",
+    "worker": "pnpm --filter @spellcache/worker start"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.5.27",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@10.27.0",
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.23",
+      "source-map-js": "^1.2.2",
+      "shell-quote": "^1.11.0",
+      "sharp": "^0.35.5"
+    }
+  }
+}

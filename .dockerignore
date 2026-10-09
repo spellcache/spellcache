@@ -1,0 +1,60 @@
+# Contexte de build des deux images (Dockerfile, Dockerfile.worker).
+#
+# `design/` n'est PAS exclu : `pnpm prebuild` (scripts/copy-assets.mjs) copie
+# design/assets/icon et le manifest vers public/ pendant `pnpm build`, puis
+# scripts/fetch-mana.mjs télécharge les symboles de mana depuis Scryfall.
+# Sans lui, l'image sortirait sans icône.
+
+# dépendances et sorties de build — réinstallées et reconstruites dans l'image
+**/node_modules
+**/.next
+**/out
+**/build
+**/dist
+**/*.tsbuildinfo
+
+# secrets : aucun `.env` ne doit entrer dans une image. Seuls les exemples, qui ne portent aucune valeur, sont autorisés.
+**/.env
+**/.env.*
+!**/.env.example
+
+# historique, tests et rapports : inutiles à l'exécution
+.git
+.github
+**/tests
+**/test-results
+**/playwright-report
+**/blob-report
+**/.playwright
+**/coverage
+**/playwright.config.ts
+**/vitest.config.ts
+**/vitest.workspace.ts
+
+# données locales
+**/thumbs
+**/data
+**/*.log
+**/*.sql
+**/*.sql.gz
+**/*.enc
+**/*.jsonl
+**/*.jsonl.gz
+**/public/mana
+
+# … mais jamais les migrations : l'image `web` les embarque et les applique
+# au démarrage. Une migration silencieusement absente de l'image ferait
+# démarrer le serveur sur un schéma périmé. Motifs valables où que vive le
+# dossier `migrations/` (racine ou package du monorepo).
+!**/migrations
+!**/migrations/**
+
+# environnements de l'hôte
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# app Android : hors des images
+apps/android/android
+apps/android/www

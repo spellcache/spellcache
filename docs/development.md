@@ -120,7 +120,36 @@ so the Android app follows the server's version.
 - **Sign-in**: the emailed link opens in the browser, not in the app. In the
   app, sign in with the code from the same email.
 - **Requirements on the server**: HTTPS with a certificate Android trusts.
-  Plain HTTP and self-signed certificates are refused.
+  Plain HTTP and self-signed certificates are refused. The debug build is the
+  only exception: it also accepts `http://localhost` (see below).
+
+### Testing on a phone
+
+The debug build is a separate app, **spellcache dev**
+(`io.github.spellcache.dev`), installed next to the release one. It accepts
+`http://localhost:<port>` in addition to HTTPS servers, so it can open the
+local dev server through `adb reverse`:
+
+```bash
+pnpm dev            # terminal 1: the web app on port 3000
+pnpm android:dev    # terminal 2: sync, adb reverse, install, launch
+```
+
+In the app, enter `http://localhost:3000`. Changes to the web app reload on
+the phone through HMR; run `pnpm android:dev` again only after changing the
+shell (`www/`, Java, `capacitor.config.ts`). Sign in with the code printed by
+`pnpm dev` (no Resend key in development).
+
+- **Connection**: USB with *USB debugging* on, or *Wireless debugging* paired
+  with `adb pair <ip>:<port>`. The `adb reverse` mapping is lost when the phone
+  disconnects: run `pnpm android:dev` again.
+- **DevTools**: `chrome://inspect` on the computer lists the app's WebView
+  (console, network, elements), for the server screen and the instance alike.
+- **Native logs**: `adb logcat`, or Android Studio
+  (`pnpm --filter @spellcache/android open`) for breakpoints in Java.
+- **Another server**: the dev app also opens any HTTPS instance, to reproduce
+  a bug against real data with DevTools.
+- `DEV_PORT=3001 pnpm android:dev` when `pnpm dev` runs on another port.
 
 Build locally (Node, JDK 21, Android SDK; Android Studio installs the last two):
 

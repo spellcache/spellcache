@@ -6,9 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
+    <!-- Boucle locale en HTTP : test de joignabilité du serveur de dev, que
+         seul le build debug accepte (app.js, ServerPlugin, network_security_config). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src https:; img-src 'self'; style-src 'self'; script-src 'self'"
+      content="default-src 'self'; connect-src https: http://localhost:* http://127.0.0.1:*; img-src 'self'; style-src 'self'; script-src 'self'"
     />
     <meta name="color-scheme" content="dark light" />
     <title>spellcache</title>

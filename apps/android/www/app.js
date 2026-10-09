@@ -15,6 +15,11 @@
   // lancement de l'app d'un retour arrière vers cet écran.
   const OPENED_KEY = 'spellcache:opened'
   const HEALTH_TIMEOUT_MS = 8000
+  const LOOPBACK_HOSTS = ['localhost', '127.0.0.1']
+
+  // Build debug seulement (ServerPlugin) : `pnpm dev` joint en HTTP sur la
+  // boucle locale via adb reverse.
+  let allowLocalhost = false
 
   function showForm(origin) {
     opening.hidden = true
@@ -36,18 +41,25 @@
   }
 
   // Origine seule (schéma, hôte, port) : l'app est servie à la racine.
-  // `https://` est ajouté quand l'utilisateur l'omet ; HTTP clair refusé.
+  // `https://` est ajouté quand l'utilisateur l'omet ; HTTP clair refusé,
+  // sauf la boucle locale du build debug (`http://` ajouté pour elle).
   function parseOrigin(value) {
     const raw = value.trim()
     if (!raw) return { error: 'Enter the address of your server.' }
-    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
+    const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+    const defaultScheme =
+      allowLocalhost && LOOPBACK_HOSTS.includes(raw.split(/[:/]/)[0].toLowerCase())
+        ? 'http'
+        : 'https'
     let url
     try {
-      url = new URL(withScheme)
+      url = new URL(hasScheme ? raw : `${defaultScheme}://${raw}`)
     } catch {
       return { error: 'This is not a valid address.' }
     }
-    if (url.protocol !== 'https:') {
+    const loopbackHttp =
+      allowLocalhost && url.protocol === 'http:' && LOOPBACK_HOSTS.includes(url.hostname)
+    if (url.protocol !== 'https:' && !loopbackHttp) {
       return { error: 'The server must be reachable over https://.' }
     }
     return { origin: url.origin }
@@ -107,7 +119,8 @@
     if (event.persisted) showForm((await Server.getOrigin()).origin)
   })
 
-  Server.getOrigin().then(({ origin }) => {
+  Server.getOrigin().then(({ origin, allowLocalhost: allowed }) => {
+    allowLocalhost = allowed === true
     if (origin && !sessionStorage.getItem(OPENED_KEY)) open(origin)
     else showForm(origin)
   })

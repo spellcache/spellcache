@@ -155,7 +155,7 @@ export function DeckBackdrop({
         coverIntensity={coverIntensity}
       />
 
-      <div className="relative flex items-center gap-10 px-16 pt-20">
+      <div className="relative box-content flex min-h-header-row items-center gap-10 px-16 pt-screen-top">
         <IconButton label="Back" onClick={onBack}>
           <ChevronLeft width={20} height={20} strokeWidth={1.75} />
         </IconButton>

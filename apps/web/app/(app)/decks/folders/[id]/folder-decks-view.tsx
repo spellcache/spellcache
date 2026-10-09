@@ -11,7 +11,7 @@
 // Sert aussi le `See all` d'`Unsorted` (`folderId === null`, demande
 // produit, 2026-09-06) : même liste, même `+` (le deck naît sans dossier),
 // mais pas de `⋯` — un dossier virtuel ne se renomme ni ne se supprime.
-import { ChevronLeft, Ellipsis, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DeckRow } from '@/components/decks/deck-row'
 import { NewDeckSheet } from '@/components/decks/new-deck-sheet'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { Sheet } from '@/components/ui/sheet'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
 import type { DeckListResult, DeckSummary } from '@/app/(app)/decks/decks-data'
@@ -115,51 +116,20 @@ export function FolderDecksView({
     <Screen
       header={
         <>
-          <div className="mb-14 flex items-center gap-10">
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={() => router.push('/decks')}
-              className="flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
-            >
-              <ChevronLeft width={20} height={20} strokeWidth={1.75} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="text-breadcrumb-container font-bold uppercase tracking-section-label text-text-3">
-                Decks
-              </div>
-              <h1 className="truncate text-title-subscreen font-extrabold tracking-title-subscreen text-text">
-                {folder?.name ?? 'Folder'}
-              </h1>
-              {decks.length > 0 && (
-                <div className="mt-2 text-meta text-text-2">
-                  {decks.length} deck{decks.length === 1 ? '' : 's'}
-                </div>
-              )}
-            </div>
-            {folder && canEdit && (
-              <div className="flex flex-shrink-0 items-center gap-8">
-                {!unsorted && (
-                  <button
-                    type="button"
-                    aria-label="More"
-                    onClick={() => setOverflowOpen(true)}
-                    className="flex h-header-action w-header-action items-center justify-center rounded-full bg-surface-1 text-text"
-                  >
-                    <Ellipsis width={18} height={18} strokeWidth={1.75} />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-label="Add"
-                  onClick={() => setNewDeckOpen(true)}
-                  className="flex h-header-add w-header-add items-center justify-center rounded-full bg-accent text-on-accent"
-                >
-                  <Plus width={21} height={21} strokeWidth={1.75} />
-                </button>
-              </div>
-            )}
-          </div>
+          <ScreenHeader
+            title={folder?.name ?? 'Folder'}
+            breadcrumb="Decks"
+            onBack={() => router.push('/decks')}
+            meta={
+              decks.length > 0
+                ? `${decks.length} deck${decks.length === 1 ? '' : 's'}`
+                : undefined
+            }
+            onOverflow={
+              folder && canEdit && !unsorted ? () => setOverflowOpen(true) : undefined
+            }
+            onAdd={folder && canEdit ? () => setNewDeckOpen(true) : undefined}
+          />
 
           {decks.length > 0 && (
             <div className="mb-14 flex flex-wrap gap-6">

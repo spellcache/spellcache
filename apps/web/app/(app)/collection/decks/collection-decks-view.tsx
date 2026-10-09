@@ -10,12 +10,12 @@
 // deck a discrètement perdu des cartes quand j'en ai monté un autre » est
 // exactement la question qu'on vient poser ici, et elle se lit sur la puce de
 // statut sans ouvrir un seul deck.
-import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import type { DeckListResult, DeckSummary } from '@/app/(app)/decks/decks-data'
 import { DeckRow } from '@/components/decks/deck-row'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { formatCount, formatMoney } from '@/lib/format/money'
 
 // Les trois seuils qui séparent réellement les decks montés, et rien de plus :
@@ -67,31 +67,20 @@ export function CollectionDecksView({ initial }: { initial: DeckListResult }) {
     <Screen
       header={
         <>
-          <div className="mb-14 flex items-center gap-10">
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={() => window.history.back()}
-              className="flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
-            >
-              <ChevronLeft width={20} height={20} strokeWidth={1.75} />
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="text-breadcrumb-container font-bold uppercase tracking-section-label text-text-3">
-                Collection
-              </div>
-              <h1 className="truncate text-title-subscreen font-extrabold tracking-title-subscreen text-text">
-                Decks
-              </h1>
-              {initial.decks.length > 0 && (
-                <div className="mt-2 text-meta text-text-2">
+          <ScreenHeader
+            title="Decks"
+            breadcrumb="Collection"
+            onBack={() => window.history.back()}
+            meta={
+              initial.decks.length > 0 ? (
+                <>
                   {formatCount(initial.decks.length)} built deck
                   {initial.decks.length === 1 ? '' : 's'} ·{' '}
                   {formatMoney(totalValueMinor, initial.currency)}
-                </div>
-              )}
-            </div>
-          </div>
+                </>
+              ) : undefined
+            }
+          />
 
           {/* `All` sans compteur, rangée visible même à vide — même filtre que l'onglet Decks
               (`folders-view.tsx`). */}

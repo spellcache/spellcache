@@ -15,6 +15,16 @@ const config: CapacitorConfig = {
     // session `Secure`, service worker) : refusée dès l'écran de connexion.
     allowMixedContent: false,
   },
+  plugins: {
+    // La WebView gère elle-même les zones sûres (`env(safe-area-inset-*)`).
+    // Laissé actif, SystemBars rétrécit la WebView de la hauteur du clavier :
+    // toute la page, barre d'onglets comprise, remonterait au-dessus. Le
+    // clavier recouvre la page, comme dans Chrome ; `MainActivity` publie sa
+    // hauteur (`--keyboard-inset`).
+    SystemBars: {
+      insetsHandling: 'disable',
+    },
+  },
 }
 
 export default config

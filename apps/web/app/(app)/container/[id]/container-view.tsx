@@ -18,7 +18,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { ArrowDownUp, ChevronLeft, Ellipsis, Plus } from 'lucide-react'
+import { ArrowDownUp } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
@@ -51,6 +51,7 @@ import {
 import { rowVisualState } from '@/components/selection/row-visual-state'
 import { useSelection } from '@/components/selection/selection-provider'
 import { ImportExportSheet } from '@/components/collection/import-export-sheet'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { Sheet } from '@/components/ui/sheet'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
 import { UndoToast } from '@/components/ui/undo-toast'
@@ -679,14 +680,14 @@ export function ContainerView({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-16 py-20 desktop:px-20 desktop:pb-24 desktop:pt-30">
+    <div className="flex h-full min-h-0 flex-col px-16 pt-screen-top desktop:px-20 desktop:pb-24 desktop:pt-30">
       {selection.active ? (
         // En-tête de sélection : remplace l'en-tête normal tant que la sélection est
-        // active — même emplacement, même hauteur de bloc (`mb-14`), pour ne
-        // pas décaler `CommandBar`/la liste en dessous. `Cancel` vide la
-        // sélection (`Clear`/`Échap`/navigation partagent tous
-        // `selection.clear()`).
-        <div className="mb-14 flex items-center gap-10">
+        // active — même emplacement, même rangée (`min-h-header-row`, `mb-18`)
+        // que `ScreenHeader`, pour ne pas décaler `CommandBar`/la liste en
+        // dessous. `Cancel` vide la sélection (`Clear`/`Échap`/navigation
+        // partagent tous `selection.clear()`).
+        <div className="mb-18 flex min-h-header-row items-center gap-10">
           <button
             type="button"
             onClick={selection.clear}
@@ -727,7 +728,7 @@ export function ContainerView({
           />
           <div aria-hidden className="h-binder-controls-reserve flex-shrink-0" />
         </>
-      ) : header.kind === 'binder' ? (
+      ) : header.kind === 'binder' && binderCoverActive ? (
         // En-tête illustré d'un binder (écran `Binder · card-art backdrop`) —
         // remplace le bloc générique ci-dessous, seul `CommandBar`/la liste en
         // dessous restent partagés avec les autres `kind` (inchangés). Reste la
@@ -755,62 +756,34 @@ export function ContainerView({
       ) : (
         // En-tête unique à toutes les largeurs : le même en-tête sert
         // mobile ET desktop.
-        <div className="mb-14 flex items-center gap-10">
-          <button
-            type="button"
-            aria-label="Back"
-            onClick={() => window.history.back()}
-            className="flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
-          >
-            <ChevronLeft width={20} height={20} strokeWidth={1.75} />
-          </button>
-          <div className="min-w-0 flex-1">
-            {/* Le même fil d'ariane que l'en-tête desktop : sur mobile la
-                pile de navigation est invisible, et « Collection » au-dessus
-                du titre dit d'où l'on vient sans coûter une ligne de liste. */}
-            <div className="text-breadcrumb-container font-bold uppercase tracking-section-label text-text-3">
-              Collection
-            </div>
-            <h1 className="truncate text-title-subscreen font-extrabold tracking-title-subscreen text-text">
-              {screenTitle}
-            </h1>
-            {/* Pas de méta sous « All collection » — seuls binders et listes
-                en ont. */}
-            {header.kind !== 'collection' && (
-              <div className="mt-3 text-meta text-text-2">
-                {formatCount(header.cardCount)} cards ·{' '}
-                {formatMoney(header.valueMinor, currency)}
-              </div>
-            )}
-          </div>
-          {/* Même paire d'actions que l'en-tête desktop (`MainHeader`) et
-              que celui d'un binder (`BinderHeader`) : le `···` manquait ici,
-              si bien qu'une liste n'avait aucun accès à son renommage, son
-              apparence ni sa suppression sur mobile. Le container racine
-              (« All collection ») a aussi le sien. */}
-          {hasMenu && (
-            <button
-              type="button"
-              aria-label="More actions"
-              onClick={() =>
-                header.kind === 'collection' ? setCollectionMenuOpen(true) : setBinderMenuOpen(true)
-              }
-              className="flex h-header-action w-header-action flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
-            >
-              <Ellipsis width={18} height={18} strokeWidth={1.75} />
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              aria-label="Add card"
-              onClick={() => setAddSheetOpen(true)}
-              className="flex h-header-add w-header-add flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
-            >
-              <Plus width={21} height={21} strokeWidth={1.75} />
-            </button>
-          )}
-        </div>
+        <ScreenHeader
+          title={screenTitle}
+          breadcrumb="Collection"
+          onBack={() => window.history.back()}
+          meta={
+            // Pas de méta sous « All collection » — seuls binders et listes
+            // en ont.
+            header.kind !== 'collection' ? (
+              <>
+                {formatCount(header.cardCount)} cards · {formatMoney(header.valueMinor, currency)}
+              </>
+            ) : undefined
+          }
+          // Même paire d'actions que l'en-tête desktop (`MainHeader`) et que
+          // celui d'un binder (`BinderHeader`) : sans le `···`, une liste
+          // n'avait aucun accès à son renommage, son apparence ni sa
+          // suppression sur mobile. Le container racine (« All collection »)
+          // a aussi le sien.
+          onOverflow={
+            hasMenu
+              ? () =>
+                  header.kind === 'collection' ? setCollectionMenuOpen(true) : setBinderMenuOpen(true)
+              : undefined
+          }
+          overflowLabel={header.kind === 'binder' ? 'Binder actions' : 'More actions'}
+          onAdd={canEdit ? () => setAddSheetOpen(true) : undefined}
+          addLabel="Add card"
+        />
       )}
 
 

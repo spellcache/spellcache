@@ -107,7 +107,7 @@ function AppShellContent({
     // détecté par `:has([data-preview-pane])`), gouttière de 28px entre la
     // barre latérale et la colonne, colonne de lecture bornée à 820px. Pas
     // de filet entre les colonnes : la gouttière suffit.
-    <div className="flex h-dvh flex-col overflow-hidden desktop:mx-auto desktop:w-full desktop:max-w-shell desktop:flex-row desktop:gap-shell-gap desktop:px-24 pane:has-[[data-preview-pane]]:max-w-shell-pane">
+    <div className="flex h-dvh flex-col overflow-hidden pt-safe-top desktop:mx-auto desktop:w-full desktop:max-w-shell desktop:flex-row desktop:gap-shell-gap desktop:px-24 pane:has-[[data-preview-pane]]:max-w-shell-pane">
       {renderSidebar && (
         <div className="hidden flex-shrink-0 desktop:block">
           <Sidebar

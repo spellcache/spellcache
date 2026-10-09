@@ -163,13 +163,14 @@ export function BinderHeaderBackdrop({
   const canEdit = useCanEdit()
 
   return (
-    // Même bleed `-mx-16 -mt-20` que `BinderHeader` ci-dessous (même piège :
-    // n'annule que le padding mobile `px-16 pt-20` du conteneur, pas
+    // Même bleed `-mx-16 -mt-screen-top` que `BinderHeader` ci-dessous (même
+    // piège : n'annule que le padding mobile `px-16 pt-screen-top` du
+    // conteneur, pas
     // `desktop:px-20 desktop:pt-30` — imprécision déjà présente avant ce
     // découpage, hors périmètre de cette demande). Pas de `mb-14` ici :
     // `container-view.tsx` pose la réserve en flux (`h-binder-controls-
     // reserve`) comme sibling après ce composant, à la place de cette marge.
-    <div ref={rootRef} className="relative -mx-16 -mt-20">
+    <div ref={rootRef} className="relative -mx-16 -mt-screen-top">
       {veiled && (
         <div
           aria-hidden="true"
@@ -186,7 +187,9 @@ export function BinderHeaderBackdrop({
 
       {/* Posés sur le haut sombre de l'illustration : boutons en valeurs
           sombres même en thème clair (`scheme-dark`). */}
-      <div className={`relative flex items-center gap-10 px-16 pt-20 ${veiled ? 'scheme-dark' : ''}`}>
+      <div
+        className={`relative flex min-h-header-row items-center gap-10 px-16 pt-screen-top box-content ${veiled ? 'scheme-dark' : ''}`}
+      >
         <IconButton label="Back" illustrated={veiled} onClick={() => window.history.back()}>
           <ChevronLeft width={20} height={20} strokeWidth={1.75} />
         </IconButton>
@@ -297,7 +300,7 @@ export function BinderHeader({
       // vide qui
       // séparaient le titre de la barre de commande : la hauteur réservée
       // était celle du fond, pas celle de quoi que ce soit de lisible.
-      className="relative -mx-16 -mt-20 mb-14"
+      className="relative -mx-16 -mt-screen-top mb-14"
     >
       {veiled && (
         <div
@@ -338,11 +341,11 @@ export function BinderHeader({
         </div>
       )}
 
-      <div className="relative flex flex-col px-16 pt-20">
+      <div className="relative flex flex-col px-16 pt-screen-top">
         {/* Boutons sur le haut sombre de l'illustration : valeurs sombres en
             thème clair aussi (`scheme-dark`). Le titre, plus bas, s'assoit
             là où l'illustration se fond dans la page : texte de la page. */}
-        <div className={`mb-binder-title-gap flex items-center gap-10 ${veiled ? 'scheme-dark' : ''}`}>
+        <div className={`mb-binder-title-gap flex min-h-header-row items-center gap-10 ${veiled ? 'scheme-dark' : ''}`}>
           <IconButton
             label="Back"
             illustrated={veiled}

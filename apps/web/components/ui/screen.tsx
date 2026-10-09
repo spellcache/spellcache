@@ -7,9 +7,9 @@
 // Le document, lui, ne défile jamais (`html, body { overflow: hidden }`,
 // app/globals.css) : ce corps-ci est le seul défilement de l'écran.
 //
-// Les gouttières par défaut sont celles du design (padding d'écran mobile
-// `20px 16px`), portées ici une fois pour toutes plutôt que répétées par chaque
-// page — l'en-tête et le corps partagent le même retrait latéral, sinon les
+// Les gouttières par défaut sont portées ici une fois pour toutes plutôt que
+// répétées par chaque page : haut `--spacing-screen-top` (commun à tous les
+// écrans, illustrés compris), retrait latéral `--gutter` — l'en-tête et le corps partagent le même retrait latéral, sinon les
 // contrôles du titre ne s'alignent pas sur les lignes en dessous. Les deux
 // écrans à étagères les remplacent : leurs pistes débordent jusqu'aux bords de
 // la colonne et paient elles-mêmes leur retrait.
@@ -22,7 +22,7 @@ export function Screen({
   // annulée sur desktop où la coquille bornée paie déjà ses retraits ; le
   // corps réserve en plus la voie de la scrollbar en surimpression à droite
   // (`--scrollbar-lane`), pour que le curseur ne morde jamais le contenu.
-  headerClassName = 'px-gutter pt-20 desktop:px-0 desktop:pt-34',
+  headerClassName = 'px-gutter pt-screen-top desktop:px-0 desktop:pt-34',
   bodyClassName = 'pl-gutter pr-gutter-lane desktop:pl-0 desktop:pr-scrollbar-lane',
 }: {
   header?: React.ReactNode
@@ -34,7 +34,7 @@ export function Screen({
     <div className="flex h-full min-h-0 flex-col">
       {header !== undefined && <div className={`flex-shrink-0 ${headerClassName}`}>{header}</div>}
       <ScrollArea
-        className={`pb-28 desktop:pb-40 ${header === undefined ? 'pt-20 desktop:pt-34' : ''} ${bodyClassName}`}
+        className={`pb-28 desktop:pb-40 ${header === undefined ? 'pt-screen-top desktop:pt-34' : ''} ${bodyClassName}`}
       >
         {children}
       </ScrollArea>

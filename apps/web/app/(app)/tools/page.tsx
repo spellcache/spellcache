@@ -10,6 +10,7 @@
 import { notFound } from 'next/navigation'
 
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { AppTile } from '@/components/tools/app-tile'
 import { requireSession } from '@/lib/auth-guards'
 import { getToolFlags } from '@/lib/tools/tool-flags'
@@ -25,11 +26,7 @@ export default async function ToolsPage() {
 
   return (
     <Screen
-      header={
-        <h1 className="mb-20 text-title-screen font-extrabold tracking-title-screen text-text">
-          Tools
-        </h1>
-      }
+      header={<ScreenHeader title="Tools" />}
     >
       <div className="flex flex-col gap-11">
         {TOOLS.map((tool) => {

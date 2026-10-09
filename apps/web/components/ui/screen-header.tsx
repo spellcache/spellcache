@@ -13,6 +13,7 @@
 // sélection remplace cette rangée pendant une sélection et doit en avoir
 // exactement la hauteur, sinon toute la liste saute au long-press.
 import { ChevronLeft, Ellipsis, Plus, type LucideIcon } from 'lucide-react'
+import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
 
 export const HEADER_ROW_HEIGHT = 46
@@ -64,8 +65,10 @@ export function ScreenHeader({
   breadcrumb,
   meta,
   onBack,
+  backHref,
   actions = [],
   onOverflow,
+  overflowLabel = 'More',
   onAdd,
   addLabel = 'Add',
   overArt = false,
@@ -76,15 +79,30 @@ export function ScreenHeader({
   breadcrumb?: string
   meta?: ReactNode
   onBack?: () => void
+  // Destination fixe du retour : un vrai lien plutôt qu'un bouton.
+  backHref?: string
   actions?: ScreenHeaderAction[]
   onOverflow?: () => void
+  overflowLabel?: string
   onAdd?: () => void
   addLabel?: string
   overArt?: boolean
   layout?: 'inline' | 'stacked'
   className?: string
 }) {
-  const titleClass = overArt ? 'text-title-binder' : onBack ? 'text-title-subscreen' : 'text-title-screen'
+  const hasBack = onBack !== undefined || backHref !== undefined
+  const titleClass = overArt ? 'text-title-binder' : hasBack ? 'text-title-subscreen' : 'text-title-screen'
+  const back = backHref ? (
+    <Link
+      href={backHref}
+      aria-label="Back"
+      className="flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
+    >
+      <ChevronLeft size={20} strokeWidth={1.75} />
+    </Link>
+  ) : onBack ? (
+    <CircleButton icon={ChevronLeft} label="Back" onClick={onBack} iconSize={20} overArt={overArt} />
+  ) : null
   const shadowStyle: CSSProperties | undefined = overArt
     ? { textShadow: 'var(--text-shadow-binder-title)' }
     : undefined
@@ -103,7 +121,7 @@ export function ScreenHeader({
       {onOverflow && (
         <CircleButton
           icon={Ellipsis}
-          label="More"
+          label={overflowLabel}
           onClick={onOverflow}
           size={overArt ? 36 : 38}
           overArt={overArt}
@@ -120,6 +138,15 @@ export function ScreenHeader({
         />
       )}
     </>
+  )
+
+  const metaLine = meta && (
+    <div
+      className={`mt-4 text-header-meta ${overArt ? 'text-text-art' : 'text-text-2'}`}
+      style={shadowStyle}
+    >
+      {meta}
+    </div>
   )
 
   const titleBlock = (
@@ -140,14 +167,6 @@ export function ScreenHeader({
       >
         {title}
       </h1>
-      {meta && (
-        <div
-          className={`mt-4 text-header-meta ${overArt ? 'text-text-art' : 'text-text-2'}`}
-          style={shadowStyle}
-        >
-          {meta}
-        </div>
-      )}
     </div>
   )
 
@@ -155,24 +174,27 @@ export function ScreenHeader({
     return (
       <div className={`mb-18 ${className}`}>
         <div className="mb-header-stacked flex items-center gap-8">
-          {onBack && (
-            <CircleButton icon={ChevronLeft} label="Back" onClick={onBack} iconSize={20} overArt={overArt} />
-          )}
+          {back}
           <div className="flex-1" />
           <div className="flex items-center gap-8">{controls}</div>
         </div>
         {titleBlock}
+        {metaLine}
       </div>
     )
   }
 
+  // La méta passe sous la rangée plutôt que dedans : la rangée garde ses
+  // 46px partout, et titre comme boutons tombent au même pixel sur tous les
+  // écrans, avec ou sans méta. Elle s'aligne sur le titre, pas sur le retour.
   return (
-    <div className={`mb-18 flex min-h-header-row items-center gap-10 ${className}`}>
-      {onBack && (
-        <CircleButton icon={ChevronLeft} label="Back" onClick={onBack} iconSize={20} overArt={overArt} />
-      )}
-      {titleBlock}
-      <div className="flex flex-shrink-0 items-center gap-8">{controls}</div>
+    <div className={`mb-18 ${className}`}>
+      <div className="flex min-h-header-row items-center gap-10">
+        {back}
+        {titleBlock}
+        <div className="flex flex-shrink-0 items-center gap-8">{controls}</div>
+      </div>
+      {metaLine && <div className={hasBack ? 'pl-header-title-inset' : ''}>{metaLine}</div>}
     </div>
   )
 }

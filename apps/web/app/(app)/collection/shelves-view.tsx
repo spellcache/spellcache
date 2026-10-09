@@ -106,9 +106,9 @@ export function ShelvesView({ initial }: { initial: CollectionShelves }) {
     // `sticky` était la façon de l'obtenir tant que la page entière défilait).
     <Screen
       header={
-        <div className="flex items-center gap-10">
+        <div className="mb-18 flex min-h-header-row items-center gap-10">
           <div className="min-w-0 flex-1">
-            <h1 className="text-title-screen-shelf font-extrabold tracking-title-screen-shelf text-text">
+            <h1 className="text-title-screen font-extrabold tracking-title-screen text-text">
               Collection
             </h1>
             <ValueStrip
@@ -125,7 +125,7 @@ export function ShelvesView({ initial }: { initial: CollectionShelves }) {
             type="button"
             aria-label="Find a card"
             onClick={() => router.push('/search')}
-            className="flex h-header-action-shelf w-header-action-shelf flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
+            className="flex h-header-action w-header-action flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
           >
             <Search width={18} height={18} strokeWidth={1.75} />
           </button>
@@ -135,7 +135,7 @@ export function ShelvesView({ initial }: { initial: CollectionShelves }) {
                 type="button"
                 aria-label="More"
                 onClick={() => setMenuOpen(true)}
-                className="flex h-header-action-shelf w-header-action-shelf flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
+                className="flex h-header-action w-header-action flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
               >
                 <Ellipsis width={18} height={18} strokeWidth={1.75} />
               </button>
@@ -143,18 +143,18 @@ export function ShelvesView({ initial }: { initial: CollectionShelves }) {
                 type="button"
                 aria-label="Add a card"
                 onClick={() => setAddCardOpen(true)}
-                className="flex h-header-add-shelf w-header-add-shelf flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
+                className="flex h-header-add w-header-add flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
               >
-                <Plus width={20} height={20} strokeWidth={1.75} />
+                <Plus width={21} height={21} strokeWidth={1.75} />
               </button>
             </>
           )}
         </div>
       }
-      headerClassName="bg-bg px-16 pt-16 pb-16 desktop:px-20 desktop:pt-30"
+      headerClassName="bg-bg px-16 pt-screen-top desktop:px-20 desktop:pt-30"
       bodyClassName="min-w-0"
     >
-      <div className="flex flex-col gap-18 px-16 pb-24 pt-16">
+      <div className="flex flex-col gap-18 px-16 pb-24">
         {/* Masquée si vide — un compte tout neuf, sans
             aucun ajout des sept derniers jours, ne montre pas une rangée
             vide au-dessus de la première étagère réelle. */}

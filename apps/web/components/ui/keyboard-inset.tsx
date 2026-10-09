@@ -10,6 +10,9 @@
 // hauteur exacte du clavier. Ailleurs, repli sur `visualViewport` : la
 // fenêtre visuelle rétrécit et se décale, l'écart avec la fenêtre de mise en
 // page est la place prise par le clavier.
+//
+// App Android : la coque publie elle-même `--keyboard-inset` à partir des
+// insets du clavier (apps/android, `MainActivity.publishKeyboardInset`).
 import { useEffect } from 'react'
 
 interface VirtualKeyboardLike extends EventTarget {

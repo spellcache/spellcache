@@ -728,7 +728,7 @@ export function ContainerView({
           />
           <div aria-hidden className="h-binder-controls-reserve flex-shrink-0" />
         </>
-      ) : header.kind === 'binder' ? (
+      ) : header.kind === 'binder' && binderCoverActive ? (
         // En-tête illustré d'un binder (écran `Binder · card-art backdrop`) —
         // remplace le bloc générique ci-dessous, seul `CommandBar`/la liste en
         // dessous restent partagés avec les autres `kind` (inchangés). Reste la
@@ -780,7 +780,7 @@ export function ContainerView({
                   header.kind === 'collection' ? setCollectionMenuOpen(true) : setBinderMenuOpen(true)
               : undefined
           }
-          overflowLabel="More actions"
+          overflowLabel={header.kind === 'binder' ? 'Binder actions' : 'More actions'}
           onAdd={canEdit ? () => setAddSheetOpen(true) : undefined}
           addLabel="Add card"
         />

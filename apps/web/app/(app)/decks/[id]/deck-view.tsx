@@ -596,14 +596,27 @@ export function DeckView({
     })
   }
 
-  const deckTitleBlock = (
+  // Sans fond, l'en-tête est celui de tous les sous-écrans (`ScreenHeader`) :
+  // titre 22px et méta sous la rangée. Le style d'art (titre 26px ombré) ne
+  // vaut que posé sur l'illustration.
+  const deckHeading = (
     <>
-              <div className="text-breadcrumb-deck font-bold uppercase tracking-section-label text-text-art">
+              <div
+                className={`text-breadcrumb-deck font-bold uppercase tracking-section-label ${
+                  hasBackdrop ? 'text-text-art' : 'mb-2 text-text-3'
+                }`}
+              >
                 {/* La zone d'où vient le deck, et rien d'autre : le format est
                     déjà sur la ligne de méta juste en dessous. */}
                 {deck.deckState === 'built' ? 'Collection › Decks' : 'Decks'}
               </div>
-              <h1 className="mt-2 flex items-center gap-8 text-title-deck font-extrabold tracking-title-binder text-shadow-deck-title text-text">
+              <h1
+                className={`flex items-center gap-8 font-extrabold text-text ${
+                  hasBackdrop
+                    ? 'mt-2 text-title-deck tracking-title-binder text-shadow-deck-title'
+                    : 'text-title-subscreen tracking-title-subscreen'
+                }`}
+              >
                 {/* Un deck monté qui échoue à son format porte l'alerte sur
                     son nom : on la voit sans ouvrir `Infos`, où les raisons
                     elles-mêmes vivent. Un deck en plan est *censé* être
@@ -619,6 +632,11 @@ export function DeckView({
                 )}
                 <span className="min-w-0 truncate">{deck.name}</span>
               </h1>
+    </>
+  )
+
+  const deckMeta = (
+    <>
               {/* Méta par segments : pas de format posé => rien, 0 carte => rien — jamais de
                   « No format » ni « 0 cards » de remplissage. */}
               <div className="mt-5 flex items-center gap-7 text-meta text-text/80">
@@ -642,6 +660,13 @@ export function DeckView({
                 )}
               </div>
               <ArtCredit artist={artCredit} />
+    </>
+  )
+
+  const deckTitleBlock = (
+    <>
+      {deckHeading}
+      {deckMeta}
     </>
   )
 
@@ -681,7 +706,8 @@ export function DeckView({
         {hasBackdrop && <div aria-hidden className="h-deck-controls-reserve flex-shrink-0" />}
         {!hasBackdrop && (
         <div className="relative flex-shrink-0 px-16 pt-screen-top">
-          <div className="mb-18 flex min-h-header-row items-center gap-10">
+          <div className="mb-18">
+          <div className="flex min-h-header-row items-center gap-10">
             {!hasBackdrop && (
               <button
                 type="button"
@@ -694,7 +720,7 @@ export function DeckView({
             )}
 
             <div className={hasBackdrop ? '' : 'min-w-0 flex-1'}>
-              {deckTitleBlock}
+              {deckHeading}
             </div>
 
             {!hasBackdrop && canEdit && (
@@ -707,6 +733,10 @@ export function DeckView({
                 <Ellipsis width={18} height={18} strokeWidth={1.75} />
               </button>
             )}
+          </div>
+          {/* Méta sous la rangée, alignée sur le titre (même forme que
+              `ScreenHeader`). */}
+          <div className="pl-header-title-inset">{deckMeta}</div>
           </div>
 
 

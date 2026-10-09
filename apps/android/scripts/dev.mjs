@@ -76,15 +76,41 @@ if (devices.length === 0) {
   process.exit(1)
 }
 
+// Profil Android cible : celui au premier plan, sauf `DEV_USER`. `installDebug`
+// ne choisit pas de profil ; sur un téléphone à plusieurs profils, l'app
+// doit atterrir dans celui où l'on teste.
+const user =
+  process.env.DEV_USER ??
+  run(adb, ['shell', 'am', 'get-current-user'], { capture: true }).trim()
+
 run('node', ['scripts/copy-runtime.mjs'])
 run('pnpm', ['exec', 'cap', 'sync', 'android'])
 run(adb, ['reverse', `tcp:${port}`, `tcp:${port}`])
-run(windows ? 'gradlew.bat' : './gradlew', ['installDebug'], {
+// Chemin absolu : le répertoire courant n'est pas toujours cherché par `cmd`
+// (NoDefaultCurrentDirectoryInExePath).
+const gradlew = join(root, 'android', windows ? 'gradlew.bat' : 'gradlew')
+run(windows ? `"${gradlew}"` : gradlew, ['assembleDebug'], {
   cwd: join(root, 'android'),
 })
-run(adb, ['shell', 'am', 'start', '-n', `${appId}/io.github.spellcache.MainActivity`])
+run(adb, [
+  'install',
+  '-r',
+  '--user',
+  user,
+  join(root, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+])
+run(adb, [
+  'shell',
+  'am',
+  'start',
+  '--user',
+  user,
+  '-n',
+  `${appId}/io.github.spellcache.MainActivity`,
+])
 
 console.log(
-  `\nspellcache dev is running. Server address in the app: http://localhost:${port}` +
+  `\nspellcache dev is running (Android user ${user}). ` +
+    `Server address in the app: http://localhost:${port}` +
     '\nDevTools: chrome://inspect on this computer.',
 )

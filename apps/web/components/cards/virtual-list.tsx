@@ -752,6 +752,10 @@ export function VirtualList<T>({
             )
           })}
         </div>
+        {/* Air après la dernière rangée, DANS le défilement : la liste court
+            jusqu'à la barre d'onglets et ce retrait n'apparaît qu'en fin de
+            liste, comme le `pb-28` du corps de `Screen`. */}
+        <div aria-hidden className="h-28" />
       </div>
       <OverlayScrollbar
         target={scrollRef}

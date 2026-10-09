@@ -680,7 +680,7 @@ export function ContainerView({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-16 pt-screen-top pb-20 desktop:px-20 desktop:pb-24 desktop:pt-30">
+    <div className="flex h-full min-h-0 flex-col px-16 pt-screen-top desktop:px-20 desktop:pb-24 desktop:pt-30">
       {selection.active ? (
         // En-tête de sélection : remplace l'en-tête normal tant que la sélection est
         // active — même emplacement, même rangée (`min-h-header-row`, `mb-18`)

@@ -680,8 +680,8 @@ export function DeckView({
             restent visibles et cliquables. */}
         {hasBackdrop && <div aria-hidden className="h-deck-controls-reserve flex-shrink-0" />}
         {!hasBackdrop && (
-        <div className="relative flex-shrink-0 px-16 pt-20">
-          <div className="mb-18 flex items-center gap-10">
+        <div className="relative flex-shrink-0 px-16 pt-screen-top">
+          <div className="mb-18 flex min-h-header-row items-center gap-10">
             {!hasBackdrop && (
               <button
                 type="button"

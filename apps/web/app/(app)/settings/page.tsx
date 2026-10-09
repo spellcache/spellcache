@@ -20,6 +20,7 @@ import {
   ToggleRow,
 } from '@/components/settings/preference-controls'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { SettingRow } from '@/components/settings/setting-row'
 import { SettingsGroup } from '@/components/settings/settings-group'
 import { BREAKPOINTS } from '@/lib/breakpoints'
@@ -36,13 +37,7 @@ export default async function SettingsPage() {
   const initial = data.username.slice(0, 1).toUpperCase()
 
   return (
-    <Screen
-      header={
-        <h1 className="mb-20 text-title-screen font-extrabold tracking-title-screen text-text">
-          Settings
-        </h1>
-      }
-    >
+    <Screen header={<ScreenHeader title="Settings" />}>
       <div className="mb-22 flex items-center gap-16 rounded-card bg-gradient-value-band p-20">
         <div className="flex h-avatar w-avatar flex-shrink-0 items-center justify-center rounded-full bg-avatar-bg text-avatar-initial font-extrabold text-accent">
           {initial}

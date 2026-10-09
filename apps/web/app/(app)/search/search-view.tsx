@@ -21,6 +21,7 @@ import {
 } from '@/components/search/search-filters-sheet'
 import { SetRow } from '@/components/search/set-row'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import {
   activeSetsFilterCount,
   EMPTY_SETS_FILTERS,
@@ -73,9 +74,7 @@ function CategoryTabs({
 }) {
   return (
     <>
-      <h1 className="mb-16 text-title-subscreen font-extrabold tracking-title-subscreen text-text">
-        Search
-      </h1>
+      <ScreenHeader title="Search" />
       <div className="mb-16">
         <Segmented options={CATEGORIES} value={category} onChange={(next) => onChange(next as Category)} />
       </div>

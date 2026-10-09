@@ -362,6 +362,14 @@
   /* Haut de la coquille : la barre d'état, sous laquelle l'app Android dessine
      (bord à bord). Nul dans un onglet de navigateur et sur desktop. */
   --spacing-safe-top: env(safe-area-inset-top);
+  /* Haut de la rangée d'en-tête de tous les écrans, sous la zone sûre :
+     le même retrait que les zones de joueurs du compteur de vie
+     (`--spacing-life-frame-top`), pour que rien ne saute d'un écran à
+     l'autre. La rangée elle-même fait `--min-height-header-row`. */
+  --spacing-screen-top: 6px;
+  /* Retrait de la méta de `ScreenHeader` sous un titre précédé du bouton
+     retour : bouton (`--width-back-button`, 36px) + écart de la rangée (10px). */
+  --spacing-header-title-inset: 46px;
   /* Écart entre la rangée de boutons et le titre de l'en-tête de binder
      illustré (`margin-bottom:130px`) — nommé plutôt qu'un entier qui
      tomberait juste par hasard (conventions de docs/development.md), même
@@ -438,15 +446,6 @@
   --height-header-action: 38px;
   --width-header-add: 42px;
   --height-header-add: 42px;
-  /* Boutons ronds `search`/`···` de l'en-tête de l'accueil Shelves —
-     distincts de `--width-header-action` (38px, style Compact) : les deux
-     styles n'ont pas les mêmes boutons. */
-  --width-header-action-shelf: 36px;
-  --height-header-action-shelf: 36px;
-  /* Bouton `+` accent de l'en-tête Shelves — distinct de
-     `--width-header-add` (42px, Compact). */
-  --width-header-add-shelf: 40px;
-  --height-header-add-shelf: 40px;
   /* `MiniTile` de la section `Recently added` de l'accueil Shelves. */
   --width-mini-tile: 76px;
   --height-mini-tile: 106px;
@@ -508,9 +507,7 @@
      bouton rond, prévu pour cette réutilisation, voir le commentaire
      ci-dessus). */
   /* Bouton `+` accent de l'en-tête de binder illustré — distinct de
-     `--width-header-add` (42px, accueil Compact) et
-     `--width-header-add-shelf` (40px, accueil Shelves, rôle différent :
-     nommé à part malgré la valeur identique). */
+     `--width-header-add` (42px, en-têtes sans illustration). */
   --width-header-add-binder: 40px;
   --height-header-add-binder: 40px;
   /* Pastille de dégradé de la feuille `Binder look`. */
@@ -709,9 +706,6 @@
 
   /* Tailles de police */
   --text-title-screen: 30px;
-  /* Titre d'écran de l'accueil Shelves — distinct de `--text-title-screen`
-     (30px, style Compact) : les deux styles n'ont pas le même titre. */
-  --text-title-screen-shelf: 18px;
   --text-title-subscreen: 22px;
   --text-title-sheet: 17px;
   --text-value-total: 36px;
@@ -965,8 +959,6 @@
   --tracking-tile-setcode: 0.02em;
   /* Nom d'étagère de `Shelf`. */
   --tracking-shelf-name: -0.01em;
-  /* Titre d'écran de l'accueil Shelves. */
-  --tracking-title-screen-shelf: -0.02em;
   /* Titre de l'en-tête de binder illustré — distinct de
      `--tracking-title-subscreen` (-0.02em). */
   --tracking-title-binder: -0.025em;
@@ -1709,10 +1701,11 @@ body {
 
 @theme {
   /* En-tête repliable des écrans à fond (demande produit) : réserve en flux
-     de la rangée retour/menu (20px de haut de page + bouton 40px), et zone
-     vide repliable = 160px (--spacing-deck-header-gap) − cette réserve. */
-  --spacing-deck-controls-reserve: 60px;
-  --spacing-deck-collapse-gap: 100px;
+     de la rangée retour/menu (`--spacing-screen-top` + rangée d'en-tête de
+     46px, comme tous les écrans), et zone vide repliable = 160px
+     (--spacing-deck-header-gap) − cette réserve. */
+  --spacing-deck-controls-reserve: 52px;
+  --spacing-deck-collapse-gap: 108px;
 }
 
 @theme {
@@ -1726,15 +1719,15 @@ body {
   /* En-tête repliable du binder illustré (demande produit, même patron que
      --spacing-deck-controls-reserve/--spacing-deck-collapse-gap) :
      réserve en flux de la rangée retour/···/+ (peinte par le fond absolu de
-     `BinderHeaderBackdrop`) — 20px de haut de page (`pt-20`) + 40px (le plus
-     haut des trois boutons de la rangée, `--height-header-add-binder`).
+     `BinderHeaderBackdrop`) — `--spacing-screen-top` (6px) + la rangée
+     d'en-tête commune à tous les écrans (`--min-height-header-row`, 46px).
      Aucun second token pour la zone repliable elle-même : au repos, le
      titre reste à `reserve + --spacing-binder-title-gap` du haut de la
      zone de défilement — exactement la position qu'il occupe déjà
      aujourd'hui (`mb-binder-title-gap` sous la rangée de boutons) — donc le
      spacer repliable réutilise directement `h-binder-title-gap`, sans
      valeur dupliquée. */
-  --spacing-binder-controls-reserve: 60px;
+  --spacing-binder-controls-reserve: 52px;
 }
 
 /* Accents alternatifs (préférence `users.accent_color`, posée sur `<html>`

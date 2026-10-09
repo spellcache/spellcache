@@ -5,7 +5,7 @@
 // les données déjà chargées côté serveur en props : aucun refetch côté
 // client, l'hydratation se fait par simple passage de props plutôt que par
 // un second aller-retour réseau.
-import { ArrowDownUp, BookPlus, Ellipsis, Layers3, ListPlus, Plus, Search } from 'lucide-react'
+import { ArrowDownUp, BookPlus, Layers3, ListPlus, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -16,6 +16,7 @@ import { NavRow } from '@/components/collection/nav-row'
 import { ValueCard } from '@/components/collection/value-card'
 import { NameSheet } from '@/components/ui/name-sheet'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
@@ -98,31 +99,12 @@ export function CollectionView({ initial }: { initial: CollectionHome }) {
   return (
     <Screen
       header={
-        <div className="mb-18 flex items-center justify-between gap-10">
-          <h1 className="text-title-screen font-extrabold tracking-title-screen text-text">
-            Collection
-          </h1>
-          {canEdit && (
-            <div className="flex items-center gap-8">
-              <button
-                type="button"
-                aria-label="More"
-                onClick={() => setMenuOpen(true)}
-                className="flex h-header-action w-header-action items-center justify-center rounded-full bg-surface-1 text-text"
-              >
-                <Ellipsis width={18} height={18} strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                aria-label="Add a card"
-                onClick={() => setAddCardOpen(true)}
-                className="flex h-header-add w-header-add items-center justify-center rounded-full bg-accent text-on-accent"
-              >
-                <Plus width={21} height={21} strokeWidth={1.75} />
-              </button>
-            </div>
-          )}
-        </div>
+        <ScreenHeader
+          title="Collection"
+          onOverflow={canEdit ? () => setMenuOpen(true) : undefined}
+          onAdd={canEdit ? () => setAddCardOpen(true) : undefined}
+          addLabel="Add a card"
+        />
       }
     >
       <ValueCard

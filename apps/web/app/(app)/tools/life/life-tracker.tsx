@@ -4,13 +4,13 @@
 // seule entrée `localStorage` du projet (`lib/tools/life-state.ts`), la
 // configuration comme la partie en cours, si bien qu'un rechargement de page
 // retombe sur le même écran.
-import { ChevronLeft, Dices, Sun } from 'lucide-react'
-import Link from 'next/link'
+import { Dices, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { SettingRow } from '@/components/settings/setting-row'
 import { LifeGameScreen } from '@/components/tools/life-game'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 import { Switch } from '@/components/ui/switch'
 import {
   DEFAULT_LIFE_SETUP,
@@ -98,25 +98,7 @@ export function LifeTracker() {
 
   return (
     <Screen
-      header={
-        <div className="mb-22 flex items-center gap-10">
-          <Link
-            href="/tools"
-            aria-label="Back to Tools"
-            className="flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-surface-1 text-text"
-          >
-            <ChevronLeft width={20} height={20} strokeWidth={ICON_STROKE} />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <div className="text-breadcrumb-deck font-bold uppercase tracking-section-label text-text-3">
-              Tools
-            </div>
-            <h1 className="text-title-subscreen font-extrabold tracking-title-subscreen text-text">
-              Life tracker
-            </h1>
-          </div>
-        </div>
-      }
+      header={<ScreenHeader title="Life tracker" breadcrumb="Tools" backHref="/tools" />}
     >
       <div className="mb-10 ml-4 text-section-label font-semibold uppercase tracking-section-label text-text-2">
         Players

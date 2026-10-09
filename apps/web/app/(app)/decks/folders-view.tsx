@@ -13,11 +13,9 @@ import {
   ArrowUp,
   ClipboardList,
   Copy,
-  Ellipsis,
   FolderInput,
   FolderPlus,
   Pencil,
-  Plus,
   Trash2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -46,6 +44,7 @@ import { deleteDeckAction, duplicateDeckAction } from './actions'
 import { UNSORTED_FOLDER_SLUG } from '@/lib/decks/unsorted-folder'
 import type { DeckCardData, FolderShelf, FolderShelvesResult } from './folders-data'
 import { Screen } from '@/components/ui/screen'
+import { ScreenHeader } from '@/components/ui/screen-header'
 
 export type { DeckCardData, FolderShelf } from './folders-data'
 
@@ -549,35 +548,15 @@ export function FoldersView({ initial }: { initial: FolderShelvesResult }) {
     <Screen
       header={
         <>
-          <div className="mb-16 flex items-center justify-between gap-10">
-            <h1 className="text-title-screen font-extrabold tracking-title-screen text-text">
-              Decks
-            </h1>
-            {canEdit && (
-            <div className="flex items-center gap-8">
-              {/* Un seul bouton primaire (`+`, un nouveau deck) et un menu :
-                `New folder` vit dans le menu, qui l'offre déjà — deux ronds
-                côte à côte donnaient le même poids à l'action rare qu'à
-                l'action courante. */}
-              <button
-                type="button"
-                aria-label="More"
-                onClick={() => setOverflowOpen(true)}
-                className="flex h-header-action w-header-action items-center justify-center rounded-full bg-surface-1 text-text"
-              >
-                <Ellipsis width={18} height={18} strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                aria-label="Add"
-                onClick={() => setNewDeckFolderKey(UNSORTED_KEY)}
-                className="flex h-header-add w-header-add items-center justify-center rounded-full bg-accent text-on-accent"
-              >
-                <Plus width={21} height={21} strokeWidth={1.75} />
-              </button>
-            </div>
-            )}
-          </div>
+          {/* Un seul bouton primaire (`+`, un nouveau deck) et un menu :
+            `New folder` vit dans le menu, qui l'offre déjà — deux ronds côte à
+            côte donnaient le même poids à l'action rare qu'à l'action
+            courante. */}
+          <ScreenHeader
+            title="Decks"
+            onOverflow={canEdit ? () => setOverflowOpen(true) : undefined}
+            onAdd={canEdit ? () => setNewDeckFolderKey(UNSORTED_KEY) : undefined}
+          />
 
           {/* Filtre de légalité, le même que celui de `Collection › Decks` :
             « quel deck a discrètement perdu des cartes » est la question que
@@ -610,7 +589,7 @@ export function FoldersView({ initial }: { initial: FolderShelvesResult }) {
           </div>
         </>
       }
-      headerClassName="px-16 pt-20 desktop:px-20 desktop:pt-30"
+      headerClassName="px-16 pt-screen-top desktop:px-20 desktop:pt-30"
       bodyClassName="min-w-0"
     >
       {visibleShelves.map((shelf, index) => {

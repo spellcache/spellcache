@@ -1,3 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Même délai que le cooldown par défaut de Dependabot (3 jours) : une version
+# trop récente pour lui ferait échouer toutes ses mises à jour du workspace.
+minimumReleaseAge: 4320

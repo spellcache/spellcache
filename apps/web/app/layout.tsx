@@ -44,7 +44,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = await getThemeAttributes()
 
   return (
-    <html lang="en" {...theme}>
+    // L'app Android (plugin SystemBars de Capacitor) pose ses variables
+    // `--safe-area-inset-*` dans le `style` de <html> avant l'hydratation :
+    // écart attendu, limité aux attributs de cet élément.
+    <html lang="en" {...theme} suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
         <KeyboardInset />

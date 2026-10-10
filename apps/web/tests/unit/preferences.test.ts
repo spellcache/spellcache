@@ -27,6 +27,8 @@ describe('DEFAULT_PREFERENCES', () => {
       binderBackdrops: true,
       priceSource: 'cardmarket_eur',
       toolLifeTracker: false,
+      // `packages/db/migrations/0001_tool_playtest.sql`, même `DEFAULT false`.
+      toolPlaytest: false,
       // `'[]'::jsonb` en base (`packages/db/migrations/0013_awesome_mathemanic.sql`)
       // — « tout déplié », l'arbre du design validé. Un compte créé avant la
       // colonne lit donc la même chose ici et en base.
@@ -73,6 +75,14 @@ describe('preferencesSchema', () => {
       success: true,
       data: { toolLifeTracker: true },
     })
+  })
+
+  it('accepts the playtest tool flag as a plain boolean patch', () => {
+    expect(preferencesSchema.safeParse({ toolPlaytest: true })).toEqual({
+      success: true,
+      data: { toolPlaytest: true },
+    })
+    expect(preferencesSchema.safeParse({ toolPlaytest: 'on' }).success).toBe(false)
   })
 
   it('rejects an unknown key', () => {

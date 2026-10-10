@@ -1,7 +1,6 @@
 // Lecture serveur des drapeaux d'outils :
 // une seule requête, partagée par le shell authentifié
-// (`app/(app)/layout.tsx`) et par les gardes 404 de `/tools` et
-// `/tools/life`. La règle elle-même vit dans `lib/tools/tools.ts`, jamais
+// (`app/(app)/layout.tsx`) et par les gardes 404 des pages de `/tools`. La règle elle-même vit dans `lib/tools/tools.ts`, jamais
 // recopiée ici.
 import { eq } from 'drizzle-orm'
 
@@ -11,7 +10,7 @@ import { NO_TOOLS, toolFlagsOf, type ToolFlags } from '@/lib/tools/tools'
 
 export async function getToolFlags(userId: string): Promise<ToolFlags> {
   const [row] = await db
-    .select({ toolLifeTracker: users.toolLifeTracker })
+    .select({ toolLifeTracker: users.toolLifeTracker, toolPlaytest: users.toolPlaytest })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)

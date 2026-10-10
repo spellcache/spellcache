@@ -5,7 +5,7 @@
 spellcache is a self-hosted, mobile-first web app to manage a card collection:
 inventory, binders, deck building and the life of a deck from plan to built,
 collection value tracking, and a few table tools (life counter, first-player
-pick). A collection can be shared between several accounts, and decks and
+pick, deck playtest). A collection can be shared between several accounts, and decks and
 binders can be shared publicly by link.
 
 Card data, images and prices come from a local mirror of
@@ -26,6 +26,9 @@ stays in your database; no Scryfall API call is made while you browse.
   and lists; fast search and filters over the whole catalogue.
 - **Decks**: build from your collection or from cards you don't own yet,
   legality per format, assemble a deck from owned copies, dismantle it back.
+- **Tools**: a life counter for up to six players, and a playtest to draw
+  opening hands from a deck, mulligan and play the first turns. Each tool is
+  switched on in Settings.
 - **Value**: daily prices (TCGplayer in $ or Cardmarket in €), per collection,
   binder and deck.
 - **Sharing**: collections shared between accounts with owner, editor and

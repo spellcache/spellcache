@@ -270,6 +270,9 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
 - Do NOT invent new visual language: features marked `Planned` or `Soon` in
   Settings (Trading mode, Card scanner, AI assistant) stay greyed-out rows with
   no screen, and a new screen is built from existing components and tokens.
+  A tool leaves `Planned` by getting its own `users.tool_*` flag, a screen
+  under `/tools/<name>` and `state: 'shipped'` in `apps/web/lib/tools/tools.ts`,
+  as the Life tracker and Playtest did.
   Discuss any visual novelty in an issue first.
 - Do NOT cache user data offline: the app is always online; offline use is not
   a requirement.

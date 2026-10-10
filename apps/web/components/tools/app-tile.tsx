@@ -4,8 +4,8 @@
 // quatre tuiles à 132px, mais une description plus longue que les autres s'y
 // tronquerait sans ellipse — la boîte suit donc son contenu.
 //
-// Composant serveur : les tuiles inertes n'ont aucun état, et la seule
-// tuile active navigue par `<Link>`.
+// Composant serveur : les tuiles inertes n'ont aucun état, et les tuiles
+// actives naviguent par `<Link>`.
 import Link from 'next/link'
 
 // Deux états seulement, pas d'état `soon` : il n'existe pas de statut

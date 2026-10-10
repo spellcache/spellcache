@@ -10,6 +10,7 @@ import {
   BadgeDollarSign,
   Check,
   Contrast,
+  FlaskConical,
   HeartPulse,
   LayoutGrid,
   List,
@@ -106,17 +107,24 @@ export function DensityRow({ initialValue }: { initialValue: Density }) {
   )
 }
 
-// `toolLifeTracker` rejoint ici les bascules d'apparence :
+// `toolLifeTracker` et `toolPlaytest` rejoignent ici les bascules d'apparence :
 // c'est une préférence de compte comme les autres, écrite par la même
 // `updatePreferenceAction` — aucune Server Action propre aux outils
 // n'existe, et rien ne passe par `localStorage` (docs/development.md).
-type ToggleField = 'previewPane' | 'pricesOnArt' | 'binderBackdrops' | 'toolLifeTracker' | 'pureBlack'
+type ToggleField =
+  | 'previewPane'
+  | 'pricesOnArt'
+  | 'binderBackdrops'
+  | 'toolLifeTracker'
+  | 'toolPlaytest'
+  | 'pureBlack'
 
 const TOGGLE_ICON: Record<ToggleField, React.ReactNode> = {
   previewPane: <PanelRight width={18} height={18} strokeWidth={1.75} />,
   pricesOnArt: <BadgeDollarSign width={18} height={18} strokeWidth={1.75} />,
   binderBackdrops: <Palette width={18} height={18} strokeWidth={1.75} />,
   toolLifeTracker: <HeartPulse width={18} height={18} strokeWidth={1.75} />,
+  toolPlaytest: <FlaskConical width={18} height={18} strokeWidth={1.75} />,
   pureBlack: <Contrast width={18} height={18} strokeWidth={1.75} />,
 }
 

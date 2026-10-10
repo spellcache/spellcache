@@ -1,5 +1,6 @@
 // Ligne inerte du groupe Tools de Settings : le groupe Tools n'expose un
-// interrupteur que pour `Life tracker` ; les trois autres lignes sont grisées
+// interrupteur que pour les outils livrés (`Life tracker`, `Playtest`) ; les
+// trois autres lignes sont grisées
 // (`opacity: 0.6`) et sans contrôle actif.
 //
 // Le design validé dessine `Trading mode` avec un interrupteur inactif et sans

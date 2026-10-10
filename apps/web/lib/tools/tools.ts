@@ -13,33 +13,38 @@ import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type Luci
 
 export interface ToolFlags {
   lifeTracker: boolean
+  playtest: boolean
 }
 
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { lifeTracker: false }
+export const NO_TOOLS: ToolFlags = { lifeTracker: false, playtest: false }
 
 // Les apps font partie de l'application, il n'y a ni store ni greffons :
-// un seul outil existe aujourd'hui, ce `||` en
-// accueillera d'autres sans que la règle ne se duplique ailleurs.
+// chaque outil livré ajoute son drapeau à ce `||`, sans que la règle ne se
+// duplique ailleurs.
 export function anyToolEnabled(tools: ToolFlags): boolean {
-  return tools.lifeTracker
+  return tools.lifeTracker || tools.playtest
 }
 
-// Projection des préférences de compte (`users.tool_life_tracker`) vers le
-// contrat ci-dessus — une seule traduction colonne → drapeau, partagée par
-// le layout et les deux pages de `/tools`.
-export function toolFlagsOf(preferences: { toolLifeTracker: boolean }): ToolFlags {
-  return { lifeTracker: preferences.toolLifeTracker }
+// Projection des préférences de compte (`users.tool_life_tracker`,
+// `users.tool_playtest`) vers le contrat ci-dessus — une seule traduction
+// colonne → drapeau, partagée par le layout et les pages de `/tools`.
+export function toolFlagsOf(preferences: {
+  toolLifeTracker: boolean
+  toolPlaytest: boolean
+}): ToolFlags {
+  return { lifeTracker: preferences.toolLifeTracker, playtest: preferences.toolPlaytest }
 }
 
 // Catalogue unique des outils : l'onglet `Tools` et le groupe `Tools` de
 // Settings lisent tous deux cette même liste — une nouvelle app ne s'ajoute
-// donc qu'à un seul endroit. Seul `life_tracker` porte `state: 'shipped'`
-// aujourd'hui, les trois autres sont des lignes `Planned` grisées sans écran
-// (docs/development.md).
+// donc qu'à un seul endroit. `life_tracker` et `playtest` portent
+// `state: 'shipped'` ; les trois autres sont des lignes `Planned` grisées sans
+// écran (docs/development.md).
 export type ToolCatalogState = 'shipped' | 'planned'
+export type ToolPreferenceField = 'toolLifeTracker' | 'toolPlaytest'
 
 export interface ToolCatalogEntry {
   key: 'life_tracker' | 'playtest' | 'trading_mode' | 'card_scanner' | 'ai_assistant'
@@ -48,6 +53,9 @@ export interface ToolCatalogEntry {
   // Absent pour les trois outils `planned` : aucun écran n'existe encore.
   path?: string
   state: ToolCatalogState
+  // Colonne de préférence (`users.tool_*`) qui active l'outil : présente pour
+  // les seuls outils livrés, c'est elle que l'interrupteur de Settings écrit.
+  preference?: ToolPreferenceField
   description: string
 }
 
@@ -58,6 +66,7 @@ export const TOOLS: ToolCatalogEntry[] = [
     Icon: HeartPulse,
     path: '/tools/life',
     state: 'shipped',
+    preference: 'toolLifeTracker',
     description: 'Simple life tracker for up to six players',
   },
   // Test de deck en solo : mains de départ, mulligans, premiers tours
@@ -66,7 +75,9 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'playtest',
     name: 'Playtest',
     Icon: FlaskConical,
-    state: 'planned',
+    path: '/tools/playtest',
+    state: 'shipped',
+    preference: 'toolPlaytest',
     description: 'Test your decks: draw opening hands, mulligan and play the first turns',
   },
   {
@@ -93,10 +104,10 @@ export const TOOLS: ToolCatalogEntry[] = [
   },
 ]
 
-// Seul `life_tracker` a un drapeau de compte aujourd'hui (`ToolFlags` n'en
-// porte qu'un) : cette traduction reste ici plutôt que dans `ToolFlags`
-// lui-même, pour qu'ajouter un second outil livré n'oblige pas à réécrire ce
-// contrat-là.
+// Clé de catalogue → drapeau de compte. Les outils `planned` n'ont pas de
+// drapeau et restent éteints.
 export function isToolEnabled(key: ToolCatalogEntry['key'], tools: ToolFlags): boolean {
-  return key === 'life_tracker' ? tools.lifeTracker : false
+  if (key === 'life_tracker') return tools.lifeTracker
+  if (key === 'playtest') return tools.playtest
+  return false
 }

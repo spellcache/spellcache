@@ -119,7 +119,7 @@ export async function getTradeAction(
 
 const browseSchema = tradeIdSchema.extend({
   query: z.string().max(100).optional(),
-  scope: z.enum(['all', 'collection', 'binders', 'decks']).optional(),
+  scope: z.enum(['all', 'binders', 'decks']).optional(),
   containerId: z.uuid().optional(),
 })
 

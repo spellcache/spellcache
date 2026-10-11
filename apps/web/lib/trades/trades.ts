@@ -1497,7 +1497,7 @@ export interface TradeableHolding {
   marketPriceMinor: number | null
 }
 
-export type BrowseScope = 'all' | 'collection' | 'binders' | 'decks'
+export type BrowseScope = 'all' | 'binders' | 'decks'
 
 export interface BrowseGroup {
   containerId: string
@@ -1515,7 +1515,6 @@ const BROWSE_SEARCH_LIMIT = 80
 const BROWSE_CONTAINER_LIMIT = 300
 
 function scopeKinds(scope: BrowseScope): Array<'collection' | 'binder' | 'deck'> {
-  if (scope === 'collection') return ['collection']
   if (scope === 'binders') return ['binder']
   if (scope === 'decks') return ['deck']
   return ['collection', 'binder', 'deck']

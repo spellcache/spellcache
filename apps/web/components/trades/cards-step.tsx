@@ -22,7 +22,6 @@ import type { RunAction } from '@/components/trades/use-trade'
 
 const SCOPES: Array<{ value: BrowseScope; label: string }> = [
   { value: 'all', label: 'All' },
-  { value: 'collection', label: 'Collection' },
   { value: 'binders', label: 'Binders' },
   { value: 'decks', label: 'Decks' },
 ]

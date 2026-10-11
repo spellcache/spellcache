@@ -12,6 +12,7 @@ import { addHolding } from '@/lib/containers/holdings'
 import { createContainer } from '@/lib/containers/containers'
 import { db } from '@spellcache/db'
 
+import { testPriceDay } from './price-day'
 import { readMagicLink } from './read-magic-link'
 import { uniqueUsername } from './unique-username'
 
@@ -78,7 +79,7 @@ async function insertCard(cardId: string, name: string, usdMajor: number): Promi
   `)
   await db.execute(sql`
     insert into card_prices (card_id, day, usd, usd_foil, eur, eur_foil)
-    values (${cardId}, current_date, ${usdMajor}, ${usdMajor}, ${usdMajor}, ${usdMajor})
+    values (${cardId}, ${testPriceDay}, ${usdMajor}, ${usdMajor}, ${usdMajor}, ${usdMajor})
   `)
 }
 

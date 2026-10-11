@@ -66,24 +66,28 @@ RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 # Sortie standalone tracée depuis la racine du workspace : le serveur vit en
 # `apps/web/server.js`. `public/` et `.next/static` n'y sont pas inclus, Next
 # demande de les copier à côté du serveur.
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+#
+# Le code appartient à root : le process `nextjs` le lit sans pouvoir le
+# réécrire, une faille dans l'app ne peut pas modifier le serveur ni ses
+# chunks. Seuls `/app/thumbs` et `.next/cache` lui sont accessibles en écriture.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
 # Migrations : le SQL versionné, le migrateur Drizzle et le point d'entrée qui
 # les applique avant le serveur. Le migrateur vit à côté du serveur, dans
 # apps/web/ : c'est là que la sortie standalone place `pg`.
-COPY --from=deps --chown=nextjs:nodejs /drizzle-orm ./apps/web/node_modules/drizzle-orm
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/migrations ./apps/web/db/migrations
-COPY --chown=nextjs:nodejs deploy/migrate.mjs ./apps/web/migrate.mjs
-COPY --chown=nextjs:nodejs deploy/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=deps /drizzle-orm ./apps/web/node_modules/drizzle-orm
+COPY --from=builder /app/packages/db/migrations ./apps/web/db/migrations
+COPY deploy/migrate.mjs ./apps/web/migrate.mjs
+COPY deploy/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # Le montage échoue à s'initialiser proprement si le point de montage n'existe
 # pas déjà avec le bon propriétaire : un volume nommé hérite du propriétaire du
 # répertoire de l'image. Sans cela, `/app/thumbs` appartiendrait à root et le
 # proxy de vignettes ne pourrait rien y écrire.
-RUN mkdir -p /app/thumbs && chown -R nextjs:nodejs /app/thumbs
+RUN mkdir -p /app/thumbs /app/apps/web/.next/cache   && chown -R nextjs:nodejs /app/thumbs /app/apps/web/.next/cache
 
 # Échoue le build, pas le déploiement, si le migrateur ou son pilote manquent :
 # une image qui ne sait pas migrer ne doit jamais atteindre le VPS.

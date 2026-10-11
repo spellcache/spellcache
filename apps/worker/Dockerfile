@@ -44,16 +44,17 @@ RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs worker
 
 # L'arbre pnpm complet (`node_modules` + son store `.pnpm`) : les liens
 # symboliques internes sont relatifs, donc valides une fois l'arbre copié en
-# entier.
-COPY --from=deps --chown=worker:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=worker:nodejs /app/apps/worker/node_modules ./apps/worker/node_modules
-COPY --from=deps --chown=worker:nodejs /app/packages/core/node_modules ./packages/core/node_modules
-COPY --chown=worker:nodejs apps/worker/package.json ./apps/worker/
-COPY --chown=worker:nodejs apps/worker/src ./apps/worker/src
+# entier. Le tout appartient à root : le process `worker` n'écrit nulle part
+# dans l'image et ne peut pas réécrire son propre code.
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/worker/src ./apps/worker/src
 # Le worker importe `@spellcache/core` (sources TypeScript, lien pnpm vers
 # packages/core) : Node décape les types parce que le chemin réel n'est pas
 # sous `node_modules`.
-COPY --chown=worker:nodejs packages/core ./packages/core
+COPY packages/core ./packages/core
 
 # Échoue le build si le décapage de types natif ou une dépendance d'exécution
 # manque : mieux vaut un build rouge qu'un conteneur qui redémarre en boucle

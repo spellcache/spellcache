@@ -60,6 +60,7 @@ what self-hosting needs. Two values are generated:
 
 ```bash
 openssl rand -base64 32   # AUTH_SECRET
+openssl rand -hex 24      # REDIS_PASSWORD
 openssl rand -base64 32   # BACKUP_PASSPHRASE — keep a copy somewhere else than the server
 ```
 
@@ -184,6 +185,11 @@ docker image prune -f
 
 `web` restarts, applies pending migrations, then serves traffic again — a few
 seconds of downtime. The thumbnail cache (`thumbnails` volume) is kept.
+
+If `up -d` stops on a variable that `must be set in .env`, the new Compose file
+expects a value your `.env` does not have yet: add it (see `.env.example`) and
+run `up -d` again. `REDIS_PASSWORD` is one of them since the `redis` service
+requires a password.
 
 **Rolling back**: set `SPELLCACHE_VERSION` to the previous version and run
 `up -d` again. Migrations do not roll back: going back across a schema change

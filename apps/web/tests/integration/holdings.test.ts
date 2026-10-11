@@ -29,6 +29,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
   let moveHoldings: typeof import('@/lib/containers/holdings').moveHoldings
   let removeHoldings: typeof import('@/lib/containers/holdings').removeHoldings
   let restoreHoldings: typeof import('@/lib/containers/holdings').restoreHoldings
+  let createContainer: typeof import('@/lib/containers/containers').createContainer
+  let deleteBinder: typeof import('@/lib/containers/containers').deleteBinder
 
   beforeAll(async () => {
     pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL })
@@ -38,6 +40,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
     ;({ ContainerAccessError } = await import('@/lib/collections/authorize'))
     ;({ addHolding, setHoldingQuantity, updateHolding, moveHoldings, removeHoldings, restoreHoldings } =
       await import('@/lib/containers/holdings'))
+    ;({ createContainer, deleteBinder } = await import('@/lib/containers/containers'))
   })
 
   afterAll(async () => {
@@ -266,5 +269,76 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
     const rows = await db.select().from(holdings).where(eq(holdings.id, holdingId))
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ qty: 1, condition: 'nm', containerId })
+  })
+
+  describe('concurrent writes never duplicate quantities', () => {
+    async function setup(username: string) {
+      const userId = await createUser(username)
+      const { collectionId, containerId: rootId } = await bootstrapCollection(userId, {
+        username,
+        displayName: null,
+      })
+      const cardId = randomUUID()
+      await insertCard({ id: cardId, name: 'Sol Ring', setCode: 'cmr' })
+      const key = { cardId, finish: 'nonfoil' as const, condition: 'nm' as const, language: 'en' }
+      return { userId, collectionId, rootId, cardId, key }
+    }
+
+    async function totalQty(cardId: string): Promise<number> {
+      const { rows } = await pool.query<{ total: number }>(
+        'SELECT coalesce(sum(qty), 0)::int AS total FROM holdings WHERE card_id = $1',
+        [cardId],
+      )
+      return rows[0]!.total
+    }
+
+    it('moves one holding once when two moves race to different targets', async () => {
+      const { userId, collectionId, rootId, cardId, key } = await setup('racer')
+      const a = await createContainer(userId, collectionId, { kind: 'binder', name: 'A' })
+      const b = await createContainer(userId, collectionId, { kind: 'binder', name: 'B' })
+      const { holdingId } = await addHolding(userId, { ...key, containerId: rootId }, 4)
+      await addHolding(userId, { ...key, containerId: a.id }, 1)
+      await addHolding(userId, { ...key, containerId: b.id }, 1)
+
+      await Promise.allSettled([
+        moveHoldings(userId, [holdingId], a.id),
+        moveHoldings(userId, [holdingId], b.id),
+      ])
+
+      expect(await totalQty(cardId)).toBe(6)
+    })
+
+    it('keeps the quantity when a holding is moved into its own container', async () => {
+      const { userId, rootId, cardId, key } = await setup('stayer')
+      const { holdingId } = await addHolding(userId, { ...key, containerId: rootId }, 3)
+
+      await moveHoldings(userId, [holdingId], rootId)
+
+      expect(await totalQty(cardId)).toBe(3)
+    })
+
+    it('merges once when two edits race into the same existing line', async () => {
+      const { userId, rootId, cardId, key } = await setup('editor')
+      const { holdingId } = await addHolding(userId, { ...key, containerId: rootId, condition: 'lp' }, 2)
+      await addHolding(userId, { ...key, containerId: rootId }, 1)
+
+      await Promise.allSettled([
+        updateHolding(userId, holdingId, { condition: 'nm' }),
+        updateHolding(userId, holdingId, { condition: 'nm' }),
+      ])
+
+      expect(await totalQty(cardId)).toBe(3)
+    })
+
+    it('moves a binder to the root once when two deletions race', async () => {
+      const { userId, collectionId, rootId, cardId, key } = await setup('deleter')
+      const binder = await createContainer(userId, collectionId, { kind: 'binder', name: 'Trade' })
+      await addHolding(userId, { ...key, containerId: rootId }, 1)
+      await addHolding(userId, { ...key, containerId: binder.id }, 3)
+
+      await Promise.allSettled([deleteBinder(userId, binder.id), deleteBinder(userId, binder.id)])
+
+      expect(await totalQty(cardId)).toBe(4)
+    })
   })
 })

@@ -453,6 +453,9 @@ export async function undoImportAction(
     return { ok: true, undone: false }
   }
   if (entry.userId !== user.id) return { ok: false, error: 'forbidden' }
+  // Consommé avant la moindre attente : deux annulations simultanées
+  // retireraient sinon deux fois le même delta.
+  undoStore().delete(parsed.data.undoToken)
 
   try {
     await requireContainerAccess(user.id, entry.containerId, 'write')
@@ -488,7 +491,6 @@ export async function undoImportAction(
       await recomputeContainerStats(entry.containerId, tx)
     })
 
-    undoStore().delete(parsed.data.undoToken)
     revalidatePath('/collection')
     return { ok: true, undone: true }
   } catch (error) {

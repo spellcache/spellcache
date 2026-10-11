@@ -13,6 +13,10 @@ import { db } from '@spellcache/db'
 
 import { recomputeContainerStats } from './stats'
 
+// Exemplaires d'une ligne par écriture : bien au-delà d'une vraie collection,
+// sous les `int` de Postgres même cumulé sur de nombreuses écritures.
+export const MAX_HOLDING_QTY = 9_999
+
 // Verrouillage d'un deck `built` : refus d'écriture sur un deck built.
 // Déplacé ici depuis `lib/containers/bulk.ts` (qui le réexporte désormais) :
 // `bulk.ts` ne gardait que ses propres actions groupées, laissant les
@@ -224,23 +228,30 @@ export async function updateHolding(
   holdingId: string,
   patch: UpdateHoldingPatch,
 ): Promise<UpdateHoldingResult> {
-  const [row] = await db.select().from(holdings).where(eq(holdings.id, holdingId)).limit(1)
-  if (!row) throw new Error(`Holding ${holdingId} not found.`)
+  const [found] = await db.select().from(holdings).where(eq(holdings.id, holdingId)).limit(1)
+  if (!found) throw new Error(`Holding ${holdingId} not found.`)
 
-  await requireContainerAccess(userId, row.containerId, 'write')
-  await assertNotDeckLocked(db, row.containerId)
-
-  const nextKey: HoldingKey = {
-    containerId: row.containerId,
-    cardId: row.cardId,
-    finish: patch.finish ?? row.finish,
-    condition: patch.condition ?? row.condition,
-    language: patch.language ?? row.language,
-    zone: patch.zone ?? row.zone,
-  }
-  const isCommander = patch.isCommander ?? row.isCommander
+  await requireContainerAccess(userId, found.containerId, 'write')
+  await assertNotDeckLocked(db, found.containerId)
 
   return db.transaction(async (tx) => {
+    // Relue verrouillée : deux modifications simultanées fusionneraient
+    // sinon chacune la même quantité lue avant le verrou, et la doubleraient.
+    const [row] = await tx.select().from(holdings).where(eq(holdings.id, holdingId)).for('update')
+    if (!row || row.containerId !== found.containerId) {
+      throw new Error(`Holding ${holdingId} not found.`)
+    }
+
+    const nextKey: HoldingKey = {
+      containerId: row.containerId,
+      cardId: row.cardId,
+      finish: patch.finish ?? row.finish,
+      condition: patch.condition ?? row.condition,
+      language: patch.language ?? row.language,
+      zone: patch.zone ?? row.zone,
+    }
+    const isCommander = patch.isCommander ?? row.isCommander
+
     // La nouvelle clé peut coïncider avec une autre ligne existante :
     // fusion des quantités plutôt que deux lignes pour la même clé
     // (idempotence sur la clé).
@@ -336,14 +347,20 @@ export async function moveHoldings(
       const [existing] = await tx
         .select()
         .from(holdings)
-        .where(matchKey(targetKey))
+        .where(and(matchKey(targetKey), ne(holdings.id, row.id)))
         .for('update')
         .limit(1)
+
+      // Ligne source relue verrouillée, après la ligne cible (même ordre que
+      // `deleteBinder`) : un déplacement simultané l'a peut-être déjà fusionnée
+      // ailleurs, et ajouter la quantité lue avant le verrou la doublerait.
+      const [current] = await tx.select().from(holdings).where(eq(holdings.id, row.id)).for('update')
+      if (!current || current.containerId !== row.containerId) continue
 
       if (existing) {
         await tx
           .update(holdings)
-          .set({ qty: existing.qty + row.qty })
+          .set({ qty: existing.qty + current.qty })
           .where(eq(holdings.id, existing.id))
         await tx.delete(holdings).where(eq(holdings.id, row.id))
       } else {

@@ -10,6 +10,10 @@ const config: CapacitorConfig = {
   appName: 'spellcache',
   webDir: 'www',
   backgroundColor: '#0A090E',
+  // Marqueur lu par l'instance (`components/ui/use-back-to-close.ts`) : dans
+  // l'app, les feuilles ne poussent plus d'entrée d'historique, le retour
+  // passe par `MainActivity`.
+  appendUserAgent: 'SpellcacheAndroid',
   android: {
     // Une instance en HTTP clair n'est pas prise en charge (cookies de
     // session `Secure`, service worker) : refusée dès l'écran de connexion.

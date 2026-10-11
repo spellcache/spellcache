@@ -7,14 +7,12 @@
 // erreur.
 //
 // Les boutons `Binder`/`To deck`/`Edit` de `ActionBar` ouvrent tous les
-// trois cette même feuille (un seul fichier `bulk-edit-sheet.tsx`, un seul
-// écran, et `BulkEdit` unifie `qty`/`condition`/`finish`/`language`/
-// `targetContainerId` dans un seul appel) — `Binder`/`To deck` n'ouvrent pas
-// un second flux, ils entrent dans le même formulaire. `destinationKind`
-// restreint la liste de la ligne de destination au type visé par le bouton
-// pressé, pour que `Binder` et `To deck` expriment une intention distincte
-// plutôt qu'une même liste mêlant binders et decks — `Edit` montre les deux
-// groupes, la feuille restant une édition générale.
+// trois cette même feuille (`BulkEdit` unifie `qty`/`condition`/`finish`/
+// `language`/`targetContainerId` dans un seul appel). `Edit`
+// (`destinationKind` à `null`) montre le formulaire complet ; `Binder`/
+// `To deck` passent en mode déplacement : la seule liste des binders ou des
+// decks et un bouton `Move N cards` — un formulaire d'édition complet pour
+// un simple déplacement noyait l'intention du bouton pressé.
 //
 // La ligne de destination ouvre `PickerSheet` plutôt qu'un `<select>` natif —
 // même composant partagé que tout autre picker de l'app, coche accent sur
@@ -27,13 +25,14 @@
 // (`lib/containers/bulk.ts`), et `BulkEdit.language` la porte
 // jusqu'à `bulkEdit`.
 import { useEffect, useState } from 'react'
-import { BookCopy, Hash, Languages } from 'lucide-react'
+import { BookCopy, Check, Hash, Languages } from 'lucide-react'
 
 import { Chip } from '@/components/ui/chip'
 import { PickerSheet } from '@/components/ui/picker-sheet'
 import { QtyStepper } from '@/components/cards/qty-stepper'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
+import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
 import type { Condition, Finish } from '@spellcache/db/schema'
 
 import { listBulkMoveTargetsAction, type BulkMoveTarget } from '@/app/(app)/container/[id]/bulk-actions'
@@ -106,9 +105,9 @@ export function BulkEditSheet({
   containerId: string
   entries: BulkEditEntry[]
   onSubmit: (edit: BulkEditFormValue) => Promise<{ ok: true } | { ok: false; error: string }>
-  // `null` (bouton `Edit`) montre binders et decks ; `'binder'`/`'deck'`
-  // (boutons `Binder`/`To deck` de `ActionBar`) restreint la liste à ce seul
-  // type.
+  // `null` (bouton `Edit`) : formulaire complet, binders et decks en
+  // destination ; `'binder'`/`'deck'` (boutons `Binder`/`To deck`) : mode
+  // déplacement vers ce seul type.
   destinationKind?: 'binder' | 'deck' | null
 }) {
   const [condition, setCondition] = useState<Condition | null>(null)
@@ -171,47 +170,69 @@ export function BulkEditSheet({
 
   const binders = moveTargets.filter((target) => target.kind === 'binder')
   const decks = moveTargets.filter((target) => target.kind === 'deck')
-  const showBinders = destinationKind !== 'deck'
-  const showDecks = destinationKind !== 'binder'
+  const cardsLabel = `${count} ${count === 1 ? 'card' : 'cards'}`
 
-  // Titre/vide de la feuille de destination — un libellé propre au type quand
-  // `destinationKind` restreint à un seul type, un titre générique sinon (le
-  // modèle unifié de spellcache montre alors les deux groupes ensemble).
-  const pickerTitle =
-    destinationKind === 'binder'
-      ? `Move ${count} card${count === 1 ? '' : 's'}`
-      : destinationKind === 'deck'
-        ? `Add ${count} card${count === 1 ? '' : 's'} to a deck`
-        : 'Destination'
+  if (destinationKind !== null) {
+    const targets = destinationKind === 'binder' ? binders : decks
+    return (
+      <Sheet
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) reset()
+          onOpenChange(next)
+        }}
+        title={destinationKind === 'binder' ? `Move ${cardsLabel} to a binder` : `Move ${cardsLabel} to a deck`}
+      >
+        <div className="flex flex-col gap-14">
+          {targets.length === 0 ? (
+            <p className="px-2 text-row-value text-text-2">
+              {destinationKind === 'binder'
+                ? 'No binder yet — create one from the Collection tab.'
+                : 'No planning deck yet — create one from the Decks tab.'}
+            </p>
+          ) : (
+            <SheetGroup>
+              {targets.map((target) => (
+                <SheetRow
+                  key={target.id}
+                  label={target.name}
+                  hint={`${target.cardCount} card${target.cardCount === 1 ? '' : 's'}`}
+                  onClick={() => setTargetContainerId(target.id)}
+                  value={
+                    target.id === targetContainerId ? (
+                      <Check width={17} height={17} strokeWidth={1.75} className="text-accent-text" />
+                    ) : undefined
+                  }
+                />
+              ))}
+            </SheetGroup>
+          )}
+
+          {error && <p className="text-meta text-danger">{error}</p>}
+
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={submitting || targetContainerId === ''}
+            className="w-full rounded-control bg-accent py-14 text-button-primary font-extrabold text-on-accent disabled:opacity-60"
+          >
+            {submitting ? 'Moving...' : `Move ${cardsLabel}`}
+          </button>
+        </div>
+      </Sheet>
+    )
+  }
+
   const pickerOptions = [
-    ...(showBinders
-      ? [
-          { value: '', label: 'No binder', hint: 'Loose in the collection' },
-          ...binders.map((target) => ({
-            value: target.id,
-            label: target.name,
-            hint: `${target.cardCount} card${target.cardCount === 1 ? '' : 's'}`,
-          })),
-        ]
-      : []),
-    ...(showDecks
-      ? decks.map((target) => ({
-          value: target.id,
-          label: target.name,
-          hint: `${target.cardCount} card${target.cardCount === 1 ? '' : 's'}`,
-        }))
-      : []),
+    { value: '', label: 'Keep as is', hint: 'Each card stays where it is' },
+    ...[...binders, ...decks].map((target) => ({
+      value: target.id,
+      label: target.name,
+      hint: `${target.cardCount} card${target.cardCount === 1 ? '' : 's'}`,
+    })),
   ]
-  const pickerEmptyMessage =
-    destinationKind === 'deck'
-      ? 'No planning deck yet — create one from the Decks tab.'
-      : 'No binder yet — create one from the Collection tab.'
   const destinationTarget = moveTargets.find((target) => target.id === targetContainerId)
-  const destinationValueLabel = targetContainerId
-    ? (destinationTarget?.name ?? 'Selected')
-    : destinationKind === null
-      ? 'Keep as is'
-      : 'No binder'
+  const destinationValueLabel = targetContainerId ? (destinationTarget?.name ?? 'Selected') : 'Keep as is'
 
   return (
     <Sheet
@@ -220,7 +241,7 @@ export function BulkEditSheet({
         if (!next) reset()
         onOpenChange(next)
       }}
-      title={`Edit ${count} ${count === 1 ? 'card' : 'cards'}`}
+      title={`Edit ${cardsLabel}`}
     >
       <div className="flex flex-col gap-14">
         <p className="text-meta text-text-2">
@@ -331,9 +352,7 @@ export function BulkEditSheet({
             className="flex w-full items-center gap-12 border-t border-border px-14 py-13 text-left"
           >
             <BookCopy width={17} height={17} strokeWidth={1.75} className="flex-shrink-0 text-text-2" />
-            <span className="min-w-0 flex-1 text-row-value font-semibold text-text">
-              {destinationKind === 'binder' ? 'Binder' : destinationKind === 'deck' ? 'Deck' : 'Destination'}
-            </span>
+            <span className="min-w-0 flex-1 text-row-value font-semibold text-text">Destination</span>
             <span className="text-meta font-semibold text-text-2">{destinationValueLabel}</span>
           </button>
         </div>
@@ -346,18 +365,17 @@ export function BulkEditSheet({
           disabled={submitting}
           className="w-full rounded-control bg-accent py-14 text-button-primary font-extrabold text-on-accent disabled:opacity-60"
         >
-          {submitting ? 'Applying...' : `Apply to ${count} ${count === 1 ? 'card' : 'cards'}`}
+          {submitting ? 'Applying...' : `Apply to ${cardsLabel}`}
         </button>
       </div>
 
       <PickerSheet
         open={destinationPickerOpen}
         onClose={() => setDestinationPickerOpen(false)}
-        title={pickerTitle}
+        title="Destination"
         options={pickerOptions}
         value={targetContainerId}
         onPick={(value) => setTargetContainerId(value)}
-        emptyMessage={pickerEmptyMessage}
       />
     </Sheet>
   )

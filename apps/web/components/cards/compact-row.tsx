@@ -1,12 +1,10 @@
 // Ligne de carte en densité `compact` (défaut de `users.density`) — 58px de
-// haut (padding 7px + vignette 42px + bordures). `CardRow` porte
-// le même stepper en ligne ; `GridTile` seule reste à la puce `×N` (jamais
-// de stepper en grille).
+// haut (padding 7px + vignette 42px + bordures).
 //
-// `onQtyChange` optionnel : absent en mode sélection (`container-view.tsx`
-// ne le passe pas alors), la ligne replie sur une puce `×N` en lecture
-// seule — un stepper dans une sélection est du bruit, la feuille d'édition
-// groupée possède déjà la quantité.
+// Quantité en lecture seule (`×N`), comme `CardRow` et `GridTile` : un
+// stepper en ligne se déclenchait au défilement d'un simple effleurement. La
+// quantité se modifie dans la feuille d'édition (`EditCardSheet`), jamais
+// dans la feuille de détail.
 //
 // `selectable`/`selected` : case ronde 18px — fond/bordure de la ligne et de
 // la case repris du design validé
@@ -21,13 +19,11 @@
 // direct sur desktop).
 import { Check } from 'lucide-react'
 
-import { QtyStepper } from '@/components/cards/qty-stepper'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
 import { SetIcon } from '@/components/cards/set-icon'
 
 export function CompactRow({
-  holdingId,
   thumbUrl,
   name,
   manaCost,
@@ -39,13 +35,11 @@ export function CompactRow({
   qty,
   available,
   priceLabel,
-  onQtyChange,
   onOpen,
   selectable = false,
   selected = false,
   current = false,
 }: {
-  holdingId: string
   thumbUrl: string
   name: string
   manaCost: string | null
@@ -63,9 +57,6 @@ export function CompactRow({
   // jamais de texte redondant sur une ligne qui n'a rien de réservé.
   available?: number
   priceLabel: string
-  // Voir la note d'en-tête : `undefined` en mode sélection replie sur une
-  // puce `×N`.
-  onQtyChange?: (next: number) => void
   onOpen: () => void
   selectable?: boolean
   selected?: boolean
@@ -76,9 +67,8 @@ export function CompactRow({
 }) {
   const highlighted = selected || current
   const reserved = available !== undefined && available < qty
-  const setLine = `${setCode.toUpperCase()} #${collectorNumber} · ${condition.toUpperCase()}${
-    reserved ? ` · ${available} available` : ''
-  }`
+  const setLine = `${setCode.toUpperCase()} #${collectorNumber} · ${condition.toUpperCase()}`
+  const reservedSuffix = reserved ? ` · ${available} available` : ''
 
   return (
     <div
@@ -114,28 +104,30 @@ export function CompactRow({
         <div className="flex min-w-0 items-center gap-6">
           <div className="min-w-0 truncate text-card-name-compact font-bold text-text">{name}</div>
           <ManaCost cost={manaCost} size={12} gap={1} />
-          {isFoil && (
-            <span className="flex-shrink-0 text-badge-foil font-bold tracking-badge-foil text-accent-text">
-              FOIL
-            </span>
-          )}
         </div>
         {/* `truncate` : sans lui, un numéro de collection composite ajouté
             au suffixe `available` casse la hauteur fixe de 58px de cette
             ligne virtualisée (docs/development.md, anti-pattern) — mesuré à 358px de
             large, `PLST #DMR-34 · NM · 3 available` rendait 70.25px. Même
-            garde que le nom de carte juste au-dessus, qui la porte déjà. */}
+            garde que le nom de carte juste au-dessus, qui la porte déjà.
+            `FOIL` suit la condition : sur la ligne du nom, il tronquait les
+            noms longs. */}
         <div className="mt-1 flex min-w-0 items-center gap-5 text-subline-compact text-text-2">
           <SetIcon uri={setIconUri} />
-          <span className="min-w-0 truncate whitespace-nowrap">{setLine}</span>
+          <span className="min-w-0 truncate whitespace-nowrap">
+            {setLine}
+            {isFoil && (
+              <>
+                {' · '}
+                <span className="font-bold tracking-badge-foil text-accent-text">FOIL</span>
+              </>
+            )}
+            {reservedSuffix}
+          </span>
         </div>
       </div>
-      <div className="flex flex-shrink-0 items-center gap-7" onClick={(event) => event.stopPropagation()}>
-        {onQtyChange ? (
-          <QtyStepper holdingId={holdingId} qty={qty} onChange={onQtyChange} />
-        ) : (
-          <span className="font-mono text-body font-bold text-text">×{qty}</span>
-        )}
+      <div className="flex flex-shrink-0 items-center gap-7">
+        <span className="font-mono text-body font-bold text-text">×{qty}</span>
         <span className="min-w-price-compact text-right font-mono text-body font-bold text-accent-text">
           {priceLabel}
         </span>

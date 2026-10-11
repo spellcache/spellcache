@@ -24,7 +24,7 @@ export default function DecksLoading() {
         <div className="h-title-skeleton w-title-skeleton animate-pulse rounded-control bg-surface-1" />
         <div className="flex items-center gap-8">
           <div className="h-header-action w-header-action flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
-          <div className="h-header-add w-header-add flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
+          <div className="h-header-action w-header-action flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
         </div>
       </div>
 

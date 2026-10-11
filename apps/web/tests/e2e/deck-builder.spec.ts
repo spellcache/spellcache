@@ -158,3 +158,26 @@ test('changing zone keeps the search results and the session add counter intact'
   await expect(page.getByText('in deck ×1')).toBeVisible()
   await expect(page.getByRole('button', { name: /Done · 1 added/ })).toBeVisible()
 })
+
+test('the deck list shows a read-only count and the card sheet changes it', async ({ page }) => {
+  const email = await signInWithFreshAccount(page)
+  const { deckId, cardName } = await seedDeckWithOneColourlessCard(email)
+
+  await page.goto(`/decks/${deckId}`)
+  await page.getByRole('button', { name: 'Add cards' }).click()
+  await page.getByLabel('Search card name').fill(cardName)
+  await page.getByRole('button', { name: `Add ${cardName}` }).click()
+  await expect(page.getByText('in deck ×1')).toBeVisible()
+  await page.getByRole('button', { name: 'Done · 1 added' }).click()
+
+  // Aucun compteur dans la ligne : il se déclenchait au défilement.
+  await expect(page.getByRole('button', { name: `One more ${cardName}` })).toHaveCount(0)
+
+  await page.getByRole('button', { name: `Open ${cardName}` }).click()
+  const sheet = page.getByRole('dialog')
+  await sheet.getByLabel('Increase quantity').click()
+  await expect(sheet.getByText('2', { exact: true })).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('×2', { exact: true })).toBeVisible()
+})

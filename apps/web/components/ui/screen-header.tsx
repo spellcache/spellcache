@@ -132,7 +132,7 @@ export function ScreenHeader({
           icon={Plus}
           label={addLabel}
           onClick={onAdd}
-          size={overArt ? 40 : 42}
+          size={overArt ? 36 : 38}
           iconSize={overArt ? 20 : 21}
           accent
         />

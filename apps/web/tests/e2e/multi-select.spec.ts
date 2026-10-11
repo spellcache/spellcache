@@ -8,6 +8,7 @@ import { expect, test } from '@playwright/test'
 
 import { collectionMembers, containers, users } from '@spellcache/db/schema'
 import { db } from '@spellcache/db'
+import { createContainer } from '@/lib/containers/containers'
 
 import { readMagicLink } from './read-magic-link'
 import { uniqueUsername } from './unique-username'
@@ -158,4 +159,40 @@ test('bulk edit applies a condition to the whole selection and Undo restores it'
 
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(page.getByText(/2 cards updated/)).toHaveCount(0)
+})
+
+test('Binder shows only the binders and a Move button, then moves the selection', async ({ page }) => {
+  const email = await signInWithFreshAccount(page)
+  const rootContainerId = await findRootContainerId(email)
+  await seedThreeCards(rootContainerId)
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)
+  const [root] = await db
+    .select({ collectionId: containers.collectionId })
+    .from(containers)
+    .where(eq(containers.id, rootContainerId))
+  await createContainer(user!.id, root!.collectionId, { kind: 'binder', name: 'Selection Binder' })
+
+  await page.goto(`/container/${rootContainerId}`)
+  const rows = page.locator('[data-virtual-item-key]')
+  await longPress(page, rows.nth(0))
+  await rows.nth(1).click()
+  await expect(page.getByText('2 selected')).toBeVisible()
+
+  // Clavier plutôt que clic : en `pnpm dev`, la pastille de l'overlay Next
+  // recouvre le coin bas gauche, où se trouve `Binder`.
+  await page.getByRole('button', { name: 'Binder', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  const sheet = page.getByRole('dialog', { name: 'Move 2 cards to a binder' })
+  await expect(sheet).toBeVisible()
+  // Un déplacement, pas une édition : aucun champ du formulaire `Edit`.
+  await expect(sheet.getByText('Condition')).toHaveCount(0)
+  const move = sheet.getByRole('button', { name: 'Move 2 cards', exact: true })
+  await expect(move).toBeDisabled()
+
+  await sheet.getByRole('button', { name: /^Selection Binder/ }).click()
+  await move.click()
+  await expect(page.getByText('2 cards updated')).toBeVisible()
+
+  await page.goto('/collection')
+  await expect(page.getByRole('main').getByRole('link', { name: /^Selection Binder/ })).toContainText('2 cards')
 })

@@ -13,6 +13,7 @@ import { addHolding } from '@/lib/containers/holdings'
 import { createContainer } from '@/lib/containers/containers'
 import { db } from '@spellcache/db'
 
+import { testPriceDay } from './price-day'
 import { readMagicLink } from './read-magic-link'
 import { uniqueUsername } from './unique-username'
 
@@ -80,7 +81,7 @@ async function insertCard(cardId: string, setCode: string): Promise<void> {
   `)
   await db.execute(sql`
     insert into card_prices (card_id, day, usd, usd_foil, eur, eur_foil)
-    values (${cardId}, current_date, 1.00, 2.00, 0.90, 1.80)
+    values (${cardId}, ${testPriceDay}, 1.00, 2.00, 0.90, 1.80)
   `)
 }
 

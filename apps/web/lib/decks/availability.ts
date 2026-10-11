@@ -1,5 +1,8 @@
 // Disponibilité d'une carte dans une collection : « available(cardId) =
-// Σ qty hors decks built », exposée par une fonction — un seul fragment SQL,
+// Σ qty hors decks built », toutes impressions de la carte confondues (même
+// `oracle_id`) — un Sol Ring C21 rangé dans un binder couvre le Sol Ring CMR
+// d'un deck, comme un exemplaire foil couvre une ligne non-foil. Exposée par
+// une fonction — un seul fragment SQL,
 // `availableQtyExpr` — utilisée ici et par tout autre point de lecture qui a
 // besoin du même nombre (`app/(app)/container/[id]/holdings-data.ts`,
 // `lib/decks/assemble.ts`) plutôt que de recalculer la même somme à trois
@@ -60,7 +63,12 @@ export function availableQtyExpr(
     select coalesce(sum(case when c2.kind = 'deck' then -h2.qty else h2.qty end), 0)
     from holdings h2
     join containers c2 on c2.id = h2.container_id
-    where h2.card_id = ${cardIdExpr}
+    -- Toute impression de la même carte : un export CSV garde le set et le
+    -- numéro d'origine, presque jamais ceux qu'un deck a choisis.
+    where h2.card_id in (
+        select same.id from cards same
+        where same.oracle_id = (select picked.oracle_id from cards picked where picked.id = ${cardIdExpr})
+      )
       and c2.collection_id = ${collectionIdExpr}
       -- Stock physique : racine et binders. Jamais une liste — une
       -- wishlist recense des cartes voulues, pas possédées.

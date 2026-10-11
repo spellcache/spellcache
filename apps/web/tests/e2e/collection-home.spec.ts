@@ -200,9 +200,12 @@ test('a populated collection renders a real value, counts, and a themed binder r
   // donc en euros. `\s` absorbe l'espace insécable fine que produit l'ICU de
   // Node entre le nombre et le symbole (même tolérance que
   // `lib/format/money.ts`).
+  // Le total couvre le vrac (€6.30, 7 cartes) ET le binder (€9.00, 10
+  // cartes) : une carte rangée reste possédée. `unique` additionne les
+  // lignes de chaque container, comme l'en-tête de l'écran `All collection`.
   await expect(page.getByText('TOTAL COLLECTION VALUE')).toBeVisible()
-  await expect(page.getByText('€6.30')).toBeVisible()
-  await expect(page.getByText('7 cards · 2 unique')).toBeVisible()
+  await expect(page.getByText('€15.30')).toBeVisible()
+  await expect(page.getByText('17 cards · 3 unique')).toBeVisible()
 
   await expect(page.getByRole('main').getByText(binderName)).toBeVisible()
   await expect(page.getByText('10 cards')).toBeVisible()

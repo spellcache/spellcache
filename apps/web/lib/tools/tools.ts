@@ -11,30 +11,45 @@
 // `lib/tools/tool-flags.ts`.
 import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type LucideIcon } from 'lucide-react'
 
-export interface ToolFlags {
-  lifeTracker: boolean
-  tradingMode: boolean
-}
+// Préférence de compte (colonne `users.tool_*`) de chaque outil livré — la
+// seule table clé → colonne : drapeaux, bascules de Settings et lectures en
+// base en dérivent, livrer un outil revient à y ajouter une ligne.
+export const TOOL_PREFERENCE = {
+  life_tracker: 'toolLifeTracker',
+  playtest: 'toolPlaytest',
+  trading_mode: 'toolTradingMode',
+} as const
+
+export type ShippedToolKey = keyof typeof TOOL_PREFERENCE
+export type ToolPreferenceField = (typeof TOOL_PREFERENCE)[ShippedToolKey]
+
+export type ToolFlags = Record<ShippedToolKey, boolean>
+
+const SHIPPED_TOOL_KEYS = Object.keys(TOOL_PREFERENCE) as ShippedToolKey[]
 
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { lifeTracker: false, tradingMode: false }
+export const NO_TOOLS: ToolFlags = { life_tracker: false, playtest: false, trading_mode: false }
 
-// Les apps font partie de l'application, il n'y a ni store ni greffons :
-// la règle ne se duplique nulle part ailleurs.
+// Les apps font partie de l'application, il n'y a ni store ni greffons.
 export function anyToolEnabled(tools: ToolFlags): boolean {
-  return tools.lifeTracker || tools.tradingMode
+  return SHIPPED_TOOL_KEYS.some((key) => tools[key])
 }
 
-// Colonnes de préférence (`users.tool_*`) des outils livrés.
-export type ToolPreference = 'toolLifeTracker' | 'toolTradingMode'
+// Projection des préférences de compte vers le contrat ci-dessus — une
+// seule traduction colonne → drapeau, partagée par le layout, la barre
+// latérale et les pages de `/tools`.
+export function toolFlagsOf(preferences: Record<ToolPreferenceField, boolean>): ToolFlags {
+  return Object.fromEntries(
+    SHIPPED_TOOL_KEYS.map((key) => [key, preferences[TOOL_PREFERENCE[key]]]),
+  ) as ToolFlags
+}
 
-// Projection des préférences de compte vers le contrat ci-dessus — une seule
-// traduction colonne → drapeau, partagée par le layout et les pages de
-// `/tools`.
-export function toolFlagsOf(preferences: Record<ToolPreference, boolean>): ToolFlags {
-  return { lifeTracker: preferences.toolLifeTracker, tradingMode: preferences.toolTradingMode }
+// Colonne de préférence d'une entrée du catalogue, `null` pour un outil
+// `planned` qui n'en a pas encore.
+export function toolPreferenceOf(key: ToolCatalogEntry['key']): ToolPreferenceField | null {
+  return key in TOOL_PREFERENCE ? TOOL_PREFERENCE[key as ShippedToolKey] : null
 }
 
 // Catalogue unique des outils : l'onglet `Tools` et le groupe `Tools` de
@@ -47,11 +62,8 @@ export interface ToolCatalogEntry {
   key: 'life_tracker' | 'playtest' | 'trading_mode' | 'card_scanner' | 'ai_assistant'
   name: string
   Icon: LucideIcon
-  // Absents pour les outils `planned` : aucun écran ni drapeau n'existe
-  // encore.
+  // Absent pour les outils `planned` : aucun écran n'existe encore.
   path?: string
-  flag?: keyof ToolFlags
-  preference?: ToolPreference
   state: ToolCatalogState
   description: string
 }
@@ -62,8 +74,6 @@ export const TOOLS: ToolCatalogEntry[] = [
     name: 'Life tracker',
     Icon: HeartPulse,
     path: '/tools/life',
-    flag: 'lifeTracker',
-    preference: 'toolLifeTracker',
     state: 'shipped',
     description: 'Simple life tracker for up to six players',
   },
@@ -73,7 +83,8 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'playtest',
     name: 'Playtest',
     Icon: FlaskConical,
-    state: 'planned',
+    path: '/tools/playtest',
+    state: 'shipped',
     description: 'Test your decks: draw opening hands, mulligan and play the first turns',
   },
   {
@@ -81,8 +92,6 @@ export const TOOLS: ToolCatalogEntry[] = [
     name: 'Trading mode',
     Icon: ArrowLeftRight,
     path: '/tools/trade',
-    flag: 'tradingMode',
-    preference: 'toolTradingMode',
     state: 'shipped',
     description:
       'Simplify your card trading with a quick price comparison and automatic update of your collection when trading cards',
@@ -103,7 +112,7 @@ export const TOOLS: ToolCatalogEntry[] = [
   },
 ]
 
+// Un outil `planned` n'a pas de drapeau : il n'est jamais actif.
 export function isToolEnabled(key: ToolCatalogEntry['key'], tools: ToolFlags): boolean {
-  const flag = TOOLS.find((tool) => tool.key === key)?.flag
-  return flag ? tools[flag] : false
+  return key in tools ? tools[key as ShippedToolKey] : false
 }

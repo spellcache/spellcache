@@ -354,8 +354,8 @@ async function main() {
     const {
       rows: [user],
     } = await client.query(
-      `insert into users (email, email_verified, username, display_name, role, collection_style, tool_life_tracker)
-       values ($1, now(), $2, $3, 'member', 'shelves', true) returning id`,
+      `insert into users (email, email_verified, username, display_name, role, collection_style, tool_life_tracker, tool_playtest)
+       values ($1, now(), $2, $3, 'member', 'shelves', true, true) returning id`,
       [EMAIL, USERNAME, DISPLAY_NAME],
     )
     const {

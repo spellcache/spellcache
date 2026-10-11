@@ -12,7 +12,7 @@ import { LifeTracker } from './life-tracker'
 export default async function LifeTrackerPage() {
   const session = await requireSession()
   const tools = await getToolFlags(session.id)
-  if (!anyToolEnabled(tools) || !tools.lifeTracker) notFound()
+  if (!anyToolEnabled(tools) || !tools.life_tracker) notFound()
 
   return <LifeTracker />
 }

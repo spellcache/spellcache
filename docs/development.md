@@ -231,7 +231,9 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
   `collections` + `collection_members(role owner|editor|viewer)`. `containers`
   point to a collection, never to a `user_id`.
 - **Preferences are stored on the account** (`users` table), not in the
-  browser, so mobile and desktop agree. Only `lifeGame` is local.
+  browser, so mobile and desktop agree. Only the state of a running table
+  tool game is local: `lifeGame` in `localStorage`, the running playtest in
+  `sessionStorage` (it survives a reload, not a new tab).
 - **`users.price_source` is the single source of truth** for currency and
   market (`tcgplayer_usd` ⇒ $, `cardmarket_eur` ⇒ €). Both Settings rows edit
   that one value; the app has no currency conversion.

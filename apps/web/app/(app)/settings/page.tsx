@@ -25,7 +25,7 @@ import { SettingRow } from '@/components/settings/setting-row'
 import { SettingsGroup } from '@/components/settings/settings-group'
 import { BREAKPOINTS } from '@/lib/breakpoints'
 import { requireSession } from '@/lib/auth-guards'
-import { TOOLS } from '@/lib/tools/tools'
+import { TOOLS, toolPreferenceOf } from '@/lib/tools/tools'
 
 import { logoutAction } from './actions'
 import { getSettingsData } from './settings-data'
@@ -103,13 +103,14 @@ export default async function SettingsPage() {
           (`lib/tools/tools.ts`), lu ici comme par l'onglet Tools — pas de
           sous-titre, pas de hint de groupe, badge uniforme « PLANNED ». */}
       <SettingsGroup label="Tools">
-        {TOOLS.map((tool) =>
-          tool.preference ? (
+        {TOOLS.map((tool) => {
+          const field = toolPreferenceOf(tool.key)
+          return tool.state === 'shipped' && field ? (
             <ToggleRow
               key={tool.key}
-              field={tool.preference}
+              field={field}
               label={tool.name}
-              initialValue={data.preferences[tool.preference]}
+              initialValue={data.preferences[field]}
             />
           ) : (
             <PlannedToolRow
@@ -117,8 +118,8 @@ export default async function SettingsPage() {
               icon={<tool.Icon width={18} height={18} strokeWidth={1.75} />}
               label={tool.name}
             />
-          ),
-        )}
+          )
+        })}
       </SettingsGroup>
 
       {data.accountCount !== null && (

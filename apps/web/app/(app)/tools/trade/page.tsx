@@ -12,7 +12,7 @@ import { TradesView } from './trades-view'
 export default async function TradesPage() {
   const session = await requireSession()
   const tools = await getToolFlags(session.id)
-  if (!tools.tradingMode) notFound()
+  if (!tools.trading_mode) notFound()
 
   const trades = await listTrades(session.id)
   return <TradesView trades={trades} />

@@ -89,6 +89,8 @@ export default defineConfig({
       // illisible. `life-tracker.spec.ts` a besoin d'un compte neuf dont
       // l'outil est encore éteint pour vérifier les quatre onglets et le 404,
       // et ouvre lui aussi un contexte vierge (navigateur sans Wake Lock).
+      // `playtest.spec.ts` part lui aussi d'un compte dont l'outil est éteint
+      // et crée son propre deck.
       // `desktop.spec.ts` et `responsive.spec.ts` créent chacun leur compte,
       // leurs cartes, leur binder et leur dossier de decks, et surchargent la
       // fenêtre épinglée plus haut — même besoin d'un compte neuf isolé.
@@ -99,7 +101,7 @@ export default defineConfig({
       // via `npx playwright test --list`).
       name: 'unauthenticated',
       testMatch:
-        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|trading|desktop|responsive|collection-import|collection-flows)\.spec\.ts$/,
+        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|trading|desktop|responsive|collection-import|collection-flows)\.spec\.ts$/,
     },
     {
       // Les parcours de collection rejoués une seconde fois sous Chrome

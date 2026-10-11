@@ -42,7 +42,7 @@ export type TradeActionResult<T = object> =
 async function requireTrading(): Promise<SessionUser> {
   const session = await requireSession()
   const tools = await getToolFlags(session.id)
-  if (!tools.tradingMode) throw new TradeError('forbidden')
+  if (!tools.trading_mode) throw new TradeError('forbidden')
   return session
 }
 

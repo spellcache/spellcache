@@ -14,7 +14,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
   const { id } = await params
   const session = await requireSession()
   const tools = await getToolFlags(session.id)
-  if (!tools.tradingMode) notFound()
+  if (!tools.trading_mode) notFound()
   if (!z.uuid().safeParse(id).success) notFound()
 
   try {

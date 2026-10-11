@@ -28,8 +28,9 @@ export interface Preferences {
   binderBackdrops: boolean
   priceSource: PriceSource
   // Outils de table : une préférence de compte comme les autres —
-  // seul l'état de partie `lifeGame` vit en local (docs/development.md).
+  // seuls les états de partie vivent dans le navigateur (docs/development.md).
   toolLifeTracker: boolean
+  toolPlaytest: boolean
   toolTradingMode: boolean
   // Nœuds repliés de la barre latérale desktop — sur le compte, pas dans le
   // navigateur, pour qu'une reconnexion depuis un autre poste retrouve le
@@ -54,6 +55,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   binderBackdrops: true,
   priceSource: 'cardmarket_eur',
   toolLifeTracker: false,
+  toolPlaytest: false,
   toolTradingMode: false,
   sidebarCollapsed: [],
   accentColor: 'gold',
@@ -74,6 +76,7 @@ export const preferencesSchema: z.ZodType<Partial<Preferences>> = z
     binderBackdrops: z.boolean().optional(),
     priceSource: z.enum(['tcgplayer_usd', 'cardmarket_eur']).optional(),
     toolLifeTracker: z.boolean().optional(),
+    toolPlaytest: z.boolean().optional(),
     toolTradingMode: z.boolean().optional(),
     // Énumération fermée : un identifiant libre laisserait entrer n'importe
     // quelle chaîne dans la colonne jsonb (docs/development.md — toute entrée externe
@@ -95,6 +98,7 @@ export async function getPreferences(userId: string): Promise<Preferences> {
       binderBackdrops: users.binderBackdrops,
       priceSource: users.priceSource,
       toolLifeTracker: users.toolLifeTracker,
+      toolPlaytest: users.toolPlaytest,
       toolTradingMode: users.toolTradingMode,
       sidebarCollapsed: users.sidebarCollapsed,
       accentColor: users.accentColor,

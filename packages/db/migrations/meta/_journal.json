@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1791709075697,
-      "tag": "0002_trading_mode",
+      "when": 1791723496853,
+      "tag": "0002_tool_playtest",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791724011548,
+      "tag": "0003_trading_mode",
       "breakpoints": true
     }
   ]

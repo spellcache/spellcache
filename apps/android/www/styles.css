@@ -42,6 +42,16 @@ main {
   border-radius: 16px;
 }
 
+.opening main {
+  justify-content: center;
+  min-height: 100vh;
+  padding-top: 0;
+}
+
+.opening h1 {
+  display: none;
+}
+
 h1 {
   margin: 16px 0 32px;
   font-size: 24px;
@@ -77,14 +87,10 @@ input:focus {
   outline-offset: -1px;
 }
 
-.hint,
-.status {
-  color: var(--text-2);
-  font-size: 14px;
-}
-
 .hint {
   margin: 8px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
 }
 
 .error {

@@ -19,6 +19,7 @@ import {
 } from '@spellcache/db/schema'
 import { db } from '@spellcache/db'
 import { activeMembershipOf } from '@/lib/collections/active'
+import { toolFlagColumns } from '@/lib/tools/tool-flags'
 import { anyToolEnabled, toolFlagsOf } from '@/lib/tools/tools'
 
 export interface SidebarTree {
@@ -51,8 +52,7 @@ export async function getSidebarData(userId: string): Promise<SidebarData | null
     .select({
       username: users.username,
       displayName: users.displayName,
-      toolLifeTracker: users.toolLifeTracker,
-      toolTradingMode: users.toolTradingMode,
+      ...toolFlagColumns,
       sidebarCollapsed: users.sidebarCollapsed,
       collectionId: collectionMembers.collectionId,
       role: collectionMembers.role,

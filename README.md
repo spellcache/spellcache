@@ -5,8 +5,8 @@
 spellcache is a self-hosted, mobile-first web app to manage a card collection:
 inventory, binders, deck building and the life of a deck from plan to built,
 collection value tracking, card trading, and a few table tools (life counter,
-first-player pick). A collection can be shared between several accounts, and
-decks and binders can be shared publicly by link.
+first-player pick, deck playtest). A collection can be shared between several
+accounts, and decks and binders can be shared publicly by link.
 
 Card data, images and prices come from a local mirror of
 [Scryfall](https://scryfall.com)'s bulk data, refreshed every night. Your data

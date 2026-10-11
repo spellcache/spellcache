@@ -11,7 +11,7 @@ import {
   changeMemberRole,
   inviteMemberByEmail,
   leaveCollection,
-  listMemberCandidates,
+  searchMemberCandidates,
   removeMember,
   transferOwnership,
   type MemberCandidate,
@@ -164,19 +164,31 @@ export async function leaveCollectionAction(
   }
 }
 
-// Combobox « Add a member » : liste complète des comptes libres, filtrée côté
-// client à la frappe — un seul aller-retour serveur, pas une requête par
-// caractère tapé.
+const memberSearchInputSchema = z.object({
+  collectionId: z.uuid(),
+  query: z.string().max(32),
+})
+
+// Combobox « Add a member » : comptes libres dont le username commence par la
+// saisie (lib/collections/members.ts#searchMemberCandidates). Plafonné par
+// compte : parcourir tous les préfixes reconstituerait la liste entière.
 export async function memberCandidatesAction(
   input: unknown,
 ): Promise<{ ok: true; candidates: MemberCandidate[] } | { ok: false; error: MemberActionError }> {
   const session = await requireSession()
 
-  const parsed = collectionIdInputSchema.safeParse(input)
+  const parsed = memberSearchInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'invalid' }
+  if (!(await rateLimit(`ratelimit:member-search:${session.id}`, 120, 600))) {
+    return { ok: false, error: 'rate_limited' }
+  }
 
   try {
-    const candidates = await listMemberCandidates(session.id, parsed.data.collectionId)
+    const candidates = await searchMemberCandidates(
+      session.id,
+      parsed.data.collectionId,
+      parsed.data.query,
+    )
     return { ok: true, candidates }
   } catch (error) {
     if (error instanceof ContainerAccessError) return { ok: false, error: 'forbidden' }

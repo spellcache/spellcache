@@ -8,3 +8,7 @@
 import { z } from 'zod'
 
 export const usernameSchema = z.string().regex(/^[a-z0-9_-]{3,20}$/)
+
+// Caractères tapés avant de chercher un compte à ajouter comme membre
+// (lib/collections/members.ts#searchMemberCandidates).
+export const MEMBER_SEARCH_MIN_LENGTH = 2

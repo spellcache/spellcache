@@ -21,6 +21,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { collectionMembers, collections, users, type MemberRole } from '@spellcache/db/schema'
 import { ContainerAccessError } from '@/lib/collections/authorize'
 import { db } from '@spellcache/db'
+import { MEMBER_SEARCH_MIN_LENGTH } from '@/lib/username'
 import { isUniqueViolation } from '@spellcache/db/errors'
 
 export interface MemberRow {
@@ -215,13 +216,25 @@ export async function changeMemberRole(
 // les comptes qui ne sont pas encore membres de CETTE collection — qu'ils
 // en possèdent une autre ou non (multi-collection). Réservé au
 // propriétaire, comme le reste de la gestion des membres (voir
-// `assertOwner` ci-dessus) : un `editor` ne doit pas apprendre la liste des
-// comptes libres avant même de pouvoir en ajouter un.
-export async function listMemberCandidates(
+// `assertOwner` ci-dessus).
+//
+// Recherche par début de username, jamais la liste entière : tout compte
+// possède sa propre collection, donc tout compte en est owner — une liste
+// complète livrerait les usernames de toute l'instance à n'importe qui.
+const MEMBER_SEARCH_LIMIT = 8
+
+export async function searchMemberCandidates(
   actingUserId: string,
   collectionId: string,
+  query: string,
 ): Promise<MemberCandidate[]> {
   await assertOwner(actingUserId, collectionId)
+  const prefix = query.trim().toLowerCase()
+  if (prefix.length < MEMBER_SEARCH_MIN_LENGTH) return []
+  // Un username ne contient que `[a-z0-9_-]` (lib/username.ts) : seul `_`,
+  // joker de LIKE, est à échapper.
+  if (!/^[a-z0-9_-]+$/.test(prefix)) return []
+  const pattern = `${prefix.replaceAll('_', '\\_')}%`
 
   const rows = await db
     .select({ id: users.id, username: users.username })
@@ -232,8 +245,15 @@ export async function listMemberCandidates(
     )
     // `username` non nul : seul un compte ayant terminé l'onboarding peut
     // rejoindre une collection (même garde que `listMembers` ci-dessus).
-    .where(and(isNull(collectionMembers.userId), isNotNull(users.username)))
+    .where(
+      and(
+        isNull(collectionMembers.userId),
+        isNotNull(users.username),
+        sql`lower(${users.username}) like ${pattern}`,
+      ),
+    )
     .orderBy(asc(users.username))
+    .limit(MEMBER_SEARCH_LIMIT)
 
   return rows.map((row) => ({ id: row.id, username: row.username ?? '' }))
 }

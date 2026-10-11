@@ -123,16 +123,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Multi-collection', () => {
     const alice = await setupOwner('alice')
     await setupOwner('bob')
 
-    const candidates = await members.listMemberCandidates(
+    const candidates = await members.searchMemberCandidates(
       alice.userId,
       alice.collectionId,
+      'Bo',
     )
     expect(candidates.map((c) => c.username)).toEqual(['bob'])
 
     await members.addMember(alice.userId, alice.collectionId, 'bob')
-    expect(await members.listMemberCandidates(alice.userId, alice.collectionId)).toEqual(
-      [],
-    )
+    expect(
+      await members.searchMemberCandidates(alice.userId, alice.collectionId, 'bo'),
+    ).toEqual([])
     const [row] = await db
       .select()
       .from(schema.collectionMembers)
@@ -156,6 +157,26 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Multi-collection', () => {
       .from(schema.collectionMembers)
       .where(eq(schema.collectionMembers.userId, alice.userId))
     expect(row?.role).toBe('owner')
+  })
+
+  it('never lists the accounts of the instance, only usernames starting with the search', async () => {
+    const alice = await setupOwner('alice')
+    await setupOwner('bob')
+    await setupOwner('bo_rider')
+    await setupOwner('boxer')
+    await setupOwner('carol')
+
+    const search = (query: string) =>
+      members
+        .searchMemberCandidates(alice.userId, alice.collectionId, query)
+        .then((rows) => rows.map((row) => row.username))
+
+    expect(await search('')).toEqual([])
+    expect(await search('b')).toEqual([])
+    expect(await search('bo')).toEqual(['bo_rider', 'bob', 'boxer'])
+    // `_` reste un caractère, jamais le joker d'un seul caractère de LIKE.
+    expect(await search('bo_')).toEqual(['bo_rider'])
+    expect(await search('%')).toEqual([])
   })
 
   it('lets only an owner delete a collection, and falls back for its members', async () => {

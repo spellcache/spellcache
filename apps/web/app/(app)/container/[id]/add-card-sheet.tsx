@@ -261,6 +261,7 @@ export function AddCardSheet({
                 key={printing.id}
                 item={printing}
                 currency={currency}
+                showSetName
                 onClick={() => setSelectedPrinting(printing)}
               />
             ))}

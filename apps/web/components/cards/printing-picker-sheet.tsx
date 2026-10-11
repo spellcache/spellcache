@@ -136,6 +136,7 @@ export function PrintingPickerSheet({
             item={printing}
             currency={currency}
             current={printing.id === currentCardId}
+            showSetName
             onClick={() => {
               if (printing.id !== currentCardId) onPick(printing, currency)
               onClose()

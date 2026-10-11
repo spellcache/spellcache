@@ -1,5 +1,5 @@
 {
-  "id": "eee9b60f-a4b2-4d0f-8c81-dd1bd59c483e",
+  "id": "54bd4d75-5c48-4ebe-bacb-45b6625abe8f",
   "prevId": "29e38fee-5b72-42ca-bc81-92239126859c",
   "version": "7",
   "dialect": "postgresql",
@@ -339,6 +339,21 @@
           "isUnique": false,
           "concurrently": false,
           "method": "gin",
+          "with": {}
+        },
+        "cards_oracle_id_idx": {
+          "name": "cards_oracle_id_idx",
+          "columns": [
+            {
+              "expression": "oracle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
           "with": {}
         }
       },
@@ -1306,13 +1321,6 @@
         },
         "tool_life_tracker": {
           "name": "tool_life_tracker",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "tool_playtest": {
-          "name": "tool_playtest",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

@@ -1,9 +1,12 @@
 package io.github.spellcache;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -39,10 +42,20 @@ public class MainActivity extends BridgeActivity {
         "  }" +
         "})()";
 
+    // Garde-fou : instance lente ou injoignable, l'écran local prend le relais.
+    private static final long SPLASH_TIMEOUT_MS = 10_000;
+
     private int publishedKeyboardInset = -1;
+
+    // Le logo de lancement reste affiché jusqu'à la première page de
+    // l'instance, ou jusqu'à ce que l'écran local affiche son formulaire.
+    private volatile boolean keepSplash = true;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        SplashScreen.installSplashScreen(this).setKeepOnScreenCondition(() -> keepSplash);
+        new Handler(Looper.getMainLooper()).postDelayed(this::hideSplash, SPLASH_TIMEOUT_MS);
+
         registerPlugin(ServerPlugin.class);
         super.onCreate(savedInstanceState);
 
@@ -66,6 +79,8 @@ public class MainActivity extends BridgeActivity {
         getBridge().addWebViewListener(new WebViewListener() {
             @Override
             public void onPageLoaded(WebView webView) {
+                String url = webView.getUrl();
+                if (url != null && !url.startsWith(getBridge().getLocalUrl())) hideSplash();
                 publishedKeyboardInset = -1;
                 syncSystemBarsWithPage();
             }
@@ -78,6 +93,10 @@ public class MainActivity extends BridgeActivity {
             publishKeyboardInset(insets);
             return ViewCompat.onApplyWindowInsets(view, insets);
         });
+    }
+
+    void hideSplash() {
+        keepSplash = false;
     }
 
     private void publishKeyboardInset(WindowInsetsCompat insets) {

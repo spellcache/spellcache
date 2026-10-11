@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test'
 
 // `pnpm dev` (le `webServer` ci-dessous) charge lui-même le `.env` racine
 // (apps/web/next.config.ts), mais le process Playwright qui exécute les
@@ -93,14 +93,24 @@ export default defineConfig({
       // et crée son propre deck.
       // `desktop.spec.ts` et `responsive.spec.ts` créent chacun leur compte,
       // leurs cartes, leur binder et leur dossier de decks, et surchargent la
-      // fenêtre épinglée plus haut — même besoin d'un compte neuf isolé. Un
-      // fichier de spec absent de ces trois regex (`setup`, `unauthenticated`,
-      // `authenticated`) n'est collecté par aucun projet et ne s'exécute
-      // jamais, silencieusement (piège vérifié via `npx playwright test
-      // --list`).
+      // fenêtre épinglée plus haut — même besoin d'un compte neuf isolé.
+      // `collection-import.spec.ts` et `collection-flows.spec.ts` aussi. Un
+      // fichier de spec absent des regex `setup`, `unauthenticated` et
+      // `authenticated` (`android` ne fait que rejouer) n'est collecté par
+      // aucun projet et ne s'exécute jamais, silencieusement (piège vérifié
+      // via `npx playwright test --list`).
       name: 'unauthenticated',
       testMatch:
-        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|desktop|responsive)\.spec\.ts$/,
+        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|desktop|responsive|collection-import|collection-flows)\.spec\.ts$/,
+    },
+    {
+      // Les parcours de collection rejoués une seconde fois sous Chrome
+      // Android émulé (navigateur mobile, écran tactile, densité de pixels) :
+      // l'app est d'abord utilisée sur téléphone, le viewport seul ne le
+      // reproduit pas.
+      name: 'android',
+      testMatch: /collection-(import|flows)\.spec\.ts$/,
+      use: { ...devices['Pixel 7'] },
     },
     {
       // `smoke.spec.ts` et `search.spec.ts` visitent des routes désormais

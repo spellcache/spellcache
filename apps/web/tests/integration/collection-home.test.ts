@@ -138,8 +138,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Collection home data', () => {
 
     expect(queryCount).toBeLessThanOrEqual(2)
 
-    expect(result.counts.cards).toBe(expectedRoot.cards)
-    expect(result.counts.unique).toBe(expectedRoot.unique)
+    // Le total couvre le vrac ET les binders : une carte rangée reste
+    // possédée.
+    let expectedCards = expectedRoot.cards
+    let expectedUnique = expectedRoot.unique
+    for (const binderId of binderIds) {
+      const expectedBinder = await independentCounts(binderId)
+      expectedCards += expectedBinder.cards
+      expectedUnique += expectedBinder.unique
+    }
+    expect(result.counts.cards).toBe(expectedCards)
+    expect(result.counts.unique).toBe(expectedUnique)
     expect(result.binders).toHaveLength(3)
 
     for (const binderId of binderIds) {
@@ -149,7 +158,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Collection home data', () => {
     }
   })
 
-  it('reads the value card amount from the root container_stats row, never aggregating holdings', async () => {
+  it('reads the value card amount from container_stats rows, never aggregating holdings', async () => {
     const userId = await createUser('valuer')
     const { containerId: rootId, collectionId } = await bootstrapCollection(userId, {
       username: 'valuer',

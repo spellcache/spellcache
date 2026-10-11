@@ -23,10 +23,51 @@ const HEADER_ALIASES: Record<Column, string[]> = {
   language: ['language', 'lang'],
 }
 
+// Séparateurs reconnus, dans l'ordre d'essai : Excel enregistre un « CSV »
+// en `;` sur un poste suisse, français ou allemand, et `.tsv` est accepté
+// par la feuille d'import.
+const DELIMITERS = [',', ';', '\t'] as const
+
+// Ligne d'indice qu'Excel lit et que certains exports (Dragon Shield)
+// écrivent avant l'en-tête : `sep=,`, parfois entre guillemets.
+const SEPARATOR_HINT = /^"?sep=(.)"?$/i
+
+interface CsvLayout {
+  delimiter: string
+  // Le texte à découper, sans la ligne d'indice.
+  body: string
+}
+
 // Un CSV se reconnaît à son en-tête : au moins un nom et une quantité.
-export function looksLikeCsvHeader(line: string): boolean {
-  const columns = mapColumns(splitRecords(line)[0] ?? [])
+function isHeader(line: string, delimiter: string): boolean {
+  const columns = mapColumns(splitRecords(line, delimiter)[0] ?? [])
   return columns.name !== undefined && columns.qty !== undefined
+}
+
+// `null` : le texte n'est pas un CSV (une decklist collée). La première ligne
+// non vide est l'en-tête, ou l'indice `sep=` qui le précède et impose le
+// séparateur ; sinon le premier séparateur qui y trouve un nom et une
+// quantité l'emporte.
+function layoutOf(text: string): CsvLayout | null {
+  const start = text.search(/\S/)
+  if (start === -1) return null
+  const end = text.indexOf('\n', start)
+  const firstLine = (end === -1 ? text.slice(start) : text.slice(start, end)).trim()
+
+  const hint = SEPARATOR_HINT.exec(firstLine)
+  if (hint) {
+    const delimiter = hint[1]!
+    const body = end === -1 ? '' : text.slice(end + 1)
+    const header = body.split(/\r?\n/).find((line) => line.trim().length > 0) ?? ''
+    return isHeader(header, delimiter) ? { delimiter, body } : null
+  }
+
+  const delimiter = DELIMITERS.find((candidate) => isHeader(firstLine, candidate))
+  return delimiter ? { delimiter, body: text } : null
+}
+
+export function looksLikeCsv(text: string): boolean {
+  return layoutOf(text) !== null
 }
 
 function mapColumns(header: string[]): Partial<Record<Column, number>> {
@@ -46,10 +87,10 @@ function mapColumns(header: string[]): Partial<Record<Column, number>> {
   return columns
 }
 
-// RFC 4180 : champs entre guillemets (virgules et retours à la ligne
+// RFC 4180 : champs entre guillemets (séparateurs et retours à la ligne
 // compris), guillemet doublé pour un guillemet littéral. Un nom de set comme
 // « Innistrad: Midnight Hunt, Promos » arrive entre guillemets.
-function splitRecords(text: string): string[][] {
+function splitRecords(text: string, delimiter: string): string[][] {
   const records: string[][] = []
   let record: string[] = []
   let field = ''
@@ -71,7 +112,7 @@ function splitRecords(text: string): string[][] {
       continue
     }
     if (char === '"') quoted = true
-    else if (char === ',') {
+    else if (char === delimiter) {
       record.push(field)
       field = ''
     } else if (char === '\n' || char === '\r') {
@@ -147,7 +188,8 @@ function languageOf(value: string): string | null {
 }
 
 export function parseCsv(text: string): ParseResult {
-  const records = splitRecords(text)
+  const { delimiter, body } = layoutOf(text) ?? { delimiter: ',', body: text }
+  const records = splitRecords(body, delimiter)
   const header = records.shift() ?? []
   const columns = mapColumns(header)
   const lines: ParsedLine[] = []
@@ -161,7 +203,7 @@ export function parseCsv(text: string): ParseResult {
   for (const record of records) {
     // Ligne vide (fin de fichier) : ni carte, ni ignorée.
     if (record.every((value) => value.trim() === '')) continue
-    const raw = record.join(',')
+    const raw = record.join(delimiter)
     const name = cell(record, 'name').trim()
     const qty = Number.parseInt(cell(record, 'qty').trim(), 10)
     if (name === '' || !Number.isFinite(qty) || qty < 1) {

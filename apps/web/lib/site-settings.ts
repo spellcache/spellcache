@@ -35,8 +35,9 @@ export function getAdminEmail(): string | null {
 // existant (y compris un invité en attente) ; pour un email inconnu,
 // seulement si les inscriptions sont ouvertes — ou si la base est vide :
 // le tout premier compte, qui devient admin (lib/auth.ts), doit pouvoir
-// naître quel que soit le réglage, et seulement pour `ADMIN_EMAIL` s'il est
-// défini.
+// naître quel que soit le réglage, et seulement pour `ADMIN_EMAIL`. Sans
+// `ADMIN_EMAIL`, uniquement quand aucun email ne part vraiment (développement,
+// tests) : sur une instance en ligne, le premier venu deviendrait admin.
 export async function canRequestMagicLink(email: string): Promise<boolean> {
   const normalized = email.trim().toLowerCase()
   const [row] = await db
@@ -48,7 +49,8 @@ export async function canRequestMagicLink(email: string): Promise<boolean> {
   if (row?.exists) return true
   if (!row?.anyUser) {
     const adminEmail = getAdminEmail()
-    return adminEmail === null || normalized === adminEmail
+    if (adminEmail === null) return !process.env.RESEND_API_KEY
+    return normalized === adminEmail
   }
   return (await getSignupMode()) === 'open'
 }

@@ -30,7 +30,24 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Signup mode', () => {
   })
 
   it('lets the very first account in, whatever the mode', async () => {
-    expect(await settings.canRequestMagicLink('first@example.com')).toBe(true)
+    const original = process.env.RESEND_API_KEY
+    delete process.env.RESEND_API_KEY
+    try {
+      expect(await settings.canRequestMagicLink('first@example.com')).toBe(true)
+    } finally {
+      if (original !== undefined) process.env.RESEND_API_KEY = original
+    }
+  })
+
+  it('opens no first account to anyone when emails really go out without ADMIN_EMAIL', async () => {
+    const original = process.env.RESEND_API_KEY
+    process.env.RESEND_API_KEY = 're_live_key'
+    try {
+      expect(await settings.canRequestMagicLink('first@example.com')).toBe(false)
+    } finally {
+      if (original === undefined) delete process.env.RESEND_API_KEY
+      else process.env.RESEND_API_KEY = original
+    }
   })
 
   it('refuses an unknown email once an account exists, until sign-ups open', async () => {

@@ -1,0 +1,1 @@
+CREATE INDEX "cards_oracle_id_idx" ON "cards" USING btree ("oracle_id");

@@ -1,10 +1,11 @@
-// Requête de l'écran d'accueil. `container_stats` du container racine est
-// l'unique source de la carte de valeur et de la ligne `All collection` —
-// jamais une agrégation de `holdings` au rendu (docs/development.md : « le
-// bandeau de valeur lit une ligne »). Le container racine ne porte que les
-// cartes non rangées dans un binder/deck/liste (un holding vit dans un seul
-// container) — « All collection » et « TOTAL COLLECTION VALUE » montrent donc
-// le même nombre par construction, pas par coïncidence des données.
+// Requête de l'écran d'accueil. La carte de valeur et la ligne
+// `All collection` somment les lignes `container_stats` du stock possédé —
+// racine et binders — jamais une agrégation de `holdings` au rendu
+// (docs/development.md : « le bandeau de valeur lit une ligne »). Le
+// container racine ne porte que les cartes non rangées (un holding vit dans
+// un seul container) : sans les binders, une carte rangée ou importée dans un
+// binder disparaîtrait du total, comme si elle était dans une liste. Même
+// périmètre que l'en-tête de l'écran `All collection` (`getContainerHeader`).
 import { and, eq, sql, type SQL } from 'drizzle-orm'
 
 import { collectionMembers, containers, containerStats, users, type LayoutStyle } from '@spellcache/db/schema'
@@ -15,6 +16,25 @@ import { db } from '@spellcache/db'
 import { activeMembershipOf } from '@/lib/collections/active'
 
 import { BUILT_DECKS_SHELF_ID } from './shelf-constants'
+
+// Somme d'une colonne de `container_stats` sur le stock possédé de la
+// collection du membre : racine et binders, jamais une liste (cartes
+// voulues) ni un deck (il réclame du stock, il n'en détient pas). Une
+// sous-requête par colonne dans le même `select` : le nombre d'instructions
+// SQL de l'accueil ne change pas. `sum` d'une colonne entièrement `null`
+// reste `null` — une variation jamais calculée le reste.
+function ownedStat(column: 'card_count' | 'unique_count' | 'value_usd_minor' | 'value_eur_minor'): SQL<number>
+function ownedStat(column: 'delta_usd_7d' | 'delta_eur_7d'): SQL<number | null>
+function ownedStat(column: string): SQL<number | null> {
+  const total =
+    column.startsWith('delta_') ? sql.raw(`sum(cs.${column})`) : sql.raw(`coalesce(sum(cs.${column}), 0)`)
+  return sql<number | null>`(
+    select ${total}
+    from container_stats cs
+    join containers oc on oc.id = cs.container_id
+    where oc.collection_id = ${collectionMembers.collectionId} and oc.kind in ('collection', 'binder')
+  )`.mapWith((value) => (value === null ? null : Number(value)))
+}
 
 export interface CollectionHome {
   collectionId: string
@@ -107,12 +127,12 @@ export async function getCollectionHome(userId: string): Promise<CollectionHome>
       priceSource: users.priceSource,
       collectionStyle: users.collectionStyle,
       binderBackdrops: users.binderBackdrops,
-      cardCount: containerStats.cardCount,
-      uniqueCount: containerStats.uniqueCount,
-      valueUsdMinor: containerStats.valueUsdMinor,
-      valueEurMinor: containerStats.valueEurMinor,
-      deltaUsd7d: containerStats.deltaUsd7d,
-      deltaEur7d: containerStats.deltaEur7d,
+      cardCount: ownedStat('card_count'),
+      uniqueCount: ownedStat('unique_count'),
+      valueUsdMinor: ownedStat('value_usd_minor'),
+      valueEurMinor: ownedStat('value_eur_minor'),
+      deltaUsd7d: ownedStat('delta_usd_7d'),
+      deltaEur7d: ownedStat('delta_eur_7d'),
     })
     .from(collectionMembers)
     .innerJoin(
@@ -427,11 +447,11 @@ export async function getCollectionShelves(userId: string): Promise<CollectionSh
       collectionId: collectionMembers.collectionId,
       rootContainerId: containers.id,
       priceSource: users.priceSource,
-      cardCount: containerStats.cardCount,
-      valueUsdMinor: containerStats.valueUsdMinor,
-      valueEurMinor: containerStats.valueEurMinor,
-      deltaUsd7d: containerStats.deltaUsd7d,
-      deltaEur7d: containerStats.deltaEur7d,
+      cardCount: ownedStat('card_count'),
+      valueUsdMinor: ownedStat('value_usd_minor'),
+      valueEurMinor: ownedStat('value_eur_minor'),
+      deltaUsd7d: ownedStat('delta_usd_7d'),
+      deltaEur7d: ownedStat('delta_eur_7d'),
     })
     .from(collectionMembers)
     .innerJoin(
@@ -496,10 +516,10 @@ export async function getCollectionShelves(userId: string): Promise<CollectionSh
 
   const shelves: ShelfData[] = []
 
-  // « All collection » : même container racine et mêmes colonnes
-  // `container_stats` que la carte de valeur de l'accueil Compact — le nombre
-  // affiché ici et le montant collant ci-dessous coïncident par
-  // construction, pas par coïncidence des données.
+  // « All collection » : même somme racine + binders (`ownedStat`) que la
+  // carte de valeur de l'accueil Compact — le nombre affiché ici et le
+  // montant collant ci-dessous coïncident par construction, pas par
+  // coïncidence des données.
   shelves.push({
     containerId: root.rootContainerId,
     name: 'All collection',

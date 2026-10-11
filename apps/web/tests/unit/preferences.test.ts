@@ -28,7 +28,7 @@ describe('DEFAULT_PREFERENCES', () => {
       priceSource: 'cardmarket_eur',
       toolLifeTracker: false,
       // Même contrat pour le mode échange
-      // (`packages/db/migrations/0001_trading_mode.sql`).
+      // (`packages/db/migrations/0002_trading_mode.sql`).
       toolTradingMode: false,
       // `'[]'::jsonb` en base (`packages/db/migrations/0013_awesome_mathemanic.sql`)
       // — « tout déplié », l'arbre du design validé. Un compte créé avant la

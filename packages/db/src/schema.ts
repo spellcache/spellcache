@@ -85,6 +85,10 @@ export const cards = pgTable(
     // quel — pas besoin d'un second index sur `lower(name)` (la recherche
     // utilise directement `cards.name % $1`).
     index('cards_name_trgm_idx').using('gin', table.name.op('gin_trgm_ops')),
+    // La disponibilité regroupe les impressions d'une même carte par
+    // `oracle_id` (`apps/web/lib/decks/availability.ts`), une fois par ligne
+    // de deck ou de collection affichée.
+    index('cards_oracle_id_idx').on(table.oracleId),
   ],
 )
 

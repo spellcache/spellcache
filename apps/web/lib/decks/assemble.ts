@@ -375,6 +375,10 @@ async function reduceSourceDeckHolding(
 export interface StockCandidate {
   id: string
   containerId: string
+  // Impression réellement détenue par la ligne : le règlement couvre une
+  // ligne de deck avec n'importe quelle impression de la même carte, et
+  // l'exemplaire déplacé garde la sienne.
+  cardId: string
   qty: number
   finish: Finish
   condition: Condition
@@ -403,6 +407,7 @@ export interface StockCandidate {
 }
 
 export interface ConsumedGroup {
+  cardId: string
   finish: Finish
   condition: Condition
   language: string
@@ -472,14 +477,20 @@ export function consumeStockRows(rows: StockCandidate[], qty: number): ConsumeSt
 
     touched.add(row.containerId)
     remaining -= taken
-    const key = `${row.finish}|${row.condition}|${row.language}`
+    const key = `${row.cardId}|${row.finish}|${row.condition}|${row.language}`
+    const group = {
+      cardId: row.cardId,
+      finish: row.finish,
+      condition: row.condition,
+      language: row.language,
+    }
 
     if (row.inTarget) {
       const existing = settledByKey.get(key)
       if (existing) {
         existing.qty += taken
       } else {
-        settledByKey.set(key, { finish: row.finish, condition: row.condition, language: row.language, qty: taken })
+        settledByKey.set(key, { ...group, qty: taken })
       }
       continue
     }
@@ -494,7 +505,7 @@ export function consumeStockRows(rows: StockCandidate[], qty: number): ConsumeSt
     if (existing) {
       existing.qty += taken
     } else {
-      consumedByKey.set(key, { finish: row.finish, condition: row.condition, language: row.language, qty: taken })
+      consumedByKey.set(key, { ...group, qty: taken })
     }
   }
 
@@ -568,22 +579,30 @@ async function decrementLooseStock(
 
   const { rows } = await tx.execute<{
     id: string
+    card_id: string
     qty: number | string
     container_id: string
     finish: Finish
     condition: Condition
     language: string
   }>(sql`
-    select h.id as id, h.qty as qty, h.container_id as container_id,
+    select h.id as id, h.card_id as card_id, h.qty as qty, h.container_id as container_id,
       h.finish as finish, h.condition as condition, h.language as language
     from holdings h
     join containers c on c.id = h.container_id
-    where h.card_id = ${cardId}::uuid
+    -- Toute impression de la carte, comme la disponibilité qui a classé la
+    -- ligne du deck « possédée » (lib/decks/availability.ts).
+    where h.card_id in (
+        select same.id from cards same
+        where same.oracle_id = (select picked.oracle_id from cards picked where picked.id = ${cardId}::uuid)
+      )
       and c.collection_id = ${collectionId}::uuid
       -- Stock physique seulement : une liste ne possède rien
       -- (lib/decks/availability.ts).
       and c.kind in ('collection', 'binder')
-    order by (case when c.kind = 'collection' then 0 else 1 end), h.id
+    -- L'impression exacte du deck d'abord, puis le même ordre qu'avant.
+    order by (case when h.card_id = ${cardId}::uuid then 0 else 1 end),
+      (case when c.kind = 'collection' then 0 else 1 end), h.id
     for update
   `)
 
@@ -593,13 +612,14 @@ async function decrementLooseStock(
       const inTarget = row.container_id === targetContainerId
       let consumableQty = realQty
       if (inTarget) {
-        const key = `${cardId}|${row.finish}|${row.condition}|${row.language}`
+        const key = `${row.card_id}|${row.finish}|${row.condition}|${row.language}`
         const deposited = depositedThisRun.get(key) ?? 0
         consumableQty = Math.max(0, realQty - deposited)
       }
       return {
         id: row.id,
         containerId: row.container_id,
+        cardId: row.card_id,
         qty: realQty,
         consumableQty,
         finish: row.finish,
@@ -865,7 +885,7 @@ export async function dismantleDeck(
         // seconde ligne du deck pour la même carte ne re-consomme pas ce qui
         // vient d'être compté ici.
         for (const group of settledInPlace) {
-          const depositKey = `${row.cardId}|${group.finish}|${group.condition}|${group.language}`
+          const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
           depositedThisRun.set(depositKey, (depositedThisRun.get(depositKey) ?? 0) + group.qty)
         }
 
@@ -880,7 +900,7 @@ export async function dismantleDeck(
           const [existing] = await tx
             .select()
             .from(holdings)
-            .where(matchHoldingKey(targetBinderId, row.cardId, group.finish, group.condition, group.language))
+            .where(matchHoldingKey(targetBinderId, group.cardId, group.finish, group.condition, group.language))
             .for('update')
             .limit(1)
 
@@ -889,7 +909,7 @@ export async function dismantleDeck(
           } else {
             await tx.insert(holdings).values({
               containerId: targetBinderId,
-              cardId: row.cardId,
+              cardId: group.cardId,
               finish: group.finish,
               condition: group.condition,
               language: group.language,
@@ -904,7 +924,7 @@ export async function dismantleDeck(
           // CETTE carte du `consumableQty` de toute autre carte du deck
           // partageant la même finition/condition/langue par défaut dans la
           // même cible.
-          const depositKey = `${row.cardId}|${group.finish}|${group.condition}|${group.language}`
+          const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
           depositedThisRun.set(depositKey, (depositedThisRun.get(depositKey) ?? 0) + group.qty)
         }
       }

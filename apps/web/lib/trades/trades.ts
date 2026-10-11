@@ -1077,6 +1077,17 @@ async function applyTrade(tx: Tx, trade: Trade): Promise<ApplyEffects> {
       NO_TARGET,
       'discard',
     )
+    // Un deck `built` peut déclarer des cartes jamais acquises : l'autre
+    // partie a accepté au vu de ses lignes, l'échange échoue plutôt que de
+    // lui remettre moins que ce qu'elles annonçaient.
+    const promised = new Map<string, number>()
+    for (const line of group.lines)
+      promised.set(line.cardId, (promised.get(line.cardId) ?? 0) + line.qty)
+    for (const piece of consumed)
+      promised.set(piece.cardId, (promised.get(piece.cardId) ?? 0) - piece.qty)
+    if ([...promised.values()].some((missing) => missing > 0))
+      throw new TradeError('unavailable')
+
     for (const piece of consumed) deckReceipts.push({ giver: group.party, ...piece })
   }
 

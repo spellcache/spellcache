@@ -805,6 +805,62 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
       ])
     })
 
+    it('refuses a whole deck that declares cards its owner does not have', async () => {
+      const alice = await createAccount('alice')
+      const bob = await createAccount('bob')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      const sol = await insertCard('Sol Ring', { eur: 3 })
+      // 1 seul Bolt réel derrière un deck qui en annonce 4.
+      await addHolding(
+        alice.userId,
+        {
+          containerId: alice.rootId,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        1,
+      )
+      await addHolding(
+        bob.userId,
+        {
+          containerId: bob.rootId,
+          cardId: sol,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        1,
+      )
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO containers (collection_id, kind, name, deck_state) VALUES ($1, 'deck', 'Burn', 'built') RETURNING id`,
+        [alice.collectionId],
+      )
+      await pool.query(
+        `INSERT INTO holdings (container_id, card_id, qty) VALUES ($1, $2, 4)`,
+        [rows[0]!.id, bolt],
+      )
+
+      const { tradeId } = await trades.createTrade(alice.userId, {
+        counterpartyId: bob.userId,
+      })
+      await trades.addDeckLines(alice.userId, tradeId, rows[0]!.id)
+      await trades.joinTrade(bob.userId, tradeId)
+      const bobSol = (await holdingsOf(bob.rootId))[0]!
+      await trades.addHoldingLine(bob.userId, tradeId, bobSol.id, 1)
+      const { revision } = await trades.getTradeView(alice.userId, tradeId)
+      await trades.acceptTrade(alice.userId, tradeId, revision)
+      await expectTradeError(trades.acceptTrade(bob.userId, tradeId, revision), 'unavailable')
+
+      expect(await holdingsOf(bob.rootId)).toEqual([
+        expect.objectContaining({ card_id: sol, qty: 1 }),
+      ])
+      expect(await holdingsOf(alice.rootId)).toEqual([
+        expect.objectContaining({ card_id: bolt, qty: 1 }),
+      ])
+    })
+
     it('applies the swap once both accepted the same revision', async () => {
       const alice = await createAccount('alice')
       const bob = await createAccount('bob', { priceSource: 'tcgplayer_usd' })

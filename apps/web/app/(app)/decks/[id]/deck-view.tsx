@@ -128,7 +128,7 @@ function formatPriceMinor(minor: number | null, currency: 'usd' | 'eur'): string
 // insérée de façon optimiste (`handleCardAdded`/`applyOptimisticDelta`
 // ci-dessous) doit porter le format `DeckSlot.setLine` (« DMR #34 · owned
 // ×1 ») dès le premier rendu, pas celui du tiroir (`AddRow` du tiroir,
-// « Dominaria Remastered #34 »).
+// « DMR #34 »).
 function deckSlotSetLine(setCode: string, collectorNumber: string, ownedElsewhere: number): string {
   const base = `${setCode.toUpperCase()} #${collectorNumber}`
   return ownedElsewhere > 0 ? `${base} · owned ×${ownedElsewhere}` : `${base} · not owned`

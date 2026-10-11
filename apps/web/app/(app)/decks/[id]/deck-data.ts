@@ -465,11 +465,9 @@ export interface AddDrawerCard {
   cardId: string
   name: string
   manaCost: string | null
-  // Ligne `AddRow` du tiroir : icône, nom du set, `#numéro`.
-  setName: string
   setIconUri: string | null
-  // Champs bruts : le
-  // format `AddRow` du tiroir (« Dominaria Remastered #34 ») diffère
+  // Champs bruts de la ligne `AddRow` du tiroir (icône, « DMR #34 ») : ce
+  // format diffère
   // de celui de `DeckSlot.setLine` (« DMR #34 · owned ×1 »), et l'insertion
   // optimiste d'un `DeckSlot` (`deck-view.tsx`, `handleCardAdded`/
   // `applyOptimisticDelta`) doit produire ce second format dès le premier
@@ -517,7 +515,6 @@ interface AddDrawerSqlRow extends Record<string, unknown> {
   name: string
   mana_cost: string | null
   set_code: string
-  set_name: string
   set_icon_uri: string | null
   collector_number: string
   price: string | null
@@ -603,7 +600,6 @@ export async function searchDeckCards(
         cards.name,
         cards.mana_cost,
         cards.set_code,
-        sets.name as set_name,
         sets.icon_svg_uri as set_icon_uri,
         cards.collector_number,
         cards.finishes,
@@ -643,7 +639,6 @@ export async function searchDeckCards(
     cardId: row.id,
     name: row.name,
     manaCost: row.mana_cost,
-    setName: row.set_name,
     setIconUri: row.set_icon_uri,
     setCode: row.set_code,
     collectorNumber: row.collector_number,

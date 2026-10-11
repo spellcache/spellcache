@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/spellcache/spellcache/compare/v0.3.0...v0.3.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **ci:** build arm64 images on native runners ([#36](https://github.com/spellcache/spellcache/issues/36)) ([8c4cb98](https://github.com/spellcache/spellcache/commit/8c4cb9827ef7181326d5a502764c64c7ee68c30f))
+
 ## [0.3.0](https://github.com/spellcache/spellcache/compare/v0.2.0...v0.3.0) (2026-10-11)
 
 

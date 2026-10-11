@@ -86,13 +86,16 @@ export function BinderRow({
     // validé (une surface opaque
     // interposée sous les paliers translucides fausserait le composite à
     // toute intensité).
+    // `bg-origin-border` : sans lui, le dégradé part de la boîte de padding et
+    // se répète sous la bordure transparente — un liseré de son palier clair
+    // réapparaît au bord droit.
     return (
       <Link
         href={href}
         style={{
           backgroundImage: binderRowBackground(binder.coverGradient as GradientKey, binder.coverIntensity),
         }}
-        className="flex items-center gap-12 rounded-row border border-transparent bg-bg px-14 py-17 text-left scheme-dark"
+        className="flex items-center gap-12 rounded-row border border-transparent bg-bg bg-origin-border px-14 py-17 text-left scheme-dark"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-card-name font-bold text-text">{binder.name}</span>

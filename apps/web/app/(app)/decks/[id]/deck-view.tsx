@@ -192,6 +192,12 @@ export function DeckView({
   })
 
   const [header, setHeader] = useState<ContainerHeader>(initialHeader)
+  // Même reprise que `deck` ci-dessus : la valeur du deck suit le rafraîchissement.
+  const [syncedHeader, setSyncedHeader] = useState(initialHeader)
+  if (initialHeader !== syncedHeader) {
+    setSyncedHeader(initialHeader)
+    setHeader(initialHeader)
+  }
   // Lecture seule (`viewer`), posée par `page.tsx` pour la collection de CE
   // deck : ni ajout, ni cycle de vie, ni édition de ligne. Le menu ne lui
   // offre que `Playtest`, qui ne modifie rien.
@@ -228,6 +234,24 @@ export function DeckView({
   const [moveError, setMoveError] = useState<string | null>(null)
   const [tab, setTab] = useState<DeckTab>('list')
   const [previewHoldingId, setPreviewHoldingId] = useState<string | null>(null)
+  // `router.refresh()` (quantité, zone, retrait, fermeture du tiroir) livre
+  // un nouveau `initialDeck` : sans cette reprise, l'état local gardait
+  // l'ancien deck et l'écran ne suivait qu'après un rechargement complet. Une
+  // feuille ouverte sur une carte tout juste ajoutée (id `optimistic-…`)
+  // suit son vrai holding au lieu de se fermer.
+  const [syncedDeck, setSyncedDeck] = useState(initialDeck)
+  if (initialDeck !== syncedDeck) {
+    setSyncedDeck(initialDeck)
+    if (previewHoldingId?.startsWith('optimistic-')) {
+      const allSlots = (detail: DeckDetail) => [...(detail.commander ? [detail.commander] : []), ...detail.slots]
+      const pending = allSlots(deck).find((slot) => slot.holdingId === previewHoldingId)
+      const settled = pending
+        ? allSlots(initialDeck).find((slot) => slot.cardId === pending.cardId && slot.zone === pending.zone)
+        : undefined
+      setPreviewHoldingId(settled?.holdingId ?? null)
+    }
+    setDeck(initialDeck)
+  }
   const [assembleSheetOpen, setAssembleSheetOpen] = useState(false)
   const [dismantleSheetOpen, setDismantleSheetOpen] = useState(false)
   const [unbuildConfirmOpen, setUnbuildConfirmOpen] = useState(false)
@@ -1096,7 +1120,6 @@ export function DeckView({
                   setLine={deck.commander.setLine}
                   qty={deck.commander.need}
                   zone="commander"
-                  onQtyChange={(next) => void handleSlotQty(deck.commander!, next)}
                   onZoneChange={(next) => void handleSlotZone(deck.commander!, next)}
                   onRemove={() => void handleRemoveSlot(deck.commander!)}
                   onOpen={() => setPreviewHoldingId(deck.commander!.holdingId)}
@@ -1134,7 +1157,6 @@ export function DeckView({
                   setLine={slot.setLine}
                   qty={slot.need}
                   zone={slot.zone}
-                  onQtyChange={(next) => void handleSlotQty(slot, next)}
                   onZoneChange={(next) => void handleSlotZone(slot, next)}
                   onRemove={() => void handleRemoveSlot(slot)}
                   onOpen={() => setPreviewHoldingId(slot.holdingId)}
@@ -1160,7 +1182,6 @@ export function DeckView({
                     setLine={slot.setLine}
                     qty={slot.need}
                     zone={slot.zone}
-                    onQtyChange={(next) => void handleSlotQty(slot, next)}
                     onZoneChange={(next) => void handleSlotZone(slot, next)}
                     onRemove={() => void handleRemoveSlot(slot)}
                     onOpen={() => setPreviewHoldingId(slot.holdingId)}
@@ -1248,7 +1269,13 @@ export function DeckView({
         toGo={toGo}
         counts={counts}
         colorIdentity={deck.builderColorIdentity}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false)
+          // Les cartes ajoutées portent un id `optimistic-…` : relire le deck
+          // leur donne leur vrai holding, sans quoi quantité, zone et
+          // corbeille échouaient sur elles jusqu'au prochain rechargement.
+          router.refresh()
+        }}
         onOptimisticAdd={(card, addedZone) => applyOptimisticDelta(card, addedZone, 1)}
         onCardAdded={handleCardAdded}
         onCardAddFailed={(card, addedZone) => applyOptimisticDelta(card, addedZone, -1)}
@@ -1523,6 +1550,18 @@ export function DeckView({
         currency={header.currency}
         onPrevious={previewStep(-1)}
         onNext={previewStep(1)}
+        quantity={
+          previewSlot
+            ? {
+                holdingId: previewSlot.holdingId,
+                qty: previewSlot.need,
+                min: 1,
+                // Carte tout juste ajoutée : pas encore de vrai holding à modifier.
+                disabled: previewSlot.holdingId.startsWith('optimistic-'),
+                onChange: (next) => void handleSlotQty(previewSlot, next),
+              }
+            : undefined
+        }
       />
 
       <AssembleSheet

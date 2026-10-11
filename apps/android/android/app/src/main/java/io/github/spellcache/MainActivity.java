@@ -42,10 +42,20 @@ public class MainActivity extends BridgeActivity {
         "  }" +
         "})()";
 
+    // Couche du dessus refermée par l'instance : `true`. Une instance plus
+    // ancienne, sans ce point d'entrée, renvoie `false` et garde le retour par
+    // l'historique de la WebView.
+    private static final String CLOSE_TOP_LAYER_JS =
+        "(function () {" +
+        "  return typeof window.__spellcacheBack === 'function' && window.__spellcacheBack() === true;" +
+        "})()";
+
     // Garde-fou : instance lente ou injoignable, l'écran local prend le relais.
     private static final long SPLASH_TIMEOUT_MS = 10_000;
 
     private int publishedKeyboardInset = -1;
+
+    private OnBackPressedCallback backCallback;
 
     // Le logo de lancement reste affiché jusqu'à la première page de
     // l'instance, ou jusqu'à ce que l'écran local affiche son formulaire.
@@ -59,22 +69,25 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ServerPlugin.class);
         super.onCreate(savedInstanceState);
 
-        // Retour = historique de la WebView. Depuis la première page de
-        // l'instance, il ramène à l'écran de choix du serveur ; de là, il
-        // quitte l'app comme d'habitude.
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        // Retour : l'instance referme d'abord sa feuille, sa visionneuse ou sa
+        // sélection (`window.__spellcacheBack`) ; sans rien d'ouvert, page
+        // précédente de la WebView. Depuis la première page de l'instance, il
+        // ramène à l'écran de choix du serveur ; de là, il quitte l'app.
+        backCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 WebView webView = getBridge().getWebView();
-                if (webView.canGoBack()) {
-                    webView.goBack();
+                String url = webView.getUrl();
+                if (url == null || url.startsWith(getBridge().getLocalUrl())) {
+                    goBackInWebView();
                     return;
                 }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
+                webView.evaluateJavascript(CLOSE_TOP_LAYER_JS, (closed) -> {
+                    if (!"true".equals(closed)) goBackInWebView();
+                });
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, backCallback);
 
         getBridge().addWebViewListener(new WebViewListener() {
             @Override
@@ -97,6 +110,18 @@ public class MainActivity extends BridgeActivity {
 
     void hideSplash() {
         keepSplash = false;
+    }
+
+    private void goBackInWebView() {
+        WebView webView = getBridge().getWebView();
+        if (webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+        // Aucune page avant : retour système (l'app passe en arrière-plan).
+        backCallback.setEnabled(false);
+        getOnBackPressedDispatcher().onBackPressed();
+        backCallback.setEnabled(true);
     }
 
     private void publishKeyboardInset(WindowInsetsCompat insets) {

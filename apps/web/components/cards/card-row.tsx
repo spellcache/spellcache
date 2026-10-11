@@ -1,7 +1,6 @@
 // Ligne de carte, densité `rows` — 84px de haut
-// (`ROW_HEIGHT.rows`). Contrôle de quantité en ligne : la puce `×N` cède la
-// place à un stepper quand `onQtyChange` est fourni — absent en mode sélection,
-// où la puce reste la seule lecture, cf. `container-view.tsx`.
+// (`ROW_HEIGHT.rows`). Quantité en lecture seule (puce `×N`) : voir
+// `CompactRow`, elle se modifie dans la feuille d'édition.
 //
 // La ligne n'a pas de hauteur forcée : elle additionne exactement à 84px
 // (bordure 2px + padding 10px×2 + vignette 44×61 en flux), la vignette
@@ -16,7 +15,6 @@
 // deux compensations avec.
 import { Check } from 'lucide-react'
 
-import { QtyStepper } from '@/components/cards/qty-stepper'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
 
@@ -30,7 +28,6 @@ import type { Condition } from '@spellcache/db/schema'
 // existants plutôt que d'inventer un traitement propre à cette densité
 // (docs/development.md : ne pas inventer de langage visuel).
 export function CardRow({
-  holdingId,
   thumbUrl,
   name,
   manaCost,
@@ -42,16 +39,11 @@ export function CardRow({
   qty,
   available,
   priceLabel,
-  onQtyChange,
   onOpen,
   selectable = false,
   selected = false,
   current = false,
 }: {
-  // Requis seulement quand `onQtyChange` est fourni (le stepper en a besoin,
-  // même contrat que `CompactRow`) — laissé optionnel pour ne pas forcer
-  // les rares appelants sans quantité éditable à en inventer un.
-  holdingId?: string
   thumbUrl: string
   name: string
   manaCost: string | null
@@ -69,10 +61,6 @@ export function CardRow({
   // est réservée par un deck `built`.
   available?: number
   priceLabel: string
-  // Stepper en ligne à la place de la puce `×N` — absent en mode sélection
-  // (`container-view.tsx` ne le passe pas alors), où la puce redevient une
-  // simple lecture.
-  onQtyChange?: (next: number) => void
   onOpen: () => void
   selectable?: boolean
   selected?: boolean
@@ -125,15 +113,9 @@ export function CardRow({
               FOIL
             </span>
           )}
-          {onQtyChange && holdingId ? (
-            <span onClick={(event) => event.stopPropagation()}>
-              <QtyStepper holdingId={holdingId} qty={qty} onChange={onQtyChange} />
-            </span>
-          ) : (
-            <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
-              ×{qty}
-            </span>
-          )}
+          <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
+            ×{qty}
+          </span>
           {reserved && (
             <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-success">
               IN DECK

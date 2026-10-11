@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Copy,
   Ellipsis,
+  FlaskConical,
   FolderInput,
   Hammer,
   Library,
@@ -166,10 +167,12 @@ export function DeckView({
   deckId,
   initialDeck,
   initialHeader,
+  playtestEnabled,
 }: {
   deckId: string
   initialDeck: DeckDetail
   initialHeader: ContainerHeader
+  playtestEnabled: boolean
 }) {
   const [deck, setDeck] = useState<DeckDetail>(initialDeck)
   // En-tête repliable des écrans à fond (demande produit) : la zone vide
@@ -190,8 +193,10 @@ export function DeckView({
 
   const [header, setHeader] = useState<ContainerHeader>(initialHeader)
   // Lecture seule (`viewer`), posée par `page.tsx` pour la collection de CE
-  // deck : ni menu, ni ajout, ni cycle de vie, ni édition de ligne.
+  // deck : ni ajout, ni cycle de vie, ni édition de ligne. Le menu ne lui
+  // offre que `Playtest`, qui ne modifie rien.
   const canEdit = useCanEdit()
+  const hasMenu = canEdit || playtestEnabled
 
   const [lookSheetOpen, setLookSheetOpen] = useState(false)
   const [menuSheetOpen, setMenuSheetOpen] = useState(false)
@@ -696,7 +701,7 @@ export function DeckView({
             coverArtUrl={header.coverArtUrl}
             coverIntensity={header.coverIntensity}
             onBack={() => window.history.back()}
-            onMore={() => setMenuSheetOpen(true)}
+            onMore={hasMenu ? () => setMenuSheetOpen(true) : null}
           />
         )}
 
@@ -723,7 +728,7 @@ export function DeckView({
               {deckHeading}
             </div>
 
-            {!hasBackdrop && canEdit && (
+            {!hasBackdrop && hasMenu && (
               <button
                 type="button"
                 aria-label="Deck actions"
@@ -1324,127 +1329,142 @@ export function DeckView({
 
       <Sheet open={menuSheetOpen} onOpenChange={setMenuSheetOpen} title={deck.name}>
         <SheetGroup>
-          <SheetRow
-            icon={Pencil}
-            label="Edit"
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setEditSheetOpen(true)
-            }}
-          />
-          <SheetRow
-            icon={Palette}
-            label="Deck look"
-            hint="A colour, a card, or the commander's art"
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setLookSheetOpen(true)
-            }}
-          />
-          {/* Les dossiers rangent l'atelier ; un deck monté est classé sous
-              `Collection › Decks` et n'a pas d'étagère où aller. */}
-          {deck.deckState !== 'built' && (
+          {playtestEnabled && (
             <SheetRow
-              icon={FolderInput}
-              label="Move to folder"
-              hint="Change which shelf it sits on"
+              icon={FlaskConical}
+              label="Playtest"
+              hint="Draw opening hands and play the first turns"
               onClick={() => {
                 setMenuSheetOpen(false)
-                void openMoveFolder()
+                router.push(`/tools/playtest/${deckId}`)
               }}
             />
           )}
-          {/* « Duplicate » : copie réelle, toujours en plan — comme la tuile de
-              l'onglet Decks, seulement offerte tant que le deck est un plan
-              (un deck monté n'a pas d'étagère où renvoyer sa copie). */}
-          {deck.deckState !== 'built' && (
-            <SheetRow
-              icon={Copy}
-              label="Duplicate"
-              hint="A second copy of this list, to try a different build"
-              onClick={() => {
-                setMenuSheetOpen(false)
-                void handleDuplicateDeck()
-              }}
-            />
-          )}
-          <SheetRow
-            icon={Share2}
-            label="Share"
-            hint="Anyone with the link can read it"
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setShareSheetOpen(true)
-            }}
-          />
-          <SheetRow
-            icon={Upload}
-            label="Import a list"
-            hint="Paste a decklist into this deck"
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setImportSheetOpen(true)
-            }}
-          />
-          <SheetRow
-            icon={ClipboardList}
-            label="Export list"
-            hint="Copy this list as text"
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setExportListSheetOpen(true)
-            }}
-          />
-          {deck.deckState === 'built' && (
-            <SheetRow
-              icon={Boxes}
-              label="Dismantle"
-              hint="Take it apart and decide what happens to the cards"
-              onClick={() => {
-                setMenuSheetOpen(false)
-                setDismantleSheetOpen(true)
-              }}
-            />
-          )}
-          {deck.deckState === 'built' && (
-            // `built → assemble` (remettre un deck en chantier) — chaque
-            // transition passe par une feuille de confirmation, jamais un
-            // simple tap.
-            <SheetRow
-              icon={Hammer}
-              label="Move back to Assemble"
-              hint="Reopen the build without touching the cards"
-              onClick={() => {
-                setMenuSheetOpen(false)
-                setUnbuildConfirmOpen(true)
-              }}
-            />
-          )}
-          <SheetRow
-            icon={Trash2}
-            label="Delete deck"
-            hint={
-              deck.deckState === 'built'
-                ? 'Its cards go back to the collection'
-                : 'The plan is removed'
-            }
-            onClick={() => {
-              setMenuSheetOpen(false)
-              setDeleteConfirmOpen(true)
-            }}
-          />
-          {deck.deckState === 'dismantled' && (
-            // `dismantled → plan` (repartir du même contenu) — même règle,
-            // feuille de confirmation dédiée.
-            <SheetRow
-              icon={RotateCcw}
-              label="Restart"
-              hint="Plan it again from the same list"
-              onClick={() => {
-                setMenuSheetOpen(false)
-                setRestartConfirmOpen(true)
-              }}
-            />
+          {canEdit && (
+            <>
+              <SheetRow
+                icon={Pencil}
+                label="Edit"
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setEditSheetOpen(true)
+                }}
+              />
+              <SheetRow
+                icon={Palette}
+                label="Deck look"
+                hint="A colour, a card, or the commander's art"
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setLookSheetOpen(true)
+                }}
+              />
+              {/* Les dossiers rangent l'atelier ; un deck monté est classé sous
+                  `Collection › Decks` et n'a pas d'étagère où aller. */}
+              {deck.deckState !== 'built' && (
+                <SheetRow
+                  icon={FolderInput}
+                  label="Move to folder"
+                  hint="Change which shelf it sits on"
+                  onClick={() => {
+                    setMenuSheetOpen(false)
+                    void openMoveFolder()
+                  }}
+                />
+              )}
+              {/* « Duplicate » : copie réelle, toujours en plan — comme la tuile de
+                  l'onglet Decks, seulement offerte tant que le deck est un plan
+                  (un deck monté n'a pas d'étagère où renvoyer sa copie). */}
+              {deck.deckState !== 'built' && (
+                <SheetRow
+                  icon={Copy}
+                  label="Duplicate"
+                  hint="A second copy of this list, to try a different build"
+                  onClick={() => {
+                    setMenuSheetOpen(false)
+                    void handleDuplicateDeck()
+                  }}
+                />
+              )}
+              <SheetRow
+                icon={Share2}
+                label="Share"
+                hint="Anyone with the link can read it"
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setShareSheetOpen(true)
+                }}
+              />
+              <SheetRow
+                icon={Upload}
+                label="Import a list"
+                hint="Paste a decklist into this deck"
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setImportSheetOpen(true)
+                }}
+              />
+              <SheetRow
+                icon={ClipboardList}
+                label="Export list"
+                hint="Copy this list as text"
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setExportListSheetOpen(true)
+                }}
+              />
+              {deck.deckState === 'built' && (
+                <SheetRow
+                  icon={Boxes}
+                  label="Dismantle"
+                  hint="Take it apart and decide what happens to the cards"
+                  onClick={() => {
+                    setMenuSheetOpen(false)
+                    setDismantleSheetOpen(true)
+                  }}
+                />
+              )}
+              {deck.deckState === 'built' && (
+                // `built → assemble` (remettre un deck en chantier) — chaque
+                // transition passe par une feuille de confirmation, jamais un
+                // simple tap.
+                <SheetRow
+                  icon={Hammer}
+                  label="Move back to Assemble"
+                  hint="Reopen the build without touching the cards"
+                  onClick={() => {
+                    setMenuSheetOpen(false)
+                    setUnbuildConfirmOpen(true)
+                  }}
+                />
+              )}
+              <SheetRow
+                icon={Trash2}
+                label="Delete deck"
+                hint={
+                  deck.deckState === 'built'
+                    ? 'Its cards go back to the collection'
+                    : 'The plan is removed'
+                }
+                onClick={() => {
+                  setMenuSheetOpen(false)
+                  setDeleteConfirmOpen(true)
+                }}
+              />
+              {deck.deckState === 'dismantled' && (
+                // `dismantled → plan` (repartir du même contenu) — même règle,
+                // feuille de confirmation dédiée.
+                <SheetRow
+                  icon={RotateCcw}
+                  label="Restart"
+                  hint="Plan it again from the same list"
+                  onClick={() => {
+                    setMenuSheetOpen(false)
+                    setRestartConfirmOpen(true)
+                  }}
+                />
+              )}
+            </>
           )}
         </SheetGroup>
       </Sheet>

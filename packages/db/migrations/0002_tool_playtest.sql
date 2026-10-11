@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "tool_playtest" boolean DEFAULT false NOT NULL;

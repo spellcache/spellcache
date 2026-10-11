@@ -15,6 +15,13 @@
       "when": 1791707292330,
       "tag": "0001_cards_oracle_id_index",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791723496853,
+      "tag": "0002_tool_playtest",
+      "breakpoints": true
     }
   ]
 }

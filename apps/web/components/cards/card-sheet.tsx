@@ -4,7 +4,7 @@
 // `normal` servie directement par le CDN Scryfall
 // (`packages/core/src/images.ts#largeUrl` — jamais le proxy, réservé aux
 // vignettes d'une liste de centaines de lignes), nom, coût, type, set/numéro/rareté, prix, puis un
-// bloc de lignes label/valeur (Quantity, Finish, Condition, Language,
+// bloc de lignes label/valeur (Edition, Quantity, Finish, Condition, Language,
 // Binder, Notes) — ni bouton `Add to deck`/`Binder` désactivé, ni contrôles
 // de quantité/condition/foil : toute édition passe par le bouton `Edit` de
 // l'en-tête, qui ouvre `EditCardSheet`/`EditListCardSheet` (composants
@@ -177,6 +177,7 @@ export function CardSheet({
         )}
 
         <div className="mt-auto">
+          <Row label="Edition" value={holding.setName} />
           <Row label="Quantity" value={`×${holding.qty}`} />
           <Row label="Finish" value={isFoil ? 'Foil' : 'Non-foil'} />
           <Row label="Condition" value={CONDITION_LABEL[holding.condition] ?? holding.condition} />

@@ -197,8 +197,10 @@ export function Playtest({ deck }: { deck: PlaytestDeck }) {
           <p className="px-4 text-body leading-normal text-text-2">Tap a card in your hand to play it.</p>
         ) : (
           <>
-            {battlefieldRow('Lands', lands)}
+            {/* Comme à la table : les permanents devant, les terrains près du
+                joueur, donc au-dessus de la main. */}
             {battlefieldRow('Permanents', permanents)}
+            {battlefieldRow('Lands', lands)}
           </>
         )}
       </ScrollArea>

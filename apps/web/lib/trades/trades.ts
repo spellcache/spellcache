@@ -1379,8 +1379,9 @@ export interface TradeLineView {
   // Carte reçue en personne, choisie au catalogue : sa finition et son état
   // se règlent dans l'échange.
   fromCatalog: boolean
-  // Ligne d'un deck cédé entier : ni quantité ni retrait carte par carte.
-  wholeDeck: boolean
+  // Deck cédé entier dont vient la ligne : ni quantité ni retrait carte par
+  // carte. Son nom est montré aux deux parties — c'est le deck qui est offert.
+  deck: { id: string; name: string } | null
 }
 
 export interface TradeSideView {
@@ -1431,6 +1432,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
       setCode: cards.setCode,
       collectorNumber: cards.collectorNumber,
       holdingQty: holdings.qty,
+      sourceId: containers.id,
       sourceName: containers.name,
       sourceKind: containers.kind,
       sourceState: containers.deckState,
@@ -1481,7 +1483,10 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
         : null,
       maxQty: mine ? row.holdingQty : null,
       fromCatalog: mode === 'in_person' && row.line.giver === 'counterparty',
-      wholeDeck: row.sourceKind === 'deck',
+      deck:
+        row.sourceKind === 'deck' && row.sourceId && row.sourceName
+          ? { id: row.sourceId, name: row.sourceName }
+          : null,
     }
   }
 

@@ -15,6 +15,7 @@ import {
   browseTradeableAction,
   removeLineAction,
 } from '@/app/(app)/tools/trade/actions'
+import { DeckIcon } from '@/components/trades/deck-icon'
 import { Chip } from '@/components/ui/chip'
 import { SearchField } from '@/components/ui/search-field'
 import { formatCount, formatMoney } from '@/lib/format/money'
@@ -28,26 +29,6 @@ const SCOPES: Array<{ value: BrowseScope; label: string }> = [
 ]
 
 const FINISH_LABEL = { nonfoil: null, foil: 'Foil', etched: 'Etched' } as const
-
-function DeckIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="2.6" y="8.4" width="11" height="13" rx="2" />
-      <path d="M5.6 8.4V7.4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1" />
-      <path d="M8.6 5.4V4.4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1" />
-    </svg>
-  )
-}
 
 export function CardsStep({
   trade,

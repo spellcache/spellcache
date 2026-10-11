@@ -694,9 +694,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
 
       expect(await trades.addDeckLines(me.userId, tradeId, deckId)).toEqual({ added: 5 })
       let view = await trades.getTradeView(me.userId, tradeId)
-      expect(
-        view.give.lines.every((line) => line.wholeDeck && line.sourceName === 'Burn'),
-      ).toBe(true)
+      expect(view.give.lines.every((line) => line.deck?.name === 'Burn')).toBe(true)
       await expectTradeError(
         trades.updateLine(me.userId, tradeId, view.give.lines[0]!.id, { qty: 1 }),
         'forbidden',

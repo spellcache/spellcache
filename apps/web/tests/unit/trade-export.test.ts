@@ -24,7 +24,7 @@ function line(overrides: Partial<TradeLineView>): TradeLineView {
     sourceName: null,
     maxQty: null,
     fromCatalog: false,
-    wholeDeck: false,
+    deck: null,
     ...overrides,
   }
 }

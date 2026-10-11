@@ -701,7 +701,7 @@ export function TradeScreen({
                 : `${giveCount} ${giveCount === 1 ? 'card leaves' : 'cards leave'} your collection, ${getCount} ${
                     getCount === 1 ? 'card is' : 'cards are'
                   } added to ${trade.destination.name ?? 'Collection'}.${
-                    trade.give.lines.some((line) => line.wholeDeck)
+                    trade.give.lines.some((line) => line.deck !== null)
                       ? ' Your whole deck is dismantled, so this trade cannot be undone.'
                       : ''
                   }`

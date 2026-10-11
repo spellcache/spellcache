@@ -33,11 +33,13 @@ import {
 import type { HoldingRow } from '@/app/(app)/container/[id]/holdings-data'
 
 // Une ligne label/valeur — absente quand la
-// valeur est `null`/vide, jamais un tiret creux affiché pour rien.
+// valeur est `null`/vide, jamais un tiret creux affiché pour rien. Pas de
+// séparateur sous la dernière ligne affichée (`last:`, les lignes absentes ne
+// sont pas rendues).
 function Row({ label, value }: { label: string; value: string | null }) {
   if (value === null || value === '') return null
   return (
-    <div className="flex items-baseline justify-between gap-12 border-b border-border py-9">
+    <div className="flex items-baseline justify-between gap-12 border-b border-border py-9 last:border-b-0">
       <span className="flex-shrink-0 text-meta font-semibold text-text-2">{label}</span>
       <span className="min-w-0 text-right text-row-value font-semibold text-text">{value}</span>
     </div>

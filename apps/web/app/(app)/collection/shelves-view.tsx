@@ -143,7 +143,7 @@ export function ShelvesView({ initial }: { initial: CollectionShelves }) {
                 type="button"
                 aria-label="Add a card"
                 onClick={() => setAddCardOpen(true)}
-                className="flex h-header-add w-header-add flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
+                className="flex h-header-action w-header-action flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
               >
                 <Plus width={21} height={21} strokeWidth={1.75} />
               </button>

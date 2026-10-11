@@ -174,18 +174,16 @@ const TITLE_TEXT_HEX = '#eef1f6'
 
 // Position verticale du titre dans la bande de 460px de l'en-tête illustré
 // — recopiée des tokens réellement consommés
-// par `binder-header.tsx` (`pt-20`, la rangée de boutons qui se dimensionne
-// sur le bouton accent `+` — `flex items-center` avec
-// `--height-header-add-binder: 40px`, pas sur les boutons ronds 36px qui
-// l'entourent —, `--spacing-binder-title-gap: 130px`, app/globals.css),
+// par `binder-header.tsx` (`pt-20`, la rangée de boutons ronds de 36px —
+// `--height-back-button`, `+` accent compris —, `--spacing-binder-title-gap:
+// 130px`, app/globals.css),
 // jamais mesurée à la main dans ce fichier : additionner les trois donne la
-// même boîte que le DOM réel. Le titre s'assoit à 190px sur 460 (41.3 %),
+// même boîte que le DOM réel. Le titre s'assoit à 186px sur 460 (40.4 %),
 // donc **avant** le palier 52 % du dégradé : le vrai plancher est calculé
 // ci-dessous par interpolation plutôt que supposé. Mesure de contrôle :
-// `h1.getBoundingClientRect().top` = 190px (rangée de boutons de 40px, pas
-// 36px).
+// `h1.getBoundingClientRect().top` = 186px (rangée de boutons de 36px).
 const HEADER_PADDING_TOP_PX = 20
-const HEADER_BUTTON_ROW_HEIGHT_PX = 40
+const HEADER_BUTTON_ROW_HEIGHT_PX = 36
 const HEADER_TITLE_GAP_PX = 130
 const BACKDROP_HEIGHT_PX = 460 // --height-binder-backdrop
 const TITLE_TOP_FRACTION =

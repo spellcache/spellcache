@@ -13,6 +13,13 @@
 // lien de la feuille navigue annulerait la navigation (l'action `restore`
 // de Next.js écarte la navigation en cours). L'entrée orpheline est sautée
 // au retour suivant, ou réutilisée par la prochaine couche ouverte.
+//
+// Dans l'app Android (marqueur `SpellcacheAndroid` du user agent, posé par
+// `apps/android/capacitor.config.ts`), aucune entrée d'historique : le shell
+// appelle `window.__spellcacheBack()` à chaque retour, qui referme la couche
+// du dessus. L'historique de la WebView ne contient alors que de vraies
+// pages, et un retour sans couche ouverte revient à la page précédente
+// plutôt qu'à une entrée de feuille ou d'URL intermédiaire.
 import { useEffect, useRef } from 'react'
 
 const STATE_KEY = '__overlay'
@@ -28,6 +35,29 @@ const layers: Layer[] = []
 let orphanHref: string | null = null
 let sequence = 0
 let listening = false
+
+const ANDROID_SHELL_MARKER = 'SpellcacheAndroid'
+
+function inAndroidShell(): boolean {
+  return typeof navigator !== 'undefined' && navigator.userAgent.includes(ANDROID_SHELL_MARKER)
+}
+
+// Retour du shell Android : referme la couche du dessus. `false` quand rien
+// n'est ouvert — le shell revient alors à la page précédente.
+export function closeTopLayer(): boolean {
+  const layer = layers.pop()
+  if (!layer) return false
+  layer.close()
+  return true
+}
+
+declare global {
+  interface Window {
+    __spellcacheBack?: () => boolean
+  }
+}
+
+if (typeof window !== 'undefined' && inAndroidShell()) window.__spellcacheBack = closeTopLayer
 
 function overlayIdOf(state: unknown): string | undefined {
   if (typeof state !== 'object' || state === null || !(STATE_KEY in state))
@@ -67,6 +97,16 @@ function handlePopState(event: PopStateEvent) {
 }
 
 export function openLayer(close: () => void): () => void {
+  if (inAndroidShell()) {
+    sequence += 1
+    const layer: Layer = { id: `layer-${sequence}`, close }
+    layers.push(layer)
+    return () => {
+      const index = layers.indexOf(layer)
+      if (index !== -1) layers.splice(index, 1)
+    }
+  }
+
   if (!listening) {
     window.addEventListener('popstate', handlePopState)
     listening = true

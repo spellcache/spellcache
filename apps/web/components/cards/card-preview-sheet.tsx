@@ -10,8 +10,13 @@
 // (`packages/core/src/images.ts#largeUrl` — jamais le proxy pour la grande
 // image d'une feuille), mais sans les contrôles
 // d'édition qu'aucune donnée de `ShelfTile` ne peut alimenter ici.
+//
+// `quantity` optionnel : la liste d'un deck y place son compteur
+// d'exemplaires, retiré de ses lignes (`DeckCardRow`) où il se déclenchait au
+// défilement. Les étagères ne le passent jamais.
 import { useEffect, useState } from 'react'
 
+import { QtyStepper } from '@/components/cards/qty-stepper'
 import { Sheet } from '@/components/ui/sheet'
 import { largeUrl } from '@spellcache/core/images'
 import { ZoomableCardImage } from '@/components/cards/zoomable-card-image'
@@ -28,6 +33,7 @@ export function CardPreviewSheet({
   currency,
   onPrevious,
   onNext,
+  quantity,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -38,6 +44,14 @@ export function CardPreviewSheet({
   // Carte voisine de la liste d'où vient la feuille (balayage, `←`/`→`).
   onPrevious?: () => void
   onNext?: () => void
+  // `min` : 1 pour un deck, retirer la carte reste la corbeille de la ligne.
+  quantity?: {
+    holdingId: string
+    qty: number
+    min: number
+    disabled?: boolean
+    onChange: (next: number) => void
+  }
 }) {
   const [detail, setDetail] = useState<CardDetail | null>(null)
   const swipe = useSwipe({ onPrevious, onNext, keyboard: open })
@@ -89,6 +103,17 @@ export function CardPreviewSheet({
             {tile.priceMinor !== null && (
               <div className="mt-12 font-mono text-price-detail font-extrabold text-accent-text">
                 {formatMoney(tile.priceMinor, currency)}
+              </div>
+            )}
+            {quantity && (
+              <div className="mt-12 inline-flex items-center rounded-control border border-border bg-surface-2 px-9 py-5">
+                <QtyStepper
+                  holdingId={quantity.holdingId}
+                  qty={quantity.qty}
+                  min={quantity.min}
+                  disabled={quantity.disabled}
+                  onChange={quantity.onChange}
+                />
               </div>
             )}
           </div>

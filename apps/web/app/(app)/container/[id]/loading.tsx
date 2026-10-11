@@ -14,7 +14,7 @@ export default function ContainerLoading() {
         <div className="min-w-0 flex-1 animate-pulse">
           <div className="h-header-action w-full rounded-control bg-surface-1" />
         </div>
-        <div className="h-header-add w-header-add flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
+        <div className="h-header-action w-header-action flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
       </div>
 
       <div className="flex flex-col gap-6">

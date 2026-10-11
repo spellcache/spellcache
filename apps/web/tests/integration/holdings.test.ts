@@ -72,6 +72,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
     id: string
     name: string
     setCode: string
+    oracleId?: string
   }): Promise<void> {
     await pool.query(
       `INSERT INTO sets (code, name, card_count) VALUES ($1, $1, 0) ON CONFLICT (code) DO NOTHING`,
@@ -80,7 +81,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
     await pool.query(
       `INSERT INTO cards (id, oracle_id, name, set_code, collector_number, rarity, cmc, type_line, colors, color_identity, finishes, legalities)
        VALUES ($1, $2, $3, $4, '1', 'common', 0, 'Creature', '{}', '{}', '{nonfoil,foil}', '{}')`,
-      [opts.id, randomUUID(), opts.name, opts.setCode],
+      [opts.id, opts.oracleId ?? randomUUID(), opts.name, opts.setCode],
     )
   }
 
@@ -157,6 +158,35 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Holdings & container_stats', ()
 
     const rows = await db.select().from(holdings).where(eq(holdings.containerId, containerId))
     expect(rows).toHaveLength(2)
+  })
+
+  it('changes the printing of a holding, merging into an existing row of that printing', async () => {
+    const { userId, containerId } = await createContainerFor('reprinter')
+    const oracleId = randomUUID()
+    const alpha = randomUUID()
+    const revised = randomUUID()
+    const other = randomUUID()
+    await insertCard({ id: alpha, name: 'Llanowar Elves', setCode: 'lea', oracleId })
+    await insertCard({ id: revised, name: 'Llanowar Elves', setCode: '3ed', oracleId })
+    await insertCard({ id: other, name: 'Giant Growth', setCode: 'lea' })
+
+    const key = { containerId, cardId: alpha, finish: 'nonfoil' as const, condition: 'nm' as const, language: 'en' }
+    const moved = await addHolding(userId, key, 2)
+    const changed = await updateHolding(userId, moved.holdingId, { cardId: revised })
+    expect(changed).toEqual({ holdingId: moved.holdingId, merged: false })
+
+    const [row] = await db.select().from(holdings).where(eq(holdings.id, moved.holdingId))
+    expect(row?.cardId).toBe(revised)
+
+    await expect(updateHolding(userId, moved.holdingId, { cardId: other })).rejects.toThrow()
+
+    const kept = await addHolding(userId, key, 3)
+    const merged = await updateHolding(userId, kept.holdingId, { cardId: revised })
+    expect(merged).toEqual({ holdingId: moved.holdingId, merged: true })
+
+    const rows = await db.select().from(holdings).where(eq(holdings.containerId, containerId))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ cardId: revised, qty: 5 })
   })
 
   it('setHoldingQuantity(_, id, 0) removes the row', async () => {

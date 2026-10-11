@@ -250,6 +250,7 @@ const updateHoldingSchema = z.object({
   finish: finishSchema.optional(),
   language: z.string().trim().min(1).max(8).optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
+  cardId: z.uuid().optional(),
 })
 
 export async function updateHoldingAction(
@@ -266,6 +267,7 @@ export async function updateHoldingAction(
       finish: parsed.data.finish,
       language: parsed.data.language,
       notes: parsed.data.notes,
+      cardId: parsed.data.cardId,
     })
     return { ok: true, holdingId: result.holdingId }
   } catch {

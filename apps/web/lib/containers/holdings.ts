@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 
 import { and, eq, inArray, ne } from 'drizzle-orm'
 
-import { containers, holdings, type Condition, type DeckZone, type Finish, type Holding } from '@spellcache/db/schema'
+import { cards, containers, holdings, type Condition, type DeckZone, type Finish, type Holding } from '@spellcache/db/schema'
 import { requireContainerAccess } from '@/lib/collections/authorize'
 import { db } from '@spellcache/db'
 
@@ -106,7 +106,14 @@ export interface UpdateHoldingPatch {
   // exactement comme `qty`. `undefined` laisse la valeur existante intacte
   // (« pas touché »), `null` l'efface explicitement.
   notes?: string | null
+  // Changement d'impression (feuille d'édition) : `card_id` est lui aussi
+  // dans la clé d'unicité, d'où la même fusion sur collision. Restreint aux
+  // impressions de la même carte (`oracle_id`) — sinon « changer d'édition »
+  // deviendrait un remplacement silencieux par une autre carte.
+  cardId?: string
 }
+
+export class PrintingMismatchError extends Error {}
 
 export interface UpdateHoldingResult {
   holdingId: string
@@ -234,17 +241,31 @@ export async function updateHolding(
   await requireContainerAccess(userId, found.containerId, 'write')
   await assertNotDeckLocked(db, found.containerId)
 
+  if (patch.cardId !== undefined && patch.cardId !== found.cardId) {
+    const printings = await db
+      .select({ id: cards.id, oracleId: cards.oracleId })
+      .from(cards)
+      .where(inArray(cards.id, [found.cardId, patch.cardId]))
+    const current = printings.find((printing) => printing.id === found.cardId)
+    const next = printings.find((printing) => printing.id === patch.cardId)
+    if (!current || !next || current.oracleId !== next.oracleId) {
+      throw new PrintingMismatchError(`Card ${patch.cardId} is not a printing of ${found.cardId}.`)
+    }
+  }
+
   return db.transaction(async (tx) => {
     // Relue verrouillée : deux modifications simultanées fusionneraient
     // sinon chacune la même quantité lue avant le verrou, et la doubleraient.
     const [row] = await tx.select().from(holdings).where(eq(holdings.id, holdingId)).for('update')
-    if (!row || row.containerId !== found.containerId) {
+    // Impression vérifiée plus haut contre `found.cardId` : elle doit être
+    // restée la même.
+    if (!row || row.containerId !== found.containerId || row.cardId !== found.cardId) {
       throw new Error(`Holding ${holdingId} not found.`)
     }
 
     const nextKey: HoldingKey = {
       containerId: row.containerId,
-      cardId: row.cardId,
+      cardId: patch.cardId ?? row.cardId,
       finish: patch.finish ?? row.finish,
       condition: patch.condition ?? row.condition,
       language: patch.language ?? row.language,
@@ -279,6 +300,7 @@ export async function updateHolding(
     await tx
       .update(holdings)
       .set({
+        cardId: nextKey.cardId,
         finish: nextKey.finish,
         condition: nextKey.condition,
         language: nextKey.language,

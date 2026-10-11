@@ -10,9 +10,11 @@ import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { CardEditControls } from '@/components/cards/card-edit-controls'
+import { EditionButton, PrintingPickerSheet } from '@/components/cards/printing-picker-sheet'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Sheet } from '@/components/ui/sheet'
 import type { Condition } from '@spellcache/db/schema'
+import type { CardSearchItem } from '@/lib/search/search-cards'
 
 import {
   getHoldingDetailAction,
@@ -28,6 +30,7 @@ export function EditListCardSheet({
   onQtyChange,
   onConditionChange,
   onFoilChange,
+  onPrintingChange,
   onRemove,
 }: {
   open: boolean
@@ -36,10 +39,14 @@ export function EditListCardSheet({
   onQtyChange: (next: number) => void
   onConditionChange: (condition: Condition) => void
   onFoilChange: (isFoil: boolean) => void
+  // Autre impression de la même carte : mutation optimiste de l'écran, comme
+  // condition/foil (une fusion peut changer le `holdingId`).
+  onPrintingChange: (printing: CardSearchItem) => void
   onRemove: () => void
 }) {
   const [detail, setDetail] = useState<HoldingDetail | null>(null)
   const [notes, setNotes] = useState('')
+  const [editionsOpen, setEditionsOpen] = useState(false)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,6 +97,13 @@ export function EditListCardSheet({
             onFoilChange={onFoilChange}
           />
 
+          <EditionButton
+            setName={holding.setName}
+            setCode={holding.setCode}
+            collectorNumber={holding.collectorNumber}
+            onClick={() => setEditionsOpen(true)}
+          />
+
           <div>
             <div className="mb-8 text-body font-semibold text-text-2">Notes</div>
             <textarea
@@ -113,6 +127,14 @@ export function EditListCardSheet({
           </button>
         </div>
       </Sheet>
+
+      <PrintingPickerSheet
+        open={editionsOpen}
+        onClose={() => setEditionsOpen(false)}
+        card={{ name: holding.name, manaCost: holding.manaCost }}
+        currentCardId={holding.cardId}
+        onPick={(printing) => onPrintingChange(printing)}
+      />
 
       <ConfirmDialog
         open={confirmingRemove}

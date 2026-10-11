@@ -10,6 +10,8 @@
 //   - le prix passe par `formatMoney`/`currency`, jamais `$` en dur.
 //   - les symboles de mana passent par le composant partagé `ManaCost`,
 //     qui couvre les 75 symboles + repli lettré.
+//   - `current` marque l'impression déjà choisie dans une liste
+//     d'impressions (`PrintingPickerSheet`).
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Currency } from '@/lib/format/money'
 import { formatMoney } from '@/lib/format/money'
@@ -23,10 +25,12 @@ export function SearchRow({
   item,
   currency,
   onClick,
+  current = false,
 }: {
   item: CardSearchItem
   currency: Currency
   onClick?: () => void
+  current?: boolean
 }) {
   const setLine = `${item.setCode.toUpperCase()} · ${item.setName} · #${item.collectorNumber}`
 
@@ -43,13 +47,22 @@ export function SearchRow({
         </div>
         <div className="mt-2 text-meta-search text-text-2">{setLine}</div>
       </div>
-      <div className="whitespace-nowrap font-mono text-card-name-search font-bold text-accent-text">
-        {formatPrice(item.price, currency)}
+      <div className="flex flex-col items-end gap-4">
+        <div className="whitespace-nowrap font-mono text-card-name-search font-bold text-accent-text">
+          {formatPrice(item.price, currency)}
+        </div>
+        {current && (
+          <span className="rounded-pill border border-border-accent bg-accent-bg px-8 py-2 text-tab-label font-bold uppercase tracking-section-label text-accent-text">
+            Current
+          </span>
+        )}
       </div>
     </>
   )
 
-  const className = 'flex items-center gap-12 rounded-row border border-border bg-surface-1 px-12 py-10'
+  const className = `flex items-center gap-12 rounded-row border px-12 py-10 ${
+    current ? 'border-border-accent bg-accent-bg' : 'border-border bg-surface-1'
+  }`
 
   if (!onClick) {
     return <div className={className}>{content}</div>

@@ -47,6 +47,12 @@ public class ServerPlugin extends Plugin {
         call.resolve();
     }
 
+    @PluginMethod
+    public void hideSplash(PluginCall call) {
+        ((MainActivity) getActivity()).hideSplash();
+        call.resolve();
+    }
+
     @Override
     public Boolean shouldOverrideLoad(Uri url) {
         Uri server = parseOrigin(savedOrigin());

@@ -48,10 +48,9 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
-          // Pas de `script-src` : Next injecte des scripts en ligne qui
-          // demanderaient un nonce par requête. Ces directives-là ne cassent
-          // rien et ferment plugins, `<base>` détourné et formulaires vers
-          // un autre site.
+          // Socle commun à toutes les réponses, API comprises. Les pages
+          // reçoivent en plus la politique complète à nonce de `middleware.ts`
+          // (deux en-têtes CSP s'appliquent tous les deux).
           {
             key: 'Content-Security-Policy',
             value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",

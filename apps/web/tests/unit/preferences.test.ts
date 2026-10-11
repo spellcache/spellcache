@@ -28,6 +28,9 @@ describe('DEFAULT_PREFERENCES', () => {
       priceSource: 'cardmarket_eur',
       toolLifeTracker: false,
       toolPlaytest: false,
+      // Même contrat pour le mode échange
+      // (`packages/db/migrations/0003_trading_mode.sql`).
+      toolTradingMode: false,
       // `'[]'::jsonb` en base (`packages/db/migrations/0013_awesome_mathemanic.sql`)
       // — « tout déplié », l'arbre du design validé. Un compte créé avant la
       // colonne lit donc la même chose ici et en base.
@@ -74,6 +77,14 @@ describe('preferencesSchema', () => {
       success: true,
       data: { toolLifeTracker: true },
     })
+  })
+
+  it('accepts the trading mode tool flag as a plain boolean patch', () => {
+    expect(preferencesSchema.safeParse({ toolTradingMode: true })).toEqual({
+      success: true,
+      data: { toolTradingMode: true },
+    })
+    expect(preferencesSchema.safeParse({ toolTradingMode: 'on' }).success).toBe(false)
   })
 
   it('rejects an unknown key', () => {

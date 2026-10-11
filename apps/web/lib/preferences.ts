@@ -31,6 +31,7 @@ export interface Preferences {
   // seuls les états de partie vivent dans le navigateur (docs/development.md).
   toolLifeTracker: boolean
   toolPlaytest: boolean
+  toolTradingMode: boolean
   // Nœuds repliés de la barre latérale desktop — sur le compte, pas dans le
   // navigateur, pour qu'une reconnexion depuis un autre poste retrouve le
   // même arbre.
@@ -55,6 +56,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   priceSource: 'cardmarket_eur',
   toolLifeTracker: false,
   toolPlaytest: false,
+  toolTradingMode: false,
   sidebarCollapsed: [],
   accentColor: 'gold',
   pureBlack: false,
@@ -75,6 +77,7 @@ export const preferencesSchema: z.ZodType<Partial<Preferences>> = z
     priceSource: z.enum(['tcgplayer_usd', 'cardmarket_eur']).optional(),
     toolLifeTracker: z.boolean().optional(),
     toolPlaytest: z.boolean().optional(),
+    toolTradingMode: z.boolean().optional(),
     // Énumération fermée : un identifiant libre laisserait entrer n'importe
     // quelle chaîne dans la colonne jsonb (docs/development.md — toute entrée externe
     // validée à la frontière, jamais castée).
@@ -96,6 +99,7 @@ export async function getPreferences(userId: string): Promise<Preferences> {
       priceSource: users.priceSource,
       toolLifeTracker: users.toolLifeTracker,
       toolPlaytest: users.toolPlaytest,
+      toolTradingMode: users.toolTradingMode,
       sidebarCollapsed: users.sidebarCollapsed,
       accentColor: users.accentColor,
       pureBlack: users.pureBlack,

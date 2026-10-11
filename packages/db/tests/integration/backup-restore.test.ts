@@ -71,7 +71,7 @@ function tablesBackedUp(): string[] {
 }
 
 describe.skipIf(!HAS_BASH)('deploy/backup.sh, contrat des tables', () => {
-  it('backs up exactly the twelve user tables', () => {
+  it('backs up exactly the fourteen user tables', () => {
     expect(tablesBackedUp()).toEqual(
       [
         'accounts',
@@ -84,6 +84,8 @@ describe.skipIf(!HAS_BASH)('deploy/backup.sh, contrat des tables', () => {
         'import_lists',
         'sessions',
         'site_settings',
+        'trade_lines',
+        'trades',
         'users',
         'verification_tokens',
       ].sort(),

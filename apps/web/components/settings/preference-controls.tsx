@@ -7,6 +7,7 @@
 // quantités de holding). Des îlots clients minces, pas un wrapper qui
 // rendrait tout `Appearance`/`Preferences` côté client.
 import {
+  ArrowLeftRight,
   BadgeDollarSign,
   Check,
   Contrast,
@@ -120,6 +121,7 @@ const TOGGLE_ICON: Record<ToggleField, React.ReactNode> = {
   binderBackdrops: <Palette width={18} height={18} strokeWidth={1.75} />,
   toolLifeTracker: <HeartPulse width={18} height={18} strokeWidth={1.75} />,
   toolPlaytest: <FlaskConical width={18} height={18} strokeWidth={1.75} />,
+  toolTradingMode: <ArrowLeftRight width={18} height={18} strokeWidth={1.75} />,
   pureBlack: <Contrast width={18} height={18} strokeWidth={1.75} />,
 }
 

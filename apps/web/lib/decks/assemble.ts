@@ -172,7 +172,11 @@ export async function planAssembly(
         .sort((a, b) => a.deckName.localeCompare(b.deckName))
         .find((candidate) => candidate.qty >= slot.need)
       if (source) {
-        borrowed.push({ ...slot, fromDeckId: source.deckId, fromDeckName: source.deckName })
+        borrowed.push({
+          ...slot,
+          fromDeckId: source.deckId,
+          fromDeckName: source.deckName,
+        })
         continue
       }
     }
@@ -260,13 +264,15 @@ async function rootContainerOf(tx: Tx, collectionId: string): Promise<string> {
   const [row] = await tx
     .select({ id: containers.id })
     .from(containers)
-    .where(and(eq(containers.collectionId, collectionId), eq(containers.kind, 'collection')))
+    .where(
+      and(eq(containers.collectionId, collectionId), eq(containers.kind, 'collection')),
+    )
     .limit(1)
   if (!row) throw new Error(`Collection ${collectionId} has no root container.`)
   return row.id
 }
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 function matchHoldingKey(
   containerId: string,
@@ -310,7 +316,10 @@ async function addPhysicalStock(
     .limit(1)
 
   if (existing) {
-    await tx.update(holdings).set({ qty: existing.qty + qty }).where(eq(holdings.id, existing.id))
+    await tx
+      .update(holdings)
+      .set({ qty: existing.qty + qty })
+      .where(eq(holdings.id, existing.id))
     return
   }
 
@@ -366,7 +375,10 @@ async function reduceSourceDeckHolding(
     if (taken >= row.qty) {
       await tx.delete(holdings).where(eq(holdings.id, row.id))
     } else {
-      await tx.update(holdings).set({ qty: row.qty - taken }).where(eq(holdings.id, row.id))
+      await tx
+        .update(holdings)
+        .set({ qty: row.qty - taken })
+        .where(eq(holdings.id, row.id))
     }
     remaining -= taken
   }
@@ -461,7 +473,10 @@ export interface ConsumeStockResult {
 // Aucun accès base — exportée pour `tests/unit/assemble-settlement.test.ts`,
 // qui prouve ce comportement sans Postgres, même patron que
 // `computeManaCurve`/`isLand` (`deck-data.ts`).
-export function consumeStockRows(rows: StockCandidate[], qty: number): ConsumeStockResult {
+export function consumeStockRows(
+  rows: StockCandidate[],
+  qty: number,
+): ConsumeStockResult {
   let remaining = qty
   const touched = new Set<string>()
   const deletions: string[] = []
@@ -574,7 +589,14 @@ async function decrementLooseStock(
   qty: number,
 ): Promise<ConsumeStockResult> {
   if (qty <= 0) {
-    return { takenQty: 0, touchedContainerIds: [], consumed: [], settledInPlace: [], deletions: [], updates: [] }
+    return {
+      takenQty: 0,
+      touchedContainerIds: [],
+      consumed: [],
+      settledInPlace: [],
+      deletions: [],
+      updates: [],
+    }
   }
 
   const { rows } = await tx.execute<{
@@ -669,7 +691,9 @@ export async function assembleDeck(
 
     // Achats cochés : ajoute du stock physique à la racine de la collection
     // pour chaque manquante effectivement acquise.
-    const missingByHoldingId = new Map(opts.plan.missing.map((slot) => [slot.holdingId, slot]))
+    const missingByHoldingId = new Map(
+      opts.plan.missing.map((slot) => [slot.holdingId, slot]),
+    )
     const acquiredSlots = [...acquiredIds]
       .map((id) => missingByHoldingId.get(id))
       .filter((slot): slot is DeckSlot => slot !== undefined)
@@ -704,13 +728,24 @@ export async function assembleDeck(
         if (!row) continue
         const buyQty = Math.max(0, slot.need - slot.ownedElsewhere)
         if (buyQty <= 0) continue
-        await addPhysicalStock(tx, rootId, row.cardId, row.finish, row.condition, row.language, buyQty)
+        await addPhysicalStock(
+          tx,
+          rootId,
+          row.cardId,
+          row.finish,
+          row.condition,
+          row.language,
+          buyQty,
+        )
         addedAny = true
       }
       if (addedAny) touchedContainerIds.add(rootId)
     }
 
-    await tx.update(containers).set({ deckState: 'built' }).where(eq(containers.id, deckId))
+    await tx
+      .update(containers)
+      .set({ deckState: 'built' })
+      .where(eq(containers.id, deckId))
 
     for (const containerId of touchedContainerIds) {
       await recomputeContainerStats(containerId, tx)
@@ -735,6 +770,10 @@ export async function assembleDeck(
 
 export interface DismantleDeckResult {
   returned: number
+  // Exemplaires réellement prélevés hors du deck, par identité réelle
+  // (finition/état/langue de la ligne consommée) — ce qu'un échange qui cède
+  // le deck entier remet à l'autre partie.
+  consumed: ConsumedGroup[]
 }
 
 // Démonte un deck `built`. Déplacer
@@ -816,143 +855,194 @@ export async function dismantleDeck(
   targetBinderId: string,
   mode: 'keep' | 'discard' = 'keep',
 ): Promise<DismantleDeckResult> {
-  return db.transaction(async (tx) => {
-    const deckRow = await lockDeckContainer(tx, userId, deckId, 'write')
-    assertTransition(deckRow.deckState ?? 'plan', 'dismantled')
+  return db.transaction((tx) =>
+    dismantleDeckInTransaction(tx, userId, deckId, targetBinderId, mode),
+  )
+}
 
-    // En mode `discard`, `targetBinderId` n'est jamais une destination réelle
-    // (rien n'est déposé) — la validation d'accès/appartenance du binder ne
-    // s'applique donc qu'au mode `keep`, seul où ce container reçoit une
-    // écriture.
-    if (mode === 'keep') {
-      await requireContainerAccess(userId, targetBinderId, 'write')
-      const [target] = await tx
-        .select({ id: containers.id, collectionId: containers.collectionId, kind: containers.kind })
-        .from(containers)
-        .where(eq(containers.id, targetBinderId))
-        .for('update')
-        .limit(1)
-      if (!target) throw new Error(`Container ${targetBinderId} not found.`)
-      if (target.collectionId !== deckRow.collectionId) {
-        throw new Error('Cannot dismantle a deck into a binder from another collection.')
-      }
-      if (target.kind !== 'binder' && target.kind !== 'collection') {
-        throw new Error(`Container ${targetBinderId} is not a binder or the collection root.`)
-      }
-    }
+// Même démontage, dans la transaction de l'appelant : un échange qui cède un
+// deck entier le démonte (`discard`) dans la transaction qui applique
+// l'échange, pour que tout réussisse ou que rien ne change.
+export async function dismantleDeckInTransaction(
+  tx: Tx,
+  userId: string,
+  deckId: string,
+  targetBinderId: string,
+  mode: 'keep' | 'discard' = 'keep',
+): Promise<DismantleDeckResult> {
+  const deckRow = await lockDeckContainer(tx, userId, deckId, 'write')
+  assertTransition(deckRow.deckState ?? 'plan', 'dismantled')
 
-    const decrementTargetId = mode === 'keep' ? targetBinderId : NIL_TARGET_ID
-
-    // `orderBy(holdings.id)` : déterministe entre deux lignes qui
-    // partagent la même carte sous des finitions différentes — le stock
-    // hors-deck limité, agnostique de la finition (même simplification que
-    // `planAssembly`, `DeckSlot` ne porte pas de champ `finish`), doit
-    // toujours être consommé dans le même ordre plutôt qu'un ordre de lecture
-    // Postgres non garanti.
-    const rows: Holding[] = await tx
-      .select()
-      .from(holdings)
-      .where(eq(holdings.containerId, deckId))
-      .orderBy(holdings.id)
+  // En mode `discard`, `targetBinderId` n'est jamais une destination réelle
+  // (rien n'est déposé) — la validation d'accès/appartenance du binder ne
+  // s'applique donc qu'au mode `keep`, seul où ce container reçoit une
+  // écriture.
+  if (mode === 'keep') {
+    await requireContainerAccess(userId, targetBinderId, 'write')
+    const [target] = await tx
+      .select({
+        id: containers.id,
+        collectionId: containers.collectionId,
+        kind: containers.kind,
+      })
+      .from(containers)
+      .where(eq(containers.id, targetBinderId))
       .for('update')
+      .limit(1)
+    if (!target) throw new Error(`Container ${targetBinderId} not found.`)
+    if (target.collectionId !== deckRow.collectionId) {
+      throw new Error('Cannot dismantle a deck into a binder from another collection.')
+    }
+    if (target.kind !== 'binder' && target.kind !== 'collection') {
+      throw new Error(
+        `Container ${targetBinderId} is not a binder or the collection root.`,
+      )
+    }
+  }
 
-    const touchedContainerIds = new Set<string>([deckId, ...(mode === 'keep' ? [targetBinderId] : [])])
-    // Suivi des dépôts déjà réglés dans `targetBinderId` PAR CETTE
-    // TRANSACTION, identité par identité (`finish|condition|language`) —
-    // voir le commentaire de `decrementLooseStock` : distingue le stock déjà
-    // présent dans la cible avant ce démontage (source légitime) de celui
-    // que ce même règlement vient d'y déposer (jamais re-consommable). Reste
-    // vide en mode `discard` : `decrementTargetId` (le sentinel ci-dessus)
-    // ne correspond jamais à un container réel, donc `settledInPlace` n'est
-    // jamais peuplé et cette carte n'est jamais consultée.
-    const depositedThisRun = new Map<string, number>()
-    let returned = 0
+  const decrementTargetId = mode === 'keep' ? targetBinderId : NIL_TARGET_ID
 
-    for (const row of rows) {
-      const {
-        takenQty,
-        touchedContainerIds: sources,
-        consumed,
-        settledInPlace,
-      } = await decrementLooseStock(tx, deckRow.collectionId, decrementTargetId, depositedThisRun, row.cardId, row.qty)
-      for (const containerId of sources) touchedContainerIds.add(containerId)
+  // `orderBy(holdings.id)` : déterministe entre deux lignes qui
+  // partagent la même carte sous des finitions différentes — le stock
+  // hors-deck limité, agnostique de la finition (même simplification que
+  // `planAssembly`, `DeckSlot` ne porte pas de champ `finish`), doit
+  // toujours être consommé dans le même ordre plutôt qu'un ordre de lecture
+  // Postgres non garanti.
+  const rows: Holding[] = await tx
+    .select()
+    .from(holdings)
+    .where(eq(holdings.containerId, deckId))
+    .orderBy(holdings.id)
+    .for('update')
 
-      if (mode === 'keep') {
-        // Consommé DANS la cible :
-        // rien à écrire, la ligne source n'a jamais bougé — seule la
-        // comptabilité anti-double-consommation doit avancer, sous la clé
-        // CARTE + identité, pour qu'une éventuelle
-        // seconde ligne du deck pour la même carte ne re-consomme pas ce qui
-        // vient d'être compté ici.
-        for (const group of settledInPlace) {
-          const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
-          depositedThisRun.set(depositKey, (depositedThisRun.get(depositKey) ?? 0) + group.qty)
-        }
+  const touchedContainerIds = new Set<string>([
+    deckId,
+    ...(mode === 'keep' ? [targetBinderId] : []),
+  ])
+  // Suivi des dépôts déjà réglés dans `targetBinderId` PAR CETTE
+  // TRANSACTION, identité par identité (`finish|condition|language`) —
+  // voir le commentaire de `decrementLooseStock` : distingue le stock déjà
+  // présent dans la cible avant ce démontage (source légitime) de celui
+  // que ce même règlement vient d'y déposer (jamais re-consommable). Reste
+  // vide en mode `discard` : `decrementTargetId` (le sentinel ci-dessus)
+  // ne correspond jamais à un container réel, donc `settledInPlace` n'est
+  // jamais peuplé et cette carte n'est jamais consultée.
+  const depositedThisRun = new Map<string, number>()
+  let returned = 0
+  const taken: ConsumedGroup[] = []
 
-        // Une ligne par groupe d'identité RÉELLE : `group.finish`/`condition`/`language` sont ceux de
-        // l'exemplaire effectivement prélevé, jamais `row.finish`/`condition`/
-        // `language` (la déclaration de besoin du deck, presque toujours
-        // nonfoil/NM/en). La zone n'a de sens que sur un deck
-        // (`lib/containers/holdings.ts`) : le stock transféré
-        // atterrit toujours sur la zone par défaut pour pouvoir fusionner avec
-        // une ligne déjà présente dans le binder cible.
-        for (const group of consumed) {
-          const [existing] = await tx
-            .select()
-            .from(holdings)
-            .where(matchHoldingKey(targetBinderId, group.cardId, group.finish, group.condition, group.language))
-            .for('update')
-            .limit(1)
+  for (const row of rows) {
+    const {
+      takenQty,
+      touchedContainerIds: sources,
+      consumed,
+      settledInPlace,
+    } = await decrementLooseStock(
+      tx,
+      deckRow.collectionId,
+      decrementTargetId,
+      depositedThisRun,
+      row.cardId,
+      row.qty,
+    )
+    for (const containerId of sources) touchedContainerIds.add(containerId)
+    taken.push(...consumed)
 
-          if (existing) {
-            await tx.update(holdings).set({ qty: existing.qty + group.qty }).where(eq(holdings.id, existing.id))
-          } else {
-            await tx.insert(holdings).values({
-              containerId: targetBinderId,
-              cardId: group.cardId,
-              finish: group.finish,
-              condition: group.condition,
-              language: group.language,
-              zone: 'main',
-              qty: group.qty,
-              isCommander: false,
-            })
-          }
-
-          // Clé cardId + identité :
-          // sans `cardId`, cette écriture retrancherait à tort le dépôt de
-          // CETTE carte du `consumableQty` de toute autre carte du deck
-          // partageant la même finition/condition/langue par défaut dans la
-          // même cible.
-          const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
-          depositedThisRun.set(depositKey, (depositedThisRun.get(depositKey) ?? 0) + group.qty)
-        }
+    if (mode === 'keep') {
+      // Consommé DANS la cible :
+      // rien à écrire, la ligne source n'a jamais bougé — seule la
+      // comptabilité anti-double-consommation doit avancer, sous la clé
+      // CARTE + identité, pour qu'une éventuelle
+      // seconde ligne du deck pour la même carte ne re-consomme pas ce qui
+      // vient d'être compté ici.
+      for (const group of settledInPlace) {
+        const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
+        depositedThisRun.set(
+          depositKey,
+          (depositedThisRun.get(depositKey) ?? 0) + group.qty,
+        )
       }
-      // Mode `discard` : `consumed`/`settledInPlace` ne portent aucune
-      // écriture supplémentaire — `decrementLooseStock` a déjà supprimé ou
-      // décrémenté les lignes sources ailleurs dans la collection (racine,
-      // binder, liste), et ce règlement s'arrête là. L'exemplaire quitte la
-      // collection, il ne réapparaît nulle part.
-      returned += takenQty
 
-      const remainder = row.qty - takenQty
-      if (remainder > 0) {
-        if (remainder !== row.qty) {
-          await tx.update(holdings).set({ qty: remainder }).where(eq(holdings.id, row.id))
+      // Une ligne par groupe d'identité RÉELLE : `group.finish`/`condition`/`language` sont ceux de
+      // l'exemplaire effectivement prélevé, jamais `row.finish`/`condition`/
+      // `language` (la déclaration de besoin du deck, presque toujours
+      // nonfoil/NM/en). La zone n'a de sens que sur un deck
+      // (`lib/containers/holdings.ts`) : le stock transféré
+      // atterrit toujours sur la zone par défaut pour pouvoir fusionner avec
+      // une ligne déjà présente dans le binder cible.
+      for (const group of consumed) {
+        const [existing] = await tx
+          .select()
+          .from(holdings)
+          .where(
+            matchHoldingKey(
+              targetBinderId,
+              group.cardId,
+              group.finish,
+              group.condition,
+              group.language,
+            ),
+          )
+          .for('update')
+          .limit(1)
+
+        if (existing) {
+          await tx
+            .update(holdings)
+            .set({ qty: existing.qty + group.qty })
+            .where(eq(holdings.id, existing.id))
+        } else {
+          await tx.insert(holdings).values({
+            containerId: targetBinderId,
+            cardId: group.cardId,
+            finish: group.finish,
+            condition: group.condition,
+            language: group.language,
+            zone: 'main',
+            qty: group.qty,
+            isCommander: false,
+          })
         }
-      } else {
-        await tx.delete(holdings).where(eq(holdings.id, row.id))
+
+        // Clé cardId + identité :
+        // sans `cardId`, cette écriture retrancherait à tort le dépôt de
+        // CETTE carte du `consumableQty` de toute autre carte du deck
+        // partageant la même finition/condition/langue par défaut dans la
+        // même cible.
+        const depositKey = `${group.cardId}|${group.finish}|${group.condition}|${group.language}`
+        depositedThisRun.set(
+          depositKey,
+          (depositedThisRun.get(depositKey) ?? 0) + group.qty,
+        )
       }
     }
+    // Mode `discard` : `consumed`/`settledInPlace` ne portent aucune
+    // écriture supplémentaire — `decrementLooseStock` a déjà supprimé ou
+    // décrémenté les lignes sources ailleurs dans la collection (racine,
+    // binder, liste), et ce règlement s'arrête là. L'exemplaire quitte la
+    // collection, il ne réapparaît nulle part.
+    returned += takenQty
 
-    await tx.update(containers).set({ deckState: 'dismantled' }).where(eq(containers.id, deckId))
-
-    for (const containerId of touchedContainerIds) {
-      await recomputeContainerStats(containerId, tx)
+    const remainder = row.qty - takenQty
+    if (remainder > 0) {
+      if (remainder !== row.qty) {
+        await tx.update(holdings).set({ qty: remainder }).where(eq(holdings.id, row.id))
+      }
+    } else {
+      await tx.delete(holdings).where(eq(holdings.id, row.id))
     }
+  }
 
-    return { returned }
-  })
+  await tx
+    .update(containers)
+    .set({ deckState: 'dismantled' })
+    .where(eq(containers.id, deckId))
+
+  for (const containerId of touchedContainerIds) {
+    await recomputeContainerStats(containerId, tx)
+  }
+
+  return { returned, consumed: taken }
 }
 
 // Reprend un deck démonté depuis son contenu déclaré (« dismantled → plan,
@@ -971,7 +1061,10 @@ export async function restartDeck(userId: string, deckId: string): Promise<void>
   await db.transaction(async (tx) => {
     const deckRow = await lockDeckContainer(tx, userId, deckId, 'write')
     assertTransition(deckRow.deckState ?? 'plan', 'plan')
-    await tx.update(containers).set({ deckState: 'plan' }).where(eq(containers.id, deckId))
+    await tx
+      .update(containers)
+      .set({ deckState: 'plan' })
+      .where(eq(containers.id, deckId))
   })
 }
 
@@ -984,7 +1077,10 @@ export async function unbuildDeck(userId: string, deckId: string): Promise<void>
   await db.transaction(async (tx) => {
     const deckRow = await lockDeckContainer(tx, userId, deckId, 'write')
     assertTransition(deckRow.deckState ?? 'plan', 'assemble')
-    await tx.update(containers).set({ deckState: 'assemble' }).where(eq(containers.id, deckId))
+    await tx
+      .update(containers)
+      .set({ deckState: 'assemble' })
+      .where(eq(containers.id, deckId))
   })
 }
 
@@ -1011,14 +1107,26 @@ export interface AcquireTarget {
 // « valeurs précalculées dans `container_stats` »), jamais agrégé ici.
 // `null` (« No binder », la racine) est un choix géré par l'appelant, pas
 // une ligne de cette liste.
-export async function listAcquireTargets(userId: string, deckId: string): Promise<AcquireTarget[]> {
+export async function listAcquireTargets(
+  userId: string,
+  deckId: string,
+): Promise<AcquireTarget[]> {
   const access = await requireContainerAccess(userId, deckId, 'read')
 
   return db
-    .select({ id: containers.id, name: containers.name, cardCount: containerStats.cardCount })
+    .select({
+      id: containers.id,
+      name: containers.name,
+      cardCount: containerStats.cardCount,
+    })
     .from(containers)
     .innerJoin(containerStats, eq(containerStats.containerId, containers.id))
-    .where(and(eq(containers.collectionId, access.collectionId), eq(containers.kind, 'binder')))
+    .where(
+      and(
+        eq(containers.collectionId, access.collectionId),
+        eq(containers.kind, 'binder'),
+      ),
+    )
     .orderBy(asc(containers.sortOrder), asc(containers.createdAt))
 }
 
@@ -1050,13 +1158,19 @@ export async function acquireMissing(
     if (destinationId !== null) {
       await requireContainerAccess(userId, destinationId, 'write')
       const [target] = await tx
-        .select({ id: containers.id, collectionId: containers.collectionId, kind: containers.kind })
+        .select({
+          id: containers.id,
+          collectionId: containers.collectionId,
+          kind: containers.kind,
+        })
         .from(containers)
         .where(eq(containers.id, destinationId))
         .limit(1)
       if (!target) throw new Error(`Container ${destinationId} not found.`)
       if (target.collectionId !== deckRow.collectionId) {
-        throw new Error('Cannot acquire missing cards into a binder from another collection.')
+        throw new Error(
+          'Cannot acquire missing cards into a binder from another collection.',
+        )
       }
       if (target.kind !== 'binder') {
         throw new Error(`Container ${destinationId} is not a binder.`)
@@ -1076,7 +1190,15 @@ export async function acquireMissing(
     for (const slot of relevantSlots) {
       const deficit = Math.max(0, slot.need - slot.ownedElsewhere)
       if (deficit <= 0) continue
-      await addPhysicalStock(tx, destinationId, slot.cardId, 'nonfoil', 'nm', 'en', deficit)
+      await addPhysicalStock(
+        tx,
+        destinationId,
+        slot.cardId,
+        'nonfoil',
+        'nm',
+        'en',
+        deficit,
+      )
       added += deficit
     }
 

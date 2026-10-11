@@ -1138,11 +1138,10 @@ const APP_TILES = [
     description: '2–6 players, starting life per format, and a die roll to pick who goes first.',
   },
   {
-    name: 'Trading mode',
+    name: 'Playtest',
     state: 'off' as const,
     tagLabel: 'PLANNED',
-    description:
-      'Two piles — yours and theirs — with the running value gap and a one-tap swap into both collections.',
+    description: 'Test your decks: draw opening hands, mulligan and play the first turns',
   },
   {
     name: 'Card scanner',
@@ -1261,7 +1260,7 @@ describe('AppTile', () => {
     // `off` avec `tagLabel="PLANNED"` : gris (`--color-text-3`), jamais
     // ambré — il n'existe plus de troisième état intermédiaire : l'ambre
     // signale un problème réparable, l'employer pour « à venir » l'affaiblirait.
-    // Les trois tuiles sans écran (`Trading mode`, `Card scanner`, `AI
+    // Les trois tuiles sans écran (`Playtest`, `Card scanner`, `AI
     // assistant`) partagent donc le même traitement.
     for (const tile of [tiles[1], tiles[2], tiles[3]]) {
       expect(tile).toMatchObject({ opacity: '0.72', tag: 'PLANNED' })
@@ -1501,7 +1500,7 @@ describe('Settings Tools group, inert rows', () => {
   it('greys the three planned rows to 0.6 and mounts no control in them', async () => {
     // Sans sous-titre et badge uniforme « PLANNED », sans « Soon » : les
     // trois lignes prévues se lisent désormais toutes de la même façon.
-    const rows = [{ label: 'Trading mode' }, { label: 'Card scanner' }, { label: 'AI assistant' }]
+    const rows = [{ label: 'Playtest' }, { label: 'Card scanner' }, { label: 'AI assistant' }]
     const html = rows
       .map((row) =>
         renderToStaticMarkup(

@@ -19,19 +19,26 @@ describe('tool flags', () => {
   })
 
   it('maps every preference column onto its tool flag', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: false })
-    expect(flags).toEqual({ life_tracker: true, playtest: false })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: false, toolTradingMode: false })
+    expect(flags).toEqual({ life_tracker: true, playtest: false, trading_mode: false })
     expect(anyToolEnabled(flags)).toBe(true)
     expect(isToolEnabled('life_tracker', flags)).toBe(true)
     expect(isToolEnabled('playtest', flags)).toBe(false)
   })
 
+  it('enables the trading mode on its own flag', () => {
+    const flags = toolFlagsOf({ toolLifeTracker: false, toolPlaytest: false, toolTradingMode: true })
+    expect(anyToolEnabled(flags)).toBe(true)
+    expect(isToolEnabled('trading_mode', flags)).toBe(true)
+    expect(toolPreferenceOf('trading_mode')).toBe('toolTradingMode')
+  })
+
   it('shows the Tools tab when any single tool is on', () => {
-    expect(anyToolEnabled(toolFlagsOf({ toolLifeTracker: false, toolPlaytest: true }))).toBe(true)
+    expect(anyToolEnabled(toolFlagsOf({ toolLifeTracker: false, toolPlaytest: true, toolTradingMode: false }))).toBe(true)
   })
 
   it('never enables a planned tool', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: true })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: true, toolTradingMode: true })
     for (const tool of TOOLS.filter((entry) => entry.state === 'planned')) {
       expect(isToolEnabled(tool.key, flags)).toBe(false)
       expect(toolPreferenceOf(tool.key)).toBeNull()

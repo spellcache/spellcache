@@ -17,6 +17,7 @@ import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type Luci
 export const TOOL_PREFERENCE = {
   life_tracker: 'toolLifeTracker',
   playtest: 'toolPlaytest',
+  trading_mode: 'toolTradingMode',
 } as const
 
 export type ShippedToolKey = keyof typeof TOOL_PREFERENCE
@@ -29,7 +30,7 @@ const SHIPPED_TOOL_KEYS = Object.keys(TOOL_PREFERENCE) as ShippedToolKey[]
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { life_tracker: false, playtest: false }
+export const NO_TOOLS: ToolFlags = { life_tracker: false, playtest: false, trading_mode: false }
 
 // Les apps font partie de l'application, il n'y a ni store ni greffons.
 export function anyToolEnabled(tools: ToolFlags): boolean {
@@ -61,7 +62,7 @@ export interface ToolCatalogEntry {
   key: 'life_tracker' | 'playtest' | 'trading_mode' | 'card_scanner' | 'ai_assistant'
   name: string
   Icon: LucideIcon
-  // Absent pour les trois outils `planned` : aucun écran n'existe encore.
+  // Absent pour les outils `planned` : aucun écran n'existe encore.
   path?: string
   state: ToolCatalogState
   description: string
@@ -90,7 +91,8 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'trading_mode',
     name: 'Trading mode',
     Icon: ArrowLeftRight,
-    state: 'planned',
+    path: '/tools/trade',
+    state: 'shipped',
     description:
       'Simplify your card trading with a quick price comparison and automatic update of your collection when trading cards',
   },

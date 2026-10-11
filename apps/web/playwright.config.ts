@@ -102,7 +102,7 @@ export default defineConfig({
       // via `npx playwright test --list`).
       name: 'unauthenticated',
       testMatch:
-        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|desktop|responsive|collection-import|collection-flows|card-editions)\.spec\.ts$/,
+        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|trading|desktop|responsive|collection-import|collection-flows|card-editions)\.spec\.ts$/,
     },
     {
       // Les parcours de collection rejoués une seconde fois sous Chrome

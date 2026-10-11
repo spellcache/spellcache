@@ -5,7 +5,7 @@
 #   sort 0 en cas de succès, écrit <date>-spellcache-user.sql.gz.enc
 #   tables incluses : users, accounts, sessions, verification_tokens,
 #     collections, collection_members, containers, holdings, container_stats,
-#     deck_folders, import_lists, site_settings
+#     deck_folders, import_lists, trades, trade_lines, site_settings
 #   tables exclues  : cards, sets, card_prices, import_runs
 #
 # Le catalogue n'est PAS sauvegardé : il se réimporte en une commande
@@ -35,7 +35,7 @@ set -euo pipefail
 
 # --- Contrat des tables ------------------------------------------------------
 #
-# Ces douze noms sont l'énumération exacte des tables utilisateur de
+# Ces quatorze noms sont l'énumération exacte des tables utilisateur de
 # packages/db/src/schema.ts. Les quatre du catalogue sont listées séparément pour que la
 # vérification puisse affirmer leur ABSENCE, pas seulement la présence des
 # autres.
@@ -51,6 +51,8 @@ USER_TABLES=(
   container_stats
   deck_folders
   import_lists
+  trades
+  trade_lines
   # Réglages du site (mode d'inscription) : choisis par un admin, pas
   # reconstructibles.
   site_settings

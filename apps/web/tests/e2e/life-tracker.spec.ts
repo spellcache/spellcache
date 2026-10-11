@@ -91,16 +91,20 @@ test('the Tools tab and route appear only once a tool is on', async ({
 
   await expect(page).toHaveURL(/\/tools$/)
   await expect(page.getByRole('heading', { name: 'Tools', level: 1 })).toBeVisible()
-  // Cinq tuiles : une navigable, quatre inertes.
+  // Cinq tuiles : le life tracker navigable, les autres inertes — `Playtest`
+  // et `Trading mode` livrés mais éteints, les deux outils prévus sans écran.
   await expect(page.getByRole('link', { name: /Life tracker/ })).toBeVisible()
   for (const name of ['Playtest', 'Trading mode', 'Card scanner', 'AI assistant']) {
     await expect(page.getByRole('button', { name: new RegExp(name) })).toBeDisabled()
   }
+  const blockedTrade = await page.goto('/tools/trade')
+  expect(blockedTrade?.status()).toBe(404)
 
-  // Les trois lignes inertes du groupe Tools de Settings n'ont aucun
-  // interrupteur : un seul `role="switch"` dans ce groupe.
+  // Les lignes `Planned` du groupe Tools de Settings n'ont aucun
+  // interrupteur ; les outils livrés en ont un.
   await page.goto('/settings')
-  await expect(page.getByRole('switch', { name: 'Trading mode' })).toHaveCount(0)
+  await expect(page.getByRole('switch', { name: 'Trading mode' })).toHaveCount(1)
+  await expect(page.getByRole('switch', { name: 'Playtest' })).toHaveCount(1)
   await expect(page.getByRole('switch', { name: 'Card scanner' })).toHaveCount(0)
   await expect(page.getByRole('switch', { name: 'AI assistant' })).toHaveCount(0)
 })

@@ -10,10 +10,9 @@ import Link from 'next/link'
 
 // Deux états seulement, pas d'état `soon` : il n'existe pas de statut
 // intermédiaire « bientôt » distinct d'« éteint ». Le badge `PLANNED` d'un
-// outil qui n'a pas encore d'écran (`Trading mode`, `Card scanner`, `AI
-// assistant`) est un `tagLabel` surchargé sur l'état `off`, jamais un
-// troisième état ambré — il n'y a délibérément pas de variante « next one
-// up ».
+// outil qui n'a pas encore d'écran (`Card scanner`, `AI assistant`) est un
+// `tagLabel` surchargé sur l'état `off`, jamais un troisième état ambré — il
+// n'y a délibérément pas de variante « next one up ».
 export type AppTileState = 'on' | 'off'
 
 // Étiquettes par défaut de la tuile — la page peut les surcharger,
@@ -50,8 +49,8 @@ export function AppTile({
   icon: React.ReactNode
   state: AppTileState
   tagLabel?: string
-  // Absent : la tuile est rendue mais inerte (`Trading mode`, `Card
-  // scanner`, `AI assistant` n'ont aucun écran — docs/development.md).
+  // Absent : la tuile est rendue mais inerte (`Card scanner`, `AI
+  // assistant` n'ont aucun écran — docs/development.md).
   href?: string
 }) {
   const className = [

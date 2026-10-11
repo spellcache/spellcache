@@ -175,6 +175,10 @@ export const users = pgTable('users', {
   // existante ne se retrouve avec un outil activé sans l'avoir demandé.
   toolLifeTracker: boolean('tool_life_tracker').notNull().default(false),
   toolPlaytest: boolean('tool_playtest').notNull().default(false),
+  // Mode échange : activé, il rend aussi le compte joignable comme
+  // contrepartie d'un échange entre deux comptes — un compte qui ne l'a pas
+  // activé n'apparaît dans aucune recherche de contrepartie.
+  toolTradingMode: boolean('tool_trading_mode').notNull().default(false),
   // État replié/déplié de l'arbre de la barre latérale desktop : il survit à
   // une reconnexion. Une préférence de compte comme les autres — jamais
   // `localStorage` (docs/development.md). Porte les nœuds **repliés**, pas les
@@ -468,6 +472,120 @@ export const siteSettings = pgTable('site_settings', {
   signupMode: text('signup_mode').$type<SignupMode>().notNull().default('invite'),
 })
 
+// Échanges (outil Trading mode). Deux formes portées par la même table :
+// - en personne : `counterparty_id` nul, seul l'initiateur écrit ; ce qu'il
+//   reçoit est choisi dans le catalogue ;
+// - entre deux comptes : chaque partie ne choisit que ce qu'elle donne, dans
+//   ses propres holdings, et l'échange s'applique quand les deux ont accepté
+//   la même `revision`.
+// Ni l'un ni l'autre n'ouvre de second chemin d'autorisation : chaque
+// écriture dans une collection est vérifiée pour la partie à qui elle
+// appartient, via `collection_members` (lib/trades/trades.ts). Les noms sont
+// figés à la création pour que l'historique survive à la suppression d'un
+// compte (`set null`).
+export type TradeStatus = 'open' | 'completed' | 'cancelled'
+export type TradeParty = 'initiator' | 'counterparty'
+export type TradeCurrency = 'usd' | 'eur'
+export type TradeMode = 'in_person' | 'account'
+
+export const trades = pgTable(
+  'trades',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: text('status').$type<TradeStatus>().notNull().default('open'),
+    mode: text('mode').$type<TradeMode>().notNull(),
+    // Devise de l'initiateur à la création, jamais convertie : les deux
+    // parties comparent les mêmes montants (aucun taux de change dans l'app).
+    currency: text('currency').$type<TradeCurrency>().notNull(),
+    initiatorId: uuid('initiator_id').references(() => users.id, { onDelete: 'set null' }),
+    initiatorName: text('initiator_name').notNull(),
+    initiatorCollectionId: uuid('initiator_collection_id').references(() => collections.id, {
+      onDelete: 'set null',
+    }),
+    // Destination de ce que reçoit la partie ; `null` = container racine de
+    // sa collection, résolu à l'application.
+    initiatorContainerId: uuid('initiator_container_id').references(() => containers.id, {
+      onDelete: 'set null',
+    }),
+    counterpartyId: uuid('counterparty_id').references(() => users.id, { onDelete: 'set null' }),
+    counterpartyName: text('counterparty_name').notNull(),
+    // Rempli à la première écriture de la contrepartie (sa collection active
+    // à ce moment-là), jamais choisi par l'initiateur.
+    counterpartyCollectionId: uuid('counterparty_collection_id').references(() => collections.id, {
+      onDelete: 'set null',
+    }),
+    counterpartyContainerId: uuid('counterparty_container_id').references(() => containers.id, {
+      onDelete: 'set null',
+    }),
+    // Ajustement appliqué à la valeur des cartes données par chaque partie,
+    // en pourcent (« je prends tes cartes à 90 % »).
+    initiatorRatePct: integer('initiator_rate_pct').notNull().default(100),
+    counterpartyRatePct: integer('counterparty_rate_pct').notNull().default(100),
+    // Valeur fixe des cartes données par chaque partie, en centimes, à la
+    // place du pourcentage (« tes cartes valent 20 € pour moi ») ; `null` =
+    // le pourcentage s'applique.
+    initiatorValueMinor: integer('initiator_value_minor'),
+    counterpartyValueMinor: integer('counterparty_value_minor'),
+    // Argent donné par chaque partie, en centimes de la devise de l'échange,
+    // compté à sa valeur faciale (l'ajustement ne s'y applique pas). Rien
+    // n'est encaissé : c'est un fait de l'échange, consigné.
+    initiatorCashMinor: integer('initiator_cash_minor').notNull().default(0),
+    counterpartyCashMinor: integer('counterparty_cash_minor').notNull().default(0),
+    // Notes libres de chaque partie sur son côté ; visibles des deux parties,
+    // modifiables même après la conclusion (suivi de ce qui a été promis).
+    initiatorNotes: text('initiator_notes'),
+    counterpartyNotes: text('counterparty_notes'),
+    // Entre deux comptes : la contrepartie accepte d'abord d'ouvrir l'échange
+    // (l'offre de l'initiateur), puis choisit ce qu'elle donne. `null` tant
+    // qu'elle n'a pas accepté ; sans objet en personne.
+    counterpartyJoinedAt: timestamp('counterparty_joined_at', { withTimezone: true }),
+    // Incrémentée à chaque modification : une acceptation ne vaut que pour la
+    // révision acceptée, toute modification l'invalide sans écriture de plus.
+    revision: integer('revision').notNull().default(0),
+    initiatorAcceptedRevision: integer('initiator_accepted_revision'),
+    counterpartyAcceptedRevision: integer('counterparty_accepted_revision'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('trades_initiator_id_idx').on(table.initiatorId),
+    index('trades_counterparty_id_idx').on(table.counterpartyId),
+  ],
+)
+
+export const tradeLines = pgTable(
+  'trade_lines',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tradeId: uuid('trade_id')
+      .notNull()
+      .references(() => trades.id, { onDelete: 'cascade' }),
+    // La partie qui DONNE la carte.
+    giver: text('giver').$type<TradeParty>().notNull(),
+    // Jamais `cascade` : comme `holdings.card_id`, le catalogue ne doit pas
+    // effacer de données de compte.
+    cardId: uuid('card_id')
+      .notNull()
+      .references(() => cards.id),
+    finish: text('finish').$type<Finish>().notNull(),
+    condition: text('condition').$type<Condition>().notNull(),
+    language: text('language').notNull(),
+    qty: integer('qty').notNull(),
+    // Holding source d'une carte donnée par un compte. `null` seulement pour
+    // une carte reçue lors d'un échange en personne (choisie au catalogue) —
+    // ou si le holding a disparu depuis, ce que l'application refuse.
+    holdingId: uuid('holding_id').references(() => holdings.id, { onDelete: 'set null' }),
+    // Prix unitaire saisi à la main, en centimes ; `null` = prix du marché.
+    priceOverrideMinor: integer('price_override_minor'),
+    // Prix du marché figé à l'application de l'échange : l'historique ne
+    // bouge plus avec les cours.
+    unitPriceMinor: integer('unit_price_minor'),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('trade_lines_trade_id_idx').on(table.tradeId)],
+)
+
 export type Collection = typeof collections.$inferSelect
 export type CollectionMember = typeof collectionMembers.$inferSelect
 export type DeckFolder = typeof deckFolders.$inferSelect
@@ -475,3 +593,5 @@ export type Container = typeof containers.$inferSelect
 export type Holding = typeof holdings.$inferSelect
 export type ContainerStatsRow = typeof containerStats.$inferSelect
 export type ImportList = typeof importLists.$inferSelect
+export type Trade = typeof trades.$inferSelect
+export type TradeLine = typeof tradeLines.$inferSelect

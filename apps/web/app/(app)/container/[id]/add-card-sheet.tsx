@@ -26,7 +26,7 @@ import { SearchField } from '@/components/ui/search-field'
 import { Sheet } from '@/components/ui/sheet'
 import { useSwipe } from '@/components/ui/use-swipe'
 import { PrimaryButton, SectionLabel } from '@/components/ui/sheet-controls'
-import type { Condition } from '@spellcache/db/schema'
+import type { Condition, Finish } from '@spellcache/db/schema'
 import { useCanEdit } from '@/lib/collections/access-context'
 import { formatMoney, type Currency } from '@/lib/format/money'
 import type { CardSearchItem } from '@/lib/search/search-cards'
@@ -46,6 +46,15 @@ const CONDITION_LABEL: Record<Condition, string> = {
 // Search.
 const MIN_QUERY_LENGTH = 2
 
+// Ce que la feuille rend à l'appelant quand elle choisit sans écrire.
+export interface CardPick {
+  cardId: string
+  finish: Finish
+  condition: Condition
+  language: string
+  qty: number
+}
+
 // Devise par défaut avant toute réponse serveur — `cardmarket_eur` est le
 // défaut de compte (`lib/preferences.ts`, `DEFAULT_PREFERENCES.priceSource`),
 // jamais `usd` en dur.
@@ -63,6 +72,8 @@ export function AddCardSheet({
   containerKind = 'binder',
   onPrevious,
   onNext,
+  onPick,
+  pickLabel,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -75,6 +86,10 @@ export function AddCardSheet({
   // seulement : sans carte préchargée, la feuille cherche elle-même.
   onPrevious?: () => void
   onNext?: () => void
+  // Choix sans écriture (cartes reçues d'un échange en personne) : la carte
+  // n'entre dans aucun container ici, l'appelant décide. `false` = échec.
+  onPick?: (pick: CardPick) => Promise<boolean>
+  pickLabel?: string
 }) {
   const isPreset = presetCard !== null
   // Lecture seule (`viewer`) : ouverte depuis Search, la feuille ne montre
@@ -177,16 +192,16 @@ export function AddCardSheet({
     setSubmitting(true)
     setError(null)
 
-    const result = await addCardAction({
-      containerId,
+    const pick: CardPick = {
       cardId: selectedPrinting.id,
       finish: foil ? 'foil' : 'nonfoil',
       condition,
       qty: quantity,
       language,
-    })
+    }
+    const ok = onPick ? await onPick(pick) : (await addCardAction({ containerId, ...pick })).ok
 
-    if (!result.ok) {
+    if (!ok) {
       setError('Could not add this card. Please try again.')
       setSubmitting(false)
       return
@@ -400,7 +415,9 @@ export function AddCardSheet({
           <PrimaryButton onClick={() => void handleAdd()} disabled={submitting}>
             {submitting
               ? 'Adding...'
-              : containerId === null
+              : pickLabel
+                ? pickLabel
+                : containerId === null
                 ? 'Add to collection'
                 : containerKind === 'list'
                   ? 'Add to list'

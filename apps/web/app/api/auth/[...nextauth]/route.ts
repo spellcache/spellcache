@@ -10,6 +10,11 @@
 // l'URL : aucun provider de l'app n'en a besoin, il est fermé pour que le
 // comptage ne puisse pas être contourné. Un `email` répété est refusé de même :
 // Auth.js garde la dernière valeur, `searchParams.get` la première.
+//
+// La demande de code passe uniquement par l'écran de connexion
+// (app/(public)/login/actions.ts, qui appelle Auth.js sans HTTP) : appelée
+// directement, `POST /signin/resend` échapperait au plafond par IP et
+// trahirait par sa redirection quels emails ont un compte.
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { registerLoginAttempt } from '@/lib/auth-codes/login-code'
@@ -17,6 +22,10 @@ import { handlers } from '@/lib/auth'
 
 function isCallback(request: NextRequest): boolean {
   return request.nextUrl.pathname.toLowerCase().includes('/callback/')
+}
+
+function isSignIn(request: NextRequest): boolean {
+  return request.nextUrl.pathname.toLowerCase().includes('/signin')
 }
 
 export async function GET(request: NextRequest) {
@@ -34,6 +43,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (isCallback(request)) return new NextResponse(null, { status: 405, headers: { Allow: 'GET' } })
+  if (isCallback(request) || isSignIn(request)) {
+    return new NextResponse(null, { status: 405, headers: { Allow: 'GET' } })
+  }
   return handlers.POST(request)
 }

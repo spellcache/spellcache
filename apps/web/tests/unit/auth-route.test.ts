@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const handlerGet = vi.fn(async () => new Response('auth-get'))
 const handlerPost = vi.fn(async () => new Response('auth-post'))
-const registerLoginAttemptMock = vi.fn(async (_email: string) => true)
+const registerLoginAttemptMock = vi.fn<(email: string) => Promise<boolean>>()
 
 vi.mock('@/lib/auth', () => ({ handlers: { GET: handlerGet, POST: handlerPost } }))
 vi.mock('@/lib/auth-codes/login-code', () => ({
@@ -70,6 +70,13 @@ describe('auth route — login code attempts', () => {
     expect(response.status).toBe(405)
     expect(handlerPost).not.toHaveBeenCalled()
     expect(registerLoginAttemptMock).not.toHaveBeenCalled()
+  })
+
+  it('closes direct sign-in requests, which would skip the login screen limits', async () => {
+    const response = await POST(request('/signin/resend', 'POST'))
+
+    expect(response.status).toBe(405)
+    expect(handlerPost).not.toHaveBeenCalled()
   })
 
   it('still forwards the other POST actions to Auth.js', async () => {

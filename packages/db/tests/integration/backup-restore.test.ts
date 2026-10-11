@@ -153,7 +153,10 @@ describe.skipIf(!HAS_OPENSSL)('deploy/backup.sh, rotation et chiffrement', () =>
       echo "header=$(head -c 6 "$dir/a.enc")"
       echo "plaintext_leaked=$(grep -c 'the payload' "$dir/a.enc" || true)"
       echo "roundtrip=$(decrypt_stream < "$dir/a.enc" | gzip -dc)"
-      if BACKUP_PASSPHRASE='wrong' decrypt_stream < "$dir/a.enc" >/dev/null 2>&1; then
+      # Même chaîne que restore.sh : AES-CBC n'a pas de code d'authentification,
+      # une mauvaise phrase donne un remplissage valide environ une fois sur
+      # 256 ; c'est alors gzip, avec son CRC, qui refuse le résultat.
+      if BACKUP_PASSPHRASE='wrong' decrypt_stream < "$dir/a.enc" 2>/dev/null | gzip -dc >/dev/null 2>&1; then
         echo 'wrong_passphrase=accepted'
       else
         echo 'wrong_passphrase=rejected'

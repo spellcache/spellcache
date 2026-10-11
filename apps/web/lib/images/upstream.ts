@@ -10,6 +10,13 @@ export const MAX_CONCURRENT_DOWNLOADS = 8
 const MAX_ATTEMPTS = 3
 const BASE_BACKOFF_MS = 250
 const MAX_RETRY_AFTER_MS = 10_000
+// Une vignette pèse quelques dizaines de Ko : au-delà, ce n'est pas une
+// vignette, et la lire en entier coûterait la mémoire du process.
+export const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+const DOWNLOAD_TIMEOUT_MS = 15_000
+// Demandes en attente d'un créneau : au-delà, refus immédiat plutôt qu'une
+// file qui grossit sans fin quand le CDN ralentit.
+export const MAX_WAITING_DOWNLOADS = 256
 
 export class UpstreamImageError extends Error {
   constructor(readonly status: number) {
@@ -39,6 +46,7 @@ async function acquire(): Promise<void> {
     s.active += 1
     return
   }
+  if (s.waiting.length >= MAX_WAITING_DOWNLOADS) throw new UpstreamImageError(503)
   await new Promise<void>((resolve) => s.waiting.push(resolve))
 }
 
@@ -70,21 +78,52 @@ export function isScryfallImageUrl(url: string): boolean {
   }
 }
 
+async function readCapped(response: Response): Promise<Uint8Array> {
+  const declared = Number(response.headers.get('Content-Length'))
+  if (declared > MAX_IMAGE_BYTES) throw new UpstreamImageError(413)
+  if (!response.body) return new Uint8Array(await response.arrayBuffer())
+
+  const chunks: Uint8Array[] = []
+  let size = 0
+  const reader = response.body.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > MAX_IMAGE_BYTES) {
+      await reader.cancel()
+      throw new UpstreamImageError(413)
+    }
+    chunks.push(value)
+  }
+  const bytes = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
+}
+
 async function download(url: string): Promise<Uint8Array> {
   await acquire()
   try {
     for (let attempt = 0; ; attempt++) {
       let response: Response | null = null
       try {
+        // Pas de redirection suivie : elle pourrait mener hors du CDN vérifié
+        // par `isScryfallImageUrl`.
         response = await fetch(url, {
           headers: { 'User-Agent': SCRYFALL_USER_AGENT, Accept: 'image/*' },
+          redirect: 'error',
+          signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
         })
       } catch (error) {
         if (attempt + 1 >= MAX_ATTEMPTS) throw error
         await sleep(retryDelay(null, attempt))
         continue
       }
-      if (response.ok) return new Uint8Array(await response.arrayBuffer())
+      if (response.ok) return await readCapped(response)
       const retryable = response.status === 429 || response.status >= 500
       if (!retryable || attempt + 1 >= MAX_ATTEMPTS) throw new UpstreamImageError(response.status)
       await sleep(retryDelay(response, attempt))

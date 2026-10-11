@@ -4,7 +4,7 @@
 // émettre un nouveau. `@spellcache/db` est mocké : ce test ne dépend d'aucune base
 // réelle, seul le comportement du proxy sur disque est sous test.
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +21,11 @@ vi.mock('@spellcache/db', () => ({
     }),
   },
 }))
+
+const authMock = vi.fn(async (): Promise<unknown> => ({ user: { id: 'u1' } }))
+const rateLimitMock = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true)
+vi.mock('@/lib/auth', () => ({ auth: () => authMock() }))
+vi.mock('@/lib/redis', () => ({ rateLimit: (...args: unknown[]) => rateLimitMock(...args) }))
 
 const { GET } = await import('@/app/api/card-image/[cardId]/[variant]/route')
 
@@ -44,8 +49,8 @@ describe('GET /api/card-image/[cardId]/[variant]', () => {
     await rm(thumbnailsDir, { recursive: true, force: true })
   })
 
-  function call(cardId: string, variant: string): Promise<Response> {
-    return GET(new Request('http://localhost/api/card-image'), {
+  function call(cardId: string, variant: string, headers?: HeadersInit): Promise<Response> {
+    return GET(new Request('http://localhost/api/card-image', { headers }), {
       params: Promise.resolve({ cardId, variant }),
     })
   }
@@ -79,5 +84,26 @@ describe('GET /api/card-image/[cardId]/[variant]', () => {
 
     expect(response.status).toBe(400)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('limits downloads per IP for visitors without an account', async () => {
+    authMock.mockResolvedValueOnce(null)
+    rateLimitMock.mockResolvedValueOnce(false)
+
+    const response = await call(randomUUID(), 'small', {
+      'x-forwarded-for': '198.51.100.1, 203.0.113.9',
+    })
+
+    expect(response.status).toBe(429)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(rateLimitMock).toHaveBeenCalledWith('ratelimit:card-image:203.0.113.9', 300, 600)
+  })
+
+  it('leaves no partial file behind once the thumbnail is written', async () => {
+    const cardId = randomUUID()
+    await call(cardId, 'art_crop')
+
+    const files = await readdir(join(thumbnailsDir, 'art_crop'))
+    expect(files).toEqual([`${cardId}.jpg`])
   })
 })

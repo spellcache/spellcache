@@ -11,27 +11,43 @@
 // `lib/tools/tool-flags.ts`.
 import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type LucideIcon } from 'lucide-react'
 
-export interface ToolFlags {
-  lifeTracker: boolean
-}
+// Préférence de compte (colonne `users.tool_*`) de chaque outil livré — la
+// seule table clé → colonne : drapeaux, bascules de Settings et lectures en
+// base en dérivent, livrer un outil revient à y ajouter une ligne.
+export const TOOL_PREFERENCE = {
+  life_tracker: 'toolLifeTracker',
+} as const
+
+export type ShippedToolKey = keyof typeof TOOL_PREFERENCE
+export type ToolPreferenceField = (typeof TOOL_PREFERENCE)[ShippedToolKey]
+
+export type ToolFlags = Record<ShippedToolKey, boolean>
+
+const SHIPPED_TOOL_KEYS = Object.keys(TOOL_PREFERENCE) as ShippedToolKey[]
 
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { lifeTracker: false }
+export const NO_TOOLS: ToolFlags = { life_tracker: false }
 
-// Les apps font partie de l'application, il n'y a ni store ni greffons :
-// un seul outil existe aujourd'hui, ce `||` en
-// accueillera d'autres sans que la règle ne se duplique ailleurs.
+// Les apps font partie de l'application, il n'y a ni store ni greffons.
 export function anyToolEnabled(tools: ToolFlags): boolean {
-  return tools.lifeTracker
+  return SHIPPED_TOOL_KEYS.some((key) => tools[key])
 }
 
-// Projection des préférences de compte (`users.tool_life_tracker`) vers le
-// contrat ci-dessus — une seule traduction colonne → drapeau, partagée par
-// le layout et les deux pages de `/tools`.
-export function toolFlagsOf(preferences: { toolLifeTracker: boolean }): ToolFlags {
-  return { lifeTracker: preferences.toolLifeTracker }
+// Projection des préférences de compte vers le contrat ci-dessus — une
+// seule traduction colonne → drapeau, partagée par le layout, la barre
+// latérale et les pages de `/tools`.
+export function toolFlagsOf(preferences: Record<ToolPreferenceField, boolean>): ToolFlags {
+  return Object.fromEntries(
+    SHIPPED_TOOL_KEYS.map((key) => [key, preferences[TOOL_PREFERENCE[key]]]),
+  ) as ToolFlags
+}
+
+// Colonne de préférence d'une entrée du catalogue, `null` pour un outil
+// `planned` qui n'en a pas encore.
+export function toolPreferenceOf(key: ToolCatalogEntry['key']): ToolPreferenceField | null {
+  return key in TOOL_PREFERENCE ? TOOL_PREFERENCE[key as ShippedToolKey] : null
 }
 
 // Catalogue unique des outils : l'onglet `Tools` et le groupe `Tools` de
@@ -93,10 +109,7 @@ export const TOOLS: ToolCatalogEntry[] = [
   },
 ]
 
-// Seul `life_tracker` a un drapeau de compte aujourd'hui (`ToolFlags` n'en
-// porte qu'un) : cette traduction reste ici plutôt que dans `ToolFlags`
-// lui-même, pour qu'ajouter un second outil livré n'oblige pas à réécrire ce
-// contrat-là.
+// Un outil `planned` n'a pas de drapeau : il n'est jamais actif.
 export function isToolEnabled(key: ToolCatalogEntry['key'], tools: ToolFlags): boolean {
-  return key === 'life_tracker' ? tools.lifeTracker : false
+  return key in tools ? tools[key as ShippedToolKey] : false
 }

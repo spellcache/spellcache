@@ -32,6 +32,7 @@ import { Switch } from '@/components/ui/switch'
 import type { AccentColor, ColorScheme, Density, LayoutStyle, PriceSource } from '@spellcache/db/schema'
 import { currencyOf, marketLabelOf } from '@/lib/price-source'
 import { applyAccentColor, applyColorScheme, applyPureBlack } from '@/lib/theme-attributes'
+import type { ToolPreferenceField } from '@/lib/tools/tools'
 
 export function StyleRow({
   field,
@@ -110,7 +111,7 @@ export function DensityRow({ initialValue }: { initialValue: Density }) {
 // c'est une préférence de compte comme les autres, écrite par la même
 // `updatePreferenceAction` — aucune Server Action propre aux outils
 // n'existe, et rien ne passe par `localStorage` (docs/development.md).
-type ToggleField = 'previewPane' | 'pricesOnArt' | 'binderBackdrops' | 'toolLifeTracker' | 'pureBlack'
+type ToggleField = 'previewPane' | 'pricesOnArt' | 'binderBackdrops' | ToolPreferenceField | 'pureBlack'
 
 const TOGGLE_ICON: Record<ToggleField, React.ReactNode> = {
   previewPane: <PanelRight width={18} height={18} strokeWidth={1.75} />,

@@ -206,15 +206,14 @@ test('editing the quantity in the pane updates the row and survives a reload', a
   const pane = page.getByTestId('preview-pane')
   await expect(pane.getByText('Alpha rules text.')).toBeVisible()
 
-  const rowStepper = rows.nth(0).locator('[data-holding-id]')
-  await expect(rowStepper).toContainText('1')
+  await expect(rows.nth(0)).toContainText('×1')
 
   await pane.getByRole('button', { name: 'Increase quantity' }).click()
-  await expect(rowStepper).toContainText('2')
+  await expect(rows.nth(0)).toContainText('×2')
 
   await page.reload()
   await expect(page.getByText('Desktop Card Alpha').first()).toBeVisible()
-  await expect(page.locator('[data-virtual-item-key]').nth(0).locator('[data-holding-id]')).toContainText('2')
+  await expect(page.locator('[data-virtual-item-key]').nth(0)).toContainText('×2')
 })
 
 test('turning the pane off gives the list the full width and brings back the card sheet', async ({

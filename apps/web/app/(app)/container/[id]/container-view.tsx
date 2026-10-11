@@ -605,7 +605,6 @@ export function ContainerView({
     if (density === 'compact') {
       return (
         <CompactRow
-          holdingId={item.holdingId}
           thumbUrl={item.thumbUrl}
           name={item.name}
           manaCost={item.manaCost}
@@ -616,15 +615,6 @@ export function ContainerView({
           qty={item.qty}
           available={item.available}
           priceLabel={label}
-          // Le stepper est du bruit en sélection groupée et n'existe jamais
-          // sur une liste : `undefined` replie
-          // `CompactRow` sur une puce `×N` en lecture seule dans les deux
-          // cas.
-          onQtyChange={
-            !selectionEnabled || selection.active
-              ? undefined
-              : (next) => qtyMutation.mutate({ holdingId: item.holdingId, qty: next })
-          }
           onOpen={() => handleRowOpen(item.holdingId)}
           selectable={selectionEnabled && selection.active}
           selected={visual.selected}
@@ -654,7 +644,6 @@ export function ContainerView({
 
     return (
       <CardRow
-        holdingId={item.holdingId}
         thumbUrl={item.thumbUrl}
         name={item.name}
         manaCost={item.manaCost}
@@ -666,11 +655,6 @@ export function ContainerView({
         qty={item.qty}
         available={item.available}
         priceLabel={label}
-        onQtyChange={
-          !selectionEnabled || selection.active
-            ? undefined
-            : (next) => qtyMutation.mutate({ holdingId: item.holdingId, qty: next })
-        }
         onOpen={() => handleRowOpen(item.holdingId)}
         selectable={selectionEnabled && selection.active}
         selected={visual.selected}

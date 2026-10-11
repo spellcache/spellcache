@@ -149,7 +149,7 @@ test('a container of 1 000 holdings renders at most 40 rows and paginates withou
   expect(seenKeys.size).toBeGreaterThan(50)
 })
 
-test('incrementing a compact row updates the displayed quantity immediately', async ({ page }) => {
+test('the edit sheet changes the quantity and the row follows immediately', async ({ page }) => {
   const email = await signInWithFreshAccount(page)
   const { userId, rootContainerId } = await findCollectionIdentity(email)
 
@@ -172,12 +172,19 @@ test('incrementing a compact row updates the displayed quantity immediately', as
 
   const row = page.locator('[data-virtual-item-key]').first()
   await expect(row).toBeVisible()
-  await row.getByLabel('Increase quantity').click()
+  // Aucun stepper dans la ligne : il se déclenchait au défilement.
+  await expect(row.getByLabel('Increase quantity')).toHaveCount(0)
+  await row.click()
+  const detail = page.getByRole('dialog')
+  // La feuille de détail reste en lecture seule : la quantité se règle dans `Edit`.
+  await expect(detail.getByLabel('Increase quantity')).toHaveCount(0)
+  await detail.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('dialog').getByLabel('Increase quantity').click()
 
-  await expect(row.getByText('2', { exact: true })).toBeVisible()
+  await expect(row).toContainText('×2')
 })
 
-test('decrementing to zero removes the row and Undo restores it', async ({ page }) => {
+test('decrementing to zero in the edit sheet removes the row and Undo restores it', async ({ page }) => {
   const email = await signInWithFreshAccount(page)
   const { userId, rootContainerId } = await findCollectionIdentity(email)
 
@@ -200,7 +207,9 @@ test('decrementing to zero removes the row and Undo restores it', async ({ page 
 
   const row = page.locator('[data-virtual-item-key]').first()
   await expect(row).toBeVisible()
-  await row.getByLabel('Decrease quantity').click()
+  await row.click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('dialog').getByLabel('Decrease quantity').click()
 
   await expect(page.locator('[data-virtual-item-key]')).toHaveCount(0)
   await expect(page.getByText(/removed/)).toBeVisible()

@@ -85,14 +85,14 @@ test('a quantity changed on a phone survives a reload', async ({ page }) => {
       response.request().headers()['next-action'] !== undefined &&
       (response.request().postData() ?? '').includes('"qty":2'),
   )
-  await row.getByLabel('Increase quantity').click()
-  await expect(row.getByText('2', { exact: true })).toBeVisible()
+  await row.click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('dialog').getByLabel('Increase quantity').click()
+  await expect(row).toContainText('×2')
   await saved
 
   await page.reload()
-  await expect(
-    page.locator('[data-virtual-item-key]').first().getByText('2', { exact: true }),
-  ).toBeVisible()
+  await expect(page.locator('[data-virtual-item-key]').first()).toContainText('×2')
   await page.goto('/collection')
   await expect(
     page.getByRole('main').getByRole('link', { name: /^Steps/ }),

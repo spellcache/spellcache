@@ -76,12 +76,11 @@ async function pageWithBody(bodyHtml: string): Promise<Page> {
   return page
 }
 
-describe('CompactRow height and touch targets', () => {
+describe('CompactRow height', () => {
   it('measures exactly 58px over ten consecutive rows, including a long name and a FOIL row', async () => {
     const rowsHtml = NAMES.map((name, i) =>
       renderToStaticMarkup(
         <CompactRow
-          holdingId={`h${i}`}
           thumbUrl={FAKE_THUMB}
           name={name}
           manaCost="{2}{W}{U}"
@@ -91,7 +90,6 @@ describe('CompactRow height and touch targets', () => {
           isFoil={i === 2}
           qty={i + 1}
           priceLabel="$12.34"
-          onQtyChange={() => {}}
           onOpen={() => {}}
         />,
       ),
@@ -108,23 +106,10 @@ describe('CompactRow height and touch targets', () => {
     expect(heights).toHaveLength(10)
     for (const height of heights) expect(height).toBe(58)
 
-    // Boîte englobante de la zone cliquable des boutons `+`/`−`, pas leur
-    // taille visuelle de 22px.
-    const touchBoxes = await page
-      .locator('.row')
-      .first()
-      .locator('button[aria-label]')
-      .evaluateAll((nodes) =>
-        nodes.map((node) => {
-          const rect = node.getBoundingClientRect()
-          return { width: rect.width, height: rect.height }
-        }),
-      )
-    expect(touchBoxes).toHaveLength(2)
-    for (const box of touchBoxes) {
-      expect(box.width).toBeGreaterThanOrEqual(44)
-      expect(box.height).toBeGreaterThanOrEqual(44)
-    }
+    // Quantité en lecture seule : aucun bouton `+`/`−` qu'un défilement
+    // pourrait déclencher, elle se modifie dans la feuille de la carte.
+    expect(await page.locator('.row button').count()).toBe(0)
+    expect(await page.locator('.row').first().textContent()).toContain('×1')
 
     await page.close()
   })
@@ -354,7 +339,6 @@ describe('selection state leaves row/tile height untouched', () => {
   it('CompactRow stays 58px selectable and selected, with an 18x18 circle', async () => {
     const html = renderToStaticMarkup(
       <CompactRow
-        holdingId="h0"
         thumbUrl={FAKE_THUMB}
         name="Ponder"
         manaCost="{U}"
@@ -364,7 +348,6 @@ describe('selection state leaves row/tile height untouched', () => {
         isFoil={false}
         qty={2}
         priceLabel="$0.60"
-        onQtyChange={() => {}}
         onOpen={() => {}}
         selectable
         selected
@@ -493,7 +476,6 @@ describe('current pane row is highlighted but never ticked', () => {
   function compactRow(props: { selectable?: boolean; selected?: boolean; current?: boolean }) {
     return renderToStaticMarkup(
       <CompactRow
-        holdingId="h0"
         thumbUrl={FAKE_THUMB}
         name="Ponder"
         manaCost="{U}"
@@ -503,7 +485,6 @@ describe('current pane row is highlighted but never ticked', () => {
         isFoil={false}
         qty={1}
         priceLabel="$0.60"
-        onQtyChange={() => {}}
         onOpen={() => {}}
         {...props}
       />,
@@ -875,7 +856,6 @@ describe('CompactRow with a reserved `available` suffix', () => {
     ].map((row, i) =>
       renderToStaticMarkup(
         <CompactRow
-          holdingId={`h${i}`}
           thumbUrl={FAKE_THUMB}
           name={NAMES[i]!}
           manaCost="{2}{W}{U}"
@@ -886,7 +866,6 @@ describe('CompactRow with a reserved `available` suffix', () => {
           qty={row.qty}
           available={row.available}
           priceLabel="$12.34"
-          onQtyChange={() => {}}
           onOpen={() => {}}
         />,
       ),

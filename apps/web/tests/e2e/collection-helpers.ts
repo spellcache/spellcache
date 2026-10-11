@@ -12,6 +12,7 @@ import { expect, type Page } from '@playwright/test'
 import { collectionMembers, containers, users } from '@spellcache/db/schema'
 import { db } from '@spellcache/db'
 
+import { testPriceDay } from './price-day'
 import { readMagicLink } from './read-magic-link'
 import { uniqueUsername } from './unique-username'
 
@@ -103,7 +104,7 @@ export async function seedCard(
   if (options.priceEur !== undefined) {
     await db.execute(sql`
       insert into card_prices (card_id, day, eur, eur_foil, usd, usd_foil)
-      values (${id}::uuid, current_date, ${options.priceEur}, ${options.priceEur}, ${options.priceEur}, ${options.priceEur})
+      values (${id}::uuid, ${testPriceDay}, ${options.priceEur}, ${options.priceEur}, ${options.priceEur}, ${options.priceEur})
     `)
   }
   return { id, name, setCode, collectorNumber }

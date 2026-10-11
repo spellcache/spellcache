@@ -271,11 +271,6 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection invariants', () => {
           finish: pick(FINISHES),
         })
       },
-      // Lot pris dans un seul container : un lot tiré depuis la racine sur des
-      // lignes de binders (ou un déplacement groupé) laisse aujourd'hui les
-      // stats du binder source périmées — défaut épinglé par le `it.fails`
-      // de `collection-ownership.test.ts`. À élargir une fois `bulkEdit`
-      // corrigé, sans quoi chaque graine échouerait sur ce seul défaut.
       bulkEdit: async () => {
         const containerId = pick(live())
         const rows = await holdingsIn(containerId)
@@ -285,6 +280,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection invariants', () => {
           userId,
           { containerId, holdingIds: ids },
           { condition: pick(CONDITIONS) },
+        )
+      },
+      // Depuis la vue racine, une sélection mêle le vrac et les binders, et
+      // part vers un autre container : chaque binder d'origine doit être
+      // recalculé.
+      bulkMoveFromRoot: async () => {
+        const mixed = [...(await holdingsIn(rootId)), ...(await holdingsIn(pick(binders)))]
+        if (mixed.length === 0) return
+        const ids = [pick(mixed).id, pick(mixed).id].filter((id, i, all) => all.indexOf(id) === i)
+        await bulkLib.bulkEdit(
+          userId,
+          { containerId: rootId, holdingIds: ids },
+          { targetContainerId: pick([...binders, list]) },
         )
       },
       removeThenUndo: async () => {

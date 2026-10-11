@@ -197,6 +197,14 @@ function ImportTab({ destinations, onImported, onDone }: {
       setBusy(false)
       return
     }
+    // Même verdict que `importListAction` (`nothing_to_import`), rendu avant
+    // de créer la destination : sinon un binder vide reste derrière l'échec.
+    const { resolved, ambiguous } = preview.preview.summary
+    if (resolved + ambiguous === 0) {
+      setError('Nothing in that list could be matched to the catalogue.')
+      setBusy(false)
+      return
+    }
 
     if (creatingNew) {
       const kind = target === NEW_BINDER_VALUE ? 'binder' : 'list'

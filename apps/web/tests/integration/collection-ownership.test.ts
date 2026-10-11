@@ -33,6 +33,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
   let bulkEdit: typeof import('@/lib/containers/bulk').bulkEdit
   let availabilityMap: typeof import('@/lib/decks/availability').availabilityMap
   let getDeck: typeof import('@/app/(app)/decks/[id]/deck-data').getDeck
+  let assembleLib: typeof import('@/lib/decks/assemble')
   let getCollectionHome: typeof import('@/app/(app)/collection/collection-data').getCollectionHome
   let getContainerHeader: typeof import('@/app/(app)/container/[id]/holdings-data').getContainerHeader
 
@@ -47,6 +48,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
     ;({ bulkEdit } = await import('@/lib/containers/bulk'))
     ;({ availabilityMap } = await import('@/lib/decks/availability'))
     ;({ getDeck } = await import('@/app/(app)/decks/[id]/deck-data'))
+    assembleLib = await import('@/lib/decks/assemble')
     ;({ getCollectionHome } = await import('@/app/(app)/collection/collection-data'))
     ;({ getContainerHeader } = await import('@/app/(app)/container/[id]/holdings-data'))
   })
@@ -88,11 +90,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
     return rows.map((row) => row.id)
   }
 
-  // `availableQtyExpr` compare `card_id`, l'impression exacte : un Sol Ring
-  // C21 rangé dans un binder ne couvre pas le Sol Ring CMR d'un deck. Un
-  // import CSV garde toujours le set et le numéro d'origine, il tombe donc
-  // presque toujours dans ce cas.
-  it.fails(
+  // Un import CSV garde toujours le set et le numéro d'origine, presque
+  // jamais ceux qu'un deck a choisis : seule la carte compte.
+  it(
     'counts a binder copy of another printing of the same card as owned by a deck',
     async () => {
       const { userId, collectionId } = await setup('crossprint')
@@ -126,6 +126,54 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
       expect(deck.coverage).toMatchObject({ owned: 1, total: 1, missing: 0 })
     },
   )
+
+  it('a deck built on another printing reserves that copy, and dismantling moves it under its own printing', async () => {
+    const { userId, collectionId } = await setup('crossdismantle')
+    const oracleId = randomUUID()
+    const deckPrinting = await insertCard(pool, {
+      name: 'Sol Ring',
+      oracleId,
+      setCode: 'cmr',
+      collectorNumber: '472',
+    })
+    const binderPrinting = await insertCard(pool, {
+      name: 'Sol Ring',
+      oracleId,
+      setCode: 'c21',
+      collectorNumber: '263',
+    })
+    const binder = await createContainer(userId, collectionId, { kind: 'binder', name: 'Rocks' })
+    const target = await createContainer(userId, collectionId, { kind: 'binder', name: 'Returned' })
+    await addHolding(userId, { containerId: binder.id, cardId: binderPrinting, ...nm }, 1)
+    const deckId = await planDeck(userId, collectionId, deckPrinting)
+
+    const plan = await assembleLib.planAssembly(userId, deckId, {
+      fromLooseCollection: true,
+      fromOtherBuiltDecks: false,
+    })
+    expect(plan.owned).toHaveLength(1)
+    await assembleLib.assembleDeck(userId, deckId, { plan })
+
+    // Monté, le deck réclame l'exemplaire C21 : plus rien de disponible,
+    // sous l'une ou l'autre impression.
+    const reserved = await availabilityMap(collectionId, [deckPrinting, binderPrinting])
+    expect(reserved.get(deckPrinting)).toBe(0)
+    expect(reserved.get(binderPrinting)).toBe(0)
+
+    await assembleLib.dismantleDeck(userId, deckId, target.id)
+
+    const { rows } = await pool.query<{ container_id: string; card_id: string; qty: number }>(
+      `SELECT h.container_id, h.card_id, h.qty FROM holdings h
+         JOIN containers c ON c.id = h.container_id WHERE c.collection_id = $1`,
+      [collectionId],
+    )
+    // L'exemplaire réel a déménagé tel quel (C21), jamais réécrit en CMR ni
+    // dupliqué : un seul Sol Ring dans toute la collection.
+    expect(rows).toEqual([{ container_id: target.id, card_id: binderPrinting, qty: 1 }])
+    for (const containerId of [binder.id, target.id]) {
+      expect(await readStats(pool, containerId)).toEqual(await aggregateHoldings(pool, [containerId]))
+    }
+  })
 
   it('counts a foil binder copy as owned for a nonfoil deck slot', async () => {
     const { userId, collectionId } = await setup('foilcover')
@@ -253,10 +301,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
     expect(rows).toHaveLength(0)
   })
 
-  // `bulkEdit` ne recalcule que le container de la vue et la destination,
-  // jamais le binder d'où part une ligne sélectionnée depuis la racine :
-  // ses `container_stats` gardent l'ancien total.
-  it.fails(
+  // Depuis la racine, une sélection mêle des lignes de binders : le binder
+  // d'où part une ligne déplacée doit être recalculé, pas seulement la vue
+  // et la destination.
+  it(
     'a bulk move from the root view of mixed root and binder rows into a list keeps every container_stats row exact',
     async () => {
       const { userId, collectionId, rootId } = await setup('bulkmove')
@@ -301,11 +349,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
     },
   )
 
-  // `getCollectionHome` lit la seule ligne `container_stats` de la racine :
-  // une carte rangée (ou importée) dans un binder n'entre ni dans la carte
-  // de valeur ni dans la ligne `All collection`, alors que l'écran
-  // `All collection` l'inclut (`getContainerHeader`).
-  it.fails(
+  // Une carte rangée (ou importée) dans un binder reste dans la collection :
+  // la carte de valeur et la ligne `All collection` l'incluent, comme l'écran
+  // `All collection` (`getContainerHeader`).
+  it(
     'the Collection home total counts binder cards, matching the All collection screen',
     async () => {
       const { userId, collectionId, rootId } = await setup('hometotal')

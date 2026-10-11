@@ -522,7 +522,13 @@ export async function bulkEdit(
 
     const plan = planBulkEdit(rows, edit, externalCollisions, targetZoneMatters)
 
-    const touchedContainerIds = new Set<string>([target.containerId])
+    // Les containers d'ORIGINE des lignes comptent aussi : depuis la vue
+    // racine, une sélection mêle des lignes de binders, et un déplacement les
+    // en retire — sans eux, les stats du binder source restent périmées.
+    const touchedContainerIds = new Set<string>([
+      target.containerId,
+      ...rows.map((row) => row.containerId),
+    ])
     for (const item of plan.items) {
       await tx
         .update(holdings)

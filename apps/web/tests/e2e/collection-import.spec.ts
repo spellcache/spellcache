@@ -79,13 +79,11 @@ test('a CSV file imported into an existing binder lands there with its finish, c
   await expect(cardSheet.getByText('FR', { exact: true })).toBeVisible()
 })
 
-// `getCollectionHome` ne lit que la ligne `container_stats` de la racine :
-// les cartes importées dans un binder n'entrent pas dans la ligne
-// `All collection` de l'accueil, comme si elles étaient dans une liste.
+// Une carte importée dans un binder reste dans la collection : la ligne
+// `All collection` de l'accueil la compte, une liste ne la compterait pas.
 test('the All collection row of the home counts the cards just imported into a binder', async ({
   page,
 }) => {
-  test.fail()
   const { userId, collectionId } = await signInWithFreshAccount(page, 'csvhome')
   const run = uniqueToken()
   const card = await seedCard(`E2E Home Card ${run}`, `${run}-1`, { priceEur: 1 })
@@ -180,12 +178,11 @@ test('an import that matches nothing says so', async ({ page }) => {
   ).toBeVisible({ timeout: IMPORT_TIMEOUT })
 })
 
-// La feuille crée la destination avant d'importer : une liste dont aucune
-// ligne ne résout laisse derrière elle un binder vide.
+// La feuille ne crée la destination qu'une fois sûre que l'import écrira
+// quelque chose : un échec ne laisse aucun binder vide derrière lui.
 test('an import that matches nothing leaves no empty New binder behind', async ({
   page,
 }) => {
-  test.fail()
   const { collectionId } = await signInWithFreshAccount(page, 'csvnobinder')
 
   await page.goto('/collection')

@@ -284,7 +284,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection CSV import', () => {
     expect(await readStats(pool, binder.id)).toEqual(statsAfterFirst)
   })
 
-  it('one card name in two printings becomes two holdings, both owned', async () => {
+  it('one card name in two printings becomes two holdings, each owned as the same card', async () => {
     const { userId, collectionId } = await setup('twoprints')
     const oracleId = randomUUID()
     const lea = await insertCard(pool, {
@@ -322,8 +322,10 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection CSV import', () => {
       [mmq]: 3,
     })
     const available = await availabilityMap(collectionId, [lea, mmq])
-    expect(available.get(lea)).toBe(1)
-    expect(available.get(mmq)).toBe(3)
+    // La disponibilité compte la carte, pas l'impression : 1 + 3 sous l'une
+    // comme sous l'autre.
+    expect(available.get(lea)).toBe(4)
+    expect(available.get(mmq)).toBe(4)
   })
 
   it('after an import, the binder stats, its home row and the All collection header all match the holdings', async () => {

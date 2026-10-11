@@ -15,6 +15,7 @@ import { consumeStockRows, type StockCandidate } from '@/lib/decks/assemble'
 function candidate(overrides: Partial<StockCandidate> & { id: string; qty: number }): StockCandidate {
   return {
     containerId: 'container-1',
+    cardId: 'card-1',
     finish: 'nonfoil',
     condition: 'nm',
     language: 'en',
@@ -31,7 +32,7 @@ describe('consumeStockRows — l’identité réelle de l’exemplaire prélevé
     const result = consumeStockRows(rows, 1)
 
     expect(result.takenQty).toBe(1)
-    expect(result.consumed).toEqual([{ finish: 'foil', condition: 'lp', language: 'fr', qty: 1 }])
+    expect(result.consumed).toEqual([{ cardId: 'card-1', finish: 'foil', condition: 'lp', language: 'fr', qty: 1 }])
     // La ligne source, entièrement consommée, est supprimée — jamais
     // laissée à côté d'une copie recréée ailleurs sous une autre identité
     // (ce qui doublerait l'exemplaire au lieu de le transférer).
@@ -53,8 +54,8 @@ describe('consumeStockRows — l’identité réelle de l’exemplaire prélevé
     expect(result.takenQty).toBe(3)
     expect(result.consumed).toEqual(
       expect.arrayContaining([
-        { finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 },
-        { finish: 'foil', condition: 'nm', language: 'en', qty: 2 },
+        { cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 },
+        { cardId: 'card-1', finish: 'foil', condition: 'nm', language: 'en', qty: 2 },
       ]),
     )
     expect(result.consumed).toHaveLength(2)
@@ -69,7 +70,7 @@ describe('consumeStockRows — l’identité réelle de l’exemplaire prélevé
 
     const result = consumeStockRows(rows, 2)
 
-    expect(result.consumed).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 2 }])
+    expect(result.consumed).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 2 }])
     expect(result.deletions.sort()).toEqual(['a', 'b'])
   })
 
@@ -79,7 +80,7 @@ describe('consumeStockRows — l’identité réelle de l’exemplaire prélevé
     const result = consumeStockRows(rows, 5)
 
     expect(result.takenQty).toBe(1)
-    expect(result.consumed).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
+    expect(result.consumed).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
     expect(result.deletions).toEqual(['h1'])
   })
 
@@ -131,7 +132,7 @@ describe('consumeStockRows — une ligne déjà dans la cible ne bouge jamais', 
     const result = consumeStockRows(rows, 1)
 
     expect(result.takenQty).toBe(1)
-    expect(result.settledInPlace).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
+    expect(result.settledInPlace).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
     expect(result.consumed).toEqual([])
     expect(result.deletions).toEqual([])
     expect(result.updates).toEqual([])
@@ -147,7 +148,7 @@ describe('consumeStockRows — une ligne déjà dans la cible ne bouge jamais', 
     const result = consumeStockRows(rows, 2)
 
     expect(result.takenQty).toBe(2)
-    expect(result.settledInPlace).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 2 }])
+    expect(result.settledInPlace).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 2 }])
     expect(result.updates).toEqual([])
     expect(result.deletions).toEqual([])
   })
@@ -165,7 +166,7 @@ describe('consumeStockRows — une ligne déjà dans la cible ne bouge jamais', 
 
     expect(result.takenQty).toBe(1)
     expect(result.settledInPlace).toEqual([])
-    expect(result.consumed).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
+    expect(result.consumed).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
     expect(result.deletions).toEqual(['other-row'])
   })
 
@@ -182,8 +183,8 @@ describe('consumeStockRows — une ligne déjà dans la cible ne bouge jamais', 
     const result = consumeStockRows(rows, 2)
 
     expect(result.takenQty).toBe(2)
-    expect(result.settledInPlace).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
-    expect(result.consumed).toEqual([{ finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
+    expect(result.settledInPlace).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
+    expect(result.consumed).toEqual([{ cardId: 'card-1', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 }])
     expect(result.deletions).toEqual(['elsewhere-row'])
     expect(result.updates).toEqual([])
   })
@@ -244,6 +245,7 @@ describe('consumeStockRows — simulation multi-cartes du règlement complet de 
         return {
           id: row.id,
           containerId: row.containerId,
+          cardId: row.cardId,
           qty: row.qty,
           consumableQty,
           finish: row.finish as StockCandidate['finish'],
@@ -384,5 +386,26 @@ describe('consumeStockRows — simulation multi-cartes du règlement complet de 
     expect(targetRow?.id).toBe('target-row') // jamais recréée sous un id neuf
     expect(targetRow?.qty).toBe(3)
     expect(after.find((r) => r.containerId === 'third')).toBeUndefined()
+  })
+
+  it('keeps each printing apart when several printings of the card back the need', () => {
+    // Deux impressions de la même carte couvrent ensemble un besoin de 2 :
+    // chacune repart sous son propre `cardId`, jamais réécrite en celle que
+    // le deck avait choisie.
+    const rows = [
+      candidate({ id: 'cmr-row', qty: 1, cardId: 'sol-ring-cmr' }),
+      candidate({ id: 'c21-row', qty: 1, cardId: 'sol-ring-c21' }),
+    ]
+
+    const result = consumeStockRows(rows, 2)
+
+    expect(result.takenQty).toBe(2)
+    expect(result.consumed).toEqual(
+      expect.arrayContaining([
+        { cardId: 'sol-ring-cmr', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 },
+        { cardId: 'sol-ring-c21', finish: 'nonfoil', condition: 'nm', language: 'en', qty: 1 },
+      ]),
+    )
+    expect(result.consumed).toHaveLength(2)
   })
 })

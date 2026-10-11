@@ -17,7 +17,7 @@
 // `N inconnues` illisible.
 import type { Condition, DeckZone, Finish } from '@spellcache/db/schema'
 
-import { looksLikeCsvHeader, parseCsv } from './parse-csv'
+import { looksLikeCsv, parseCsv } from './parse-csv'
 
 export interface ParsedLine {
   raw: string
@@ -80,8 +80,7 @@ function sectionZone(line: string): DeckZone | null {
 }
 
 export function parseList(text: string): ParseResult {
-  const firstLine = text.split(/\r?\n/).find((line) => line.trim().length > 0) ?? ''
-  if (looksLikeCsvHeader(firstLine)) return parseCsv(text)
+  if (looksLikeCsv(text)) return parseCsv(text)
 
   const lines: ParsedLine[] = []
   const ignored: string[] = []

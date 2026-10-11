@@ -828,8 +828,8 @@ export async function getContainerHeader(userId: string, containerId: string): P
   // Toujours une SOMME de lignes `container_stats` déjà précalculées
   // (docs/development.md : « le bandeau de valeur lit une ligne, il n'agrège jamais la
   // liste des holdings au chargement »), jamais un
-  // agrégat direct sur `holdings` — le bandeau de valeur de l'accueil
-  // (`app/(app)/collection/collection-data.ts`) reste, lui, inchangé.
+  // agrégat direct sur `holdings` — même périmètre que la carte de valeur
+  // de l'accueil (`ownedStat`, `app/(app)/collection/collection-data.ts`).
   if (row.kind === 'collection') {
     const containerScope = await resolveContainerScope(db, containerId)
     if (containerScope.length > 1) {

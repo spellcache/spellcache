@@ -141,9 +141,8 @@ describe('parseList — other exporters and file quirks', () => {
   })
 
   // Excel sur un poste suisse, français ou allemand enregistre un « CSV » avec
-  // `;` pour séparateur : l'analyseur ne découpe que sur `,`, le fichier
-  // entier passe donc pour une decklist illisible.
-  it.fails('reads a CSV saved by Excel with a semicolon separator', () => {
+  // `;` pour séparateur.
+  it('reads a CSV saved by Excel with a semicolon separator', () => {
     const csv = ['Name;Quantity;Set code;Collector number;Foil', 'Sol Ring;2;c21;263;normal', '"Kozilek, Butcher of Truth";1;roe;6;foil'].join('\r\n')
 
     const { lines } = parseList(csv)
@@ -155,7 +154,7 @@ describe('parseList — other exporters and file quirks', () => {
 
   // Dragon Shield (et tout export destiné à Excel) ouvre le fichier par une
   // ligne d'indice `sep=,` : l'en-tête réel n'est que la deuxième ligne.
-  it.fails('skips an Excel sep= hint line before the header', () => {
+  it('skips an Excel sep= hint line before the header', () => {
     const csv = [
       'sep=,',
       'Folder Name,Quantity,Trade Quantity,Card Name,Set Code,Set Name,Card Number,Condition,Printing,Language',

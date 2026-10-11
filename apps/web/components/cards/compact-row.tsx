@@ -21,12 +21,14 @@ import { Check } from 'lucide-react'
 
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
+import { SetIcon } from '@/components/cards/set-icon'
 
 export function CompactRow({
   thumbUrl,
   name,
   manaCost,
   setCode,
+  setIconUri,
   collectorNumber,
   condition,
   isFoil,
@@ -42,6 +44,7 @@ export function CompactRow({
   name: string
   manaCost: string | null
   setCode: string
+  setIconUri?: string | null
   collectorNumber: string
   condition: Condition
   isFoil: boolean
@@ -109,15 +112,18 @@ export function CompactRow({
             garde que le nom de carte juste au-dessus, qui la porte déjà.
             `FOIL` suit la condition : sur la ligne du nom, il tronquait les
             noms longs. */}
-        <div className="mt-1 truncate whitespace-nowrap text-subline-compact text-text-2">
-          {setLine}
-          {isFoil && (
-            <>
-              {' · '}
-              <span className="font-bold tracking-badge-foil text-accent-text">FOIL</span>
-            </>
-          )}
-          {reservedSuffix}
+        <div className="mt-1 flex min-w-0 items-center gap-5 text-subline-compact text-text-2">
+          <SetIcon uri={setIconUri} />
+          <span className="min-w-0 truncate whitespace-nowrap">
+            {setLine}
+            {isFoil && (
+              <>
+                {' · '}
+                <span className="font-bold tracking-badge-foil text-accent-text">FOIL</span>
+              </>
+            )}
+            {reservedSuffix}
+          </span>
         </div>
       </div>
       <div className="flex flex-shrink-0 items-center gap-7">

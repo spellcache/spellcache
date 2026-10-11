@@ -146,6 +146,7 @@ export function EditCardSheet({
           <EditionButton
             setName={holding.setName}
             setCode={holding.setCode}
+            setIconUri={holding.setIconUri}
             collectorNumber={holding.collectorNumber}
             onClick={() => setEditionsOpen(true)}
           />

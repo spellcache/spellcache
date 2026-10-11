@@ -17,6 +17,7 @@ function slot(overrides: Partial<DeckSlot> & { name: string; setLine: string }):
     need: 1,
     ownedElsewhere: 0,
     state: 'missing',
+    setIconUri: null,
     priceMinor: null,
     zone: 'main',
     thumbUrl: '/api/card-image/c1/small',

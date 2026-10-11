@@ -89,6 +89,7 @@ function slot(cardId: string): DeckSlot {
     need: 1,
     ownedElsewhere: 0,
     state: 'missing',
+    setIconUri: null,
     priceMinor: null,
     zone: 'main',
     thumbUrl: '',

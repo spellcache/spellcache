@@ -14,6 +14,7 @@ import { Trash2 } from 'lucide-react'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { DeckZone } from '@spellcache/db/schema'
 import { useCanEdit } from '@/lib/collections/access-context'
+import { SetIcon } from '@/components/cards/set-icon'
 
 const ZONES: Array<{ value: DeckZone; label: string }> = [
   { value: 'main', label: 'Main' },
@@ -26,6 +27,7 @@ export function DeckCardRow({
   name,
   manaCost,
   setLine,
+  setIconUri,
   qty,
   zone,
   onZoneChange,
@@ -36,6 +38,7 @@ export function DeckCardRow({
   name: string
   manaCost: string | null
   setLine: string
+  setIconUri?: string | null
   qty: number
   zone: DeckZone
   onZoneChange: (next: DeckZone) => void
@@ -73,7 +76,10 @@ export function DeckCardRow({
             <span className="min-w-0 truncate text-deck-row-name font-bold text-text">{name}</span>
             <ManaCost cost={manaCost} size={14} />
           </span>
-          <span className="mt-2 block text-deck-row-set text-text-2">{setLine}</span>
+          <span className="mt-2 flex min-w-0 items-center gap-5 text-deck-row-set text-text-2">
+            <SetIcon uri={setIconUri} />
+            <span className="min-w-0 truncate">{setLine}</span>
+          </span>
         </button>
         {canEdit && (
         <div className="mt-6 flex gap-5">

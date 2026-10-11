@@ -6,13 +6,18 @@
 //   - `onClick` optionnel rend la ligne cliquable (bouton) plutôt qu'un
 //     simple conteneur — un résultat de recherche ouvre `AddCardSheet`
 //     préchargée.
-//   - sous-titre `CODE · Set name · #num`, sans la rareté.
+//   - sous-titre `icône CODE #num`, sans la rareté — même forme que les
+//     lignes compactes de la collection.
 //   - le prix passe par `formatMoney`/`currency`, jamais `$` en dur.
 //   - les symboles de mana passent par le composant partagé `ManaCost`,
 //     qui couvre les 75 symboles + repli lettré.
+//   - `showSetName` ajoute le nom complet du set sur sa propre ligne, sous
+//     `icône CODE #num` — listes d'impressions, où c'est le set qui
+//     distingue les lignes.
 //   - `current` marque l'impression déjà choisie dans une liste
 //     d'impressions (`PrintingPickerSheet`).
 import { ManaCost } from '@/components/cards/mana-cost'
+import { SetIcon } from '@/components/cards/set-icon'
 import type { Currency } from '@/lib/format/money'
 import { formatMoney } from '@/lib/format/money'
 import type { CardSearchItem } from '@/lib/search/search-cards'
@@ -26,14 +31,14 @@ export function SearchRow({
   currency,
   onClick,
   current = false,
+  showSetName = false,
 }: {
   item: CardSearchItem
   currency: Currency
   onClick?: () => void
   current?: boolean
+  showSetName?: boolean
 }) {
-  const setLine = `${item.setCode.toUpperCase()} · ${item.setName} · #${item.collectorNumber}`
-
   const content = (
     <>
       <div className="h-thumb-search w-thumb-search flex-shrink-0 overflow-hidden rounded-thumb bg-surface-2">
@@ -45,7 +50,15 @@ export function SearchRow({
           <div className="truncate text-card-name-search font-bold text-text">{item.name}</div>
           <ManaCost cost={item.manaCost} size={14} />
         </div>
-        <div className="mt-2 text-meta-search text-text-2">{setLine}</div>
+        <div className="mt-2 flex min-w-0 items-center gap-5 text-meta-search text-text-2">
+          <SetIcon uri={item.setIconUri} />
+          <span className="min-w-0 truncate">
+            {item.setCode.toUpperCase()} #{item.collectorNumber}
+          </span>
+        </div>
+        {showSetName && (
+          <div className="mt-2 truncate text-meta-search text-text">{item.setName}</div>
+        )}
       </div>
       <div className="flex flex-col items-end gap-4">
         <div className="whitespace-nowrap font-mono text-card-name-search font-bold text-accent-text">

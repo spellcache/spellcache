@@ -214,6 +214,7 @@ export default async function PublicContainerPage({
               name={card.name}
               manaCost={card.manaCost}
               setLine={`${card.setCode.toUpperCase()} #${card.collectorNumber}`}
+              setIconUri={card.setIconUri}
               need={card.qty}
               // Aucune affirmation de possession sur une page publique
               // — voir `SlotRow`.

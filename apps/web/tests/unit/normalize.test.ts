@@ -31,6 +31,6 @@ describe('lib/search/normalize', () => {
     // groupement par nom change la forme des résultats — une entrée `v3` ne
     // doit plus jamais être relue sous cette forme périmée (voir le
     // commentaire de tête de `lib/search/normalize.ts`).
-    expect(searchCacheKey({ query: 'bolt' })).toMatch(/^search:v8:[0-9a-f]{64}$/)
+    expect(searchCacheKey({ query: 'bolt' })).toMatch(/^search:v9:[0-9a-f]{64}$/)
   })
 })

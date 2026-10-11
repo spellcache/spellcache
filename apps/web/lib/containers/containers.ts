@@ -171,9 +171,13 @@ function undoStore(): Map<string, ContainerUndoEntry> {
 // container racine (`kind === 'collection'`) est protégé : le supprimer
 // casserait l'invariant posé par `bootstrapCollection` (une collection a
 // toujours un container racine).
+// `kind` : celui qu'attend l'appelant. Sans ce contrôle, l'action de
+// suppression d'un deck ou d'une liste détruirait un binder entier, cartes
+// comprises, sans passer par `deleteBinder` qui les rend à la collection.
 export async function deleteContainer(
   userId: string,
   containerId: string,
+  kind?: Exclude<ContainerKind, 'collection'>,
 ): Promise<DeleteContainerResult> {
   await requireContainerAccess(userId, containerId, 'write')
 
@@ -183,6 +187,9 @@ export async function deleteContainer(
   const [target] = await db.select().from(containers).where(eq(containers.id, containerId)).limit(1)
   if (target!.kind === 'collection') {
     throw new Error(`Container ${containerId} is a collection root and cannot be deleted.`)
+  }
+  if (kind && target!.kind !== kind) {
+    throw new Error(`Container ${containerId} is not a ${kind}.`)
   }
 
   return db.transaction(async (tx) => {

@@ -221,7 +221,7 @@ export async function deleteListAction(
   const user = await requireSession()
 
   try {
-    await deleteContainer(user.id, parsed.data.containerId)
+    await deleteContainer(user.id, parsed.data.containerId, 'list')
     revalidateCollectionHome()
     return { ok: true }
   } catch (error) {

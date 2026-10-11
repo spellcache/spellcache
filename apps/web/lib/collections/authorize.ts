@@ -65,11 +65,16 @@ export async function requireContainerAccess(
 // container : nécessaire pour créer le tout premier container d'une
 // collection (aucun `containerId` n'existe encore). Toujours au travers de
 // `collection_members`, la même source unique — pas un second chemin.
+// `executor` : le `tx` d'un appelant déjà en transaction, pour ne pas
+// réclamer une seconde connexion au pool pendant qu'il en tient une.
+type Executor = Pick<typeof db, 'select'>
+
 export async function resolveCollectionAccess(
   userId: string,
   collectionId: string,
+  executor: Executor = db,
 ): Promise<Access | null> {
-  const [row] = await db
+  const [row] = await executor
     .select({ collectionId: collectionMembers.collectionId, role: collectionMembers.role })
     .from(collectionMembers)
     .where(
@@ -84,8 +89,9 @@ export async function requireCollectionAccess(
   userId: string,
   collectionId: string,
   need: 'read' | 'write' = 'read',
+  executor: Executor = db,
 ): Promise<Access> {
-  const access = await resolveCollectionAccess(userId, collectionId)
+  const access = await resolveCollectionAccess(userId, collectionId, executor)
   if (!access) {
     throw new ContainerAccessError(`User ${userId} has no access to collection ${collectionId}.`)
   }

@@ -35,9 +35,13 @@ export function activeCollectionIdSql(userIdExpr: SQL): SQL {
   )`
 }
 
-// `null` : le compte n'est membre d'aucune collection.
-export async function getActiveCollectionId(userId: string): Promise<string | null> {
-  const { rows } = await db.execute<{ id: string | null }>(
+// `null` : le compte n'est membre d'aucune collection. `executor` : le `tx`
+// d'un appelant déjà en transaction.
+export async function getActiveCollectionId(
+  userId: string,
+  executor: Pick<typeof db, 'execute'> = db,
+): Promise<string | null> {
+  const { rows } = await executor.execute<{ id: string | null }>(
     sql`select ${activeCollectionIdSql(sql`${userId}::uuid`)} as id`,
   )
   return rows[0]?.id ?? null

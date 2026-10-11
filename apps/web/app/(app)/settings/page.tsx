@@ -104,12 +104,12 @@ export default async function SettingsPage() {
           sous-titre, pas de hint de groupe, badge uniforme « PLANNED ». */}
       <SettingsGroup label="Tools">
         {TOOLS.map((tool) =>
-          tool.state === 'shipped' ? (
+          tool.preference ? (
             <ToggleRow
               key={tool.key}
-              field="toolLifeTracker"
+              field={tool.preference}
               label={tool.name}
-              initialValue={data.preferences.toolLifeTracker}
+              initialValue={data.preferences[tool.preference]}
             />
           ) : (
             <PlannedToolRow

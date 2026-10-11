@@ -13,40 +13,45 @@ import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type Luci
 
 export interface ToolFlags {
   lifeTracker: boolean
+  tradingMode: boolean
 }
 
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { lifeTracker: false }
+export const NO_TOOLS: ToolFlags = { lifeTracker: false, tradingMode: false }
 
 // Les apps font partie de l'application, il n'y a ni store ni greffons :
-// un seul outil existe aujourd'hui, ce `||` en
-// accueillera d'autres sans que la règle ne se duplique ailleurs.
+// la règle ne se duplique nulle part ailleurs.
 export function anyToolEnabled(tools: ToolFlags): boolean {
-  return tools.lifeTracker
+  return tools.lifeTracker || tools.tradingMode
 }
 
-// Projection des préférences de compte (`users.tool_life_tracker`) vers le
-// contrat ci-dessus — une seule traduction colonne → drapeau, partagée par
-// le layout et les deux pages de `/tools`.
-export function toolFlagsOf(preferences: { toolLifeTracker: boolean }): ToolFlags {
-  return { lifeTracker: preferences.toolLifeTracker }
+// Colonnes de préférence (`users.tool_*`) des outils livrés.
+export type ToolPreference = 'toolLifeTracker' | 'toolTradingMode'
+
+// Projection des préférences de compte vers le contrat ci-dessus — une seule
+// traduction colonne → drapeau, partagée par le layout et les pages de
+// `/tools`.
+export function toolFlagsOf(preferences: Record<ToolPreference, boolean>): ToolFlags {
+  return { lifeTracker: preferences.toolLifeTracker, tradingMode: preferences.toolTradingMode }
 }
 
 // Catalogue unique des outils : l'onglet `Tools` et le groupe `Tools` de
 // Settings lisent tous deux cette même liste — une nouvelle app ne s'ajoute
-// donc qu'à un seul endroit. Seul `life_tracker` porte `state: 'shipped'`
-// aujourd'hui, les trois autres sont des lignes `Planned` grisées sans écran
-// (docs/development.md).
+// donc qu'à un seul endroit. Les outils `planned` sont des lignes grisées
+// sans écran (docs/development.md).
 export type ToolCatalogState = 'shipped' | 'planned'
 
 export interface ToolCatalogEntry {
   key: 'life_tracker' | 'playtest' | 'trading_mode' | 'card_scanner' | 'ai_assistant'
   name: string
   Icon: LucideIcon
-  // Absent pour les trois outils `planned` : aucun écran n'existe encore.
+  // Absents pour les outils `planned` : aucun écran ni drapeau n'existe
+  // encore.
   path?: string
+  flag?: keyof ToolFlags
+  preference?: ToolPreference
   state: ToolCatalogState
   description: string
 }
@@ -57,6 +62,8 @@ export const TOOLS: ToolCatalogEntry[] = [
     name: 'Life tracker',
     Icon: HeartPulse,
     path: '/tools/life',
+    flag: 'lifeTracker',
+    preference: 'toolLifeTracker',
     state: 'shipped',
     description: 'Simple life tracker for up to six players',
   },
@@ -73,7 +80,10 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'trading_mode',
     name: 'Trading mode',
     Icon: ArrowLeftRight,
-    state: 'planned',
+    path: '/tools/trade',
+    flag: 'tradingMode',
+    preference: 'toolTradingMode',
+    state: 'shipped',
     description:
       'Simplify your card trading with a quick price comparison and automatic update of your collection when trading cards',
   },
@@ -93,10 +103,7 @@ export const TOOLS: ToolCatalogEntry[] = [
   },
 ]
 
-// Seul `life_tracker` a un drapeau de compte aujourd'hui (`ToolFlags` n'en
-// porte qu'un) : cette traduction reste ici plutôt que dans `ToolFlags`
-// lui-même, pour qu'ajouter un second outil livré n'oblige pas à réécrire ce
-// contrat-là.
 export function isToolEnabled(key: ToolCatalogEntry['key'], tools: ToolFlags): boolean {
-  return key === 'life_tracker' ? tools.lifeTracker : false
+  const flag = TOOLS.find((tool) => tool.key === key)?.flag
+  return flag ? tools[flag] : false
 }

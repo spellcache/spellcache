@@ -98,7 +98,7 @@ export default defineConfig({
       // --list`).
       name: 'unauthenticated',
       testMatch:
-        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|desktop|responsive)\.spec\.ts$/,
+        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|trading|desktop|responsive)\.spec\.ts$/,
     },
     {
       // `smoke.spec.ts` et `search.spec.ts` visitent des routes désormais

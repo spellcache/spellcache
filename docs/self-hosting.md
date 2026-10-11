@@ -190,12 +190,13 @@ previous night's backup (section 7).
 
 ## 6. Backup
 
-`deploy/backup.sh` writes an **encrypted** archive of the eleven user tables,
-and only those:
+`deploy/backup.sh` writes an **encrypted** archive of the user tables, and
+only those:
 
 ```
 users  accounts  sessions  verification_tokens  collections  collection_members
-containers  holdings  container_stats  deck_folders  import_lists
+containers  holdings  container_stats  deck_folders  import_lists  trades
+trade_lines  site_settings
 ```
 
 The catalogue (`cards`, `sets`, `card_prices`, `import_runs`) is **not** backed
@@ -268,7 +269,7 @@ docker compose -f docker-compose.example.yml stop web
 
 The script:
 
-- decrypts the archive and checks that it holds the eleven user tables and no
+- decrypts the archive and checks that it holds exactly the user tables and no
   catalogue table;
 - refuses to continue if the schema is missing or the tables already hold rows
   (set `RESTORE_TRUNCATE=1` to replace them on purpose);

@@ -12,7 +12,7 @@
 # Ordre imposé, et il compte :
 #   1. la base cible existe et porte le schéma à jour (migrations Drizzle) —
 #      l'archive ne contient QUE des données, jamais de `CREATE TABLE` ;
-#   2. ce script réinjecte les douze tables utilisateur en une transaction, avec
+#   2. ce script réinjecte les tables utilisateur en une transaction, avec
 #      `session_replication_role = replica` : `holdings.card_id` et
 #      `containers.cover_card_id` référencent `cards`, table de catalogue encore
 #      vide à cet instant — sans cela, chaque ligne serait refusée ;

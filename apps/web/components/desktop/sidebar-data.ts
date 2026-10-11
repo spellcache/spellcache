@@ -52,6 +52,7 @@ export async function getSidebarData(userId: string): Promise<SidebarData | null
       username: users.username,
       displayName: users.displayName,
       toolLifeTracker: users.toolLifeTracker,
+      toolTradingMode: users.toolTradingMode,
       sidebarCollapsed: users.sidebarCollapsed,
       collectionId: collectionMembers.collectionId,
       role: collectionMembers.role,

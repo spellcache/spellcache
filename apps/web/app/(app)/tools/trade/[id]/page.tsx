@@ -10,8 +10,17 @@ import { getTradeView, TradeError } from '@/lib/trades/trades'
 
 import { TradeScreen } from './trade-screen'
 
-export default async function TradePage({ params }: { params: Promise<{ id: string }> }) {
+const stepSchema = z.enum(['cards', 'theirs', 'extras'])
+
+export default async function TradePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ step?: string | string[] }>
+}) {
   const { id } = await params
+  const step = stepSchema.safeParse((await searchParams).step)
   const session = await requireSession()
   const tools = await getToolFlags(session.id)
   if (!tools.trading_mode) notFound()
@@ -19,7 +28,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
 
   try {
     const trade = await getTradeView(session.id, id)
-    return <TradeScreen initial={trade} />
+    return <TradeScreen initial={trade} step={step.success ? step.data : null} />
   } catch (error) {
     if (error instanceof TradeError && error.code === 'not_found') notFound()
     throw error

@@ -37,10 +37,12 @@ import {
 } from '@/lib/collections/authorize'
 import { getActiveCollectionId } from '@/lib/collections/active'
 import { recomputeContainerStats } from '@/lib/containers/stats'
+import { parseList } from '@/lib/lists/parse-list'
+import { resolveList } from '@/lib/lists/resolve-list'
 import { currencyOf } from '@/lib/price-source'
 
 import { PARTNER_QUERY_MIN } from './partners'
-import { clampRate, marketPriceMinor, sideValueMinor, type LatestPrices } from './pricing'
+import { clampRate, marketPriceMinor, sideTotalMinor, type LatestPrices } from './pricing'
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type Executor = typeof db | Tx
@@ -68,8 +70,15 @@ export type { TradeMode }
 
 // Seuls ces containers portent des cartes possédées : une liste est une
 // envie, un deck se défait d'abord (`plan`/`assemble` ne sont pas physiques,
-// `built` est verrouillé) — même périmètre que `lib/decks/availability.ts`.
+// et les lignes d'un deck `built` sont des réservations adossées au stock de
+// la collection, que seul `dismantleDeck` sait défaire) — même périmètre que
+// `lib/decks/availability.ts`.
 const TRADEABLE_KINDS = ['collection', 'binder'] as const
+
+// Bornes des saisies libres : un montant au-delà est une faute de frappe,
+// une note plus longue n'est plus une note.
+export const MAX_CASH_MINOR = 99_999_999
+export const MAX_NOTES_LENGTH = 2000
 
 const IN_PERSON_DEFAULT_NAME = 'In person'
 // Le container racine porte le nom de la collection ; l'app l'affiche
@@ -110,6 +119,20 @@ function acceptedRevisionOf(trade: Trade, party: TradeParty): number | null {
 
 function rateOf(trade: Trade, giver: TradeParty): number {
   return giver === 'initiator' ? trade.initiatorRatePct : trade.counterpartyRatePct
+}
+
+function cashOf(trade: Trade, giver: TradeParty): number {
+  return giver === 'initiator' ? trade.initiatorCashMinor : trade.counterpartyCashMinor
+}
+
+function notesOf(trade: Trade, giver: TradeParty): string | null {
+  return giver === 'initiator' ? trade.initiatorNotes : trade.counterpartyNotes
+}
+
+// Entre deux comptes, la contrepartie n'agit sur l'échange qu'une fois
+// l'offre acceptée ; en personne, la question ne se pose pas.
+function awaitsJoin(trade: Trade): boolean {
+  return modeOf(trade) === 'account' && trade.counterpartyJoinedAt === null
 }
 
 // Qui écrit les lignes d'un côté : la partie qui donne, sauf en personne où
@@ -161,9 +184,13 @@ async function lockWritable(
   tx: Tx,
   userId: string,
   tradeId: string,
+  options: { beforeJoin?: boolean } = {},
 ): Promise<WritableTrade> {
   const { trade, party } = await loadTradeFor(tx, userId, tradeId, true)
   if (trade.status !== 'open') throw new TradeError('not_open')
+  if (party === 'counterparty' && awaitsJoin(trade) && !options.beforeJoin) {
+    throw new TradeError('forbidden', 'The offer has not been accepted yet.')
+  }
 
   let collectionId = collectionOf(trade, party)
   if (party === 'counterparty' && collectionId === null) {
@@ -303,6 +330,50 @@ function escapeLike(term: string): string {
 
 // --- Lignes -----------------------------------------------------------------
 
+// Met `qty` exemplaires du holding dans l'échange (cumulés avec ceux qui y
+// sont déjà, ou `exact` : exactement `qty`), dans la transaction de
+// l'appelant, l'échange déjà verrouillé.
+async function putHoldingLine(
+  tx: Tx,
+  trade: Trade,
+  party: TradeParty,
+  holding: Holding,
+  qty: number,
+  exact = false,
+): Promise<void> {
+  const [existing] = await tx
+    .select()
+    .from(tradeLines)
+    .where(
+      and(
+        eq(tradeLines.tradeId, trade.id),
+        eq(tradeLines.giver, party),
+        eq(tradeLines.holdingId, holding.id),
+      ),
+    )
+    .limit(1)
+  const nextQty = exact ? qty : (existing?.qty ?? 0) + qty
+  if (nextQty > holding.qty) throw new TradeError('unavailable')
+
+  if (existing) {
+    await tx
+      .update(tradeLines)
+      .set({ qty: nextQty })
+      .where(eq(tradeLines.id, existing.id))
+  } else {
+    await tx.insert(tradeLines).values({
+      tradeId: trade.id,
+      giver: party,
+      cardId: holding.cardId,
+      finish: holding.finish,
+      condition: holding.condition,
+      language: holding.language,
+      qty: nextQty,
+      holdingId: holding.id,
+    })
+  }
+}
+
 export async function addHoldingLine(
   userId: string,
   tradeId: string,
@@ -331,38 +402,30 @@ export async function addHoldingLine(
       throw new TradeError('unavailable')
     }
 
-    const [existing] = await tx
-      .select()
-      .from(tradeLines)
-      .where(
-        and(
-          eq(tradeLines.tradeId, trade.id),
-          eq(tradeLines.giver, party),
-          eq(tradeLines.holdingId, holdingId),
-        ),
-      )
-      .limit(1)
-    const nextQty = (existing?.qty ?? 0) + qty
-    if (nextQty > holding.holding.qty) throw new TradeError('unavailable')
-
-    if (existing) {
-      await tx
-        .update(tradeLines)
-        .set({ qty: nextQty })
-        .where(eq(tradeLines.id, existing.id))
-    } else {
-      await tx.insert(tradeLines).values({
-        tradeId: trade.id,
-        giver: party,
-        cardId: holding.holding.cardId,
-        finish: holding.holding.finish,
-        condition: holding.holding.condition,
-        language: holding.holding.language,
-        qty,
-        holdingId,
-      })
-    }
+    await putHoldingLine(tx, trade, party, holding.holding, qty)
     await bumpRevision(tx, trade.id)
+  })
+}
+
+// « Select all » d'un binder (ou de la racine) : chaque holding du container
+// entre dans l'échange avec tous ses exemplaires.
+export async function addContainerLines(
+  userId: string,
+  tradeId: string,
+  containerId: string,
+): Promise<{ added: number }> {
+  return db.transaction(async (tx) => {
+    const { trade, party, collectionId } = await lockWritable(tx, userId, tradeId)
+    await assertTradeableContainer(tx, containerId, collectionId)
+    const rows = await tx
+      .select()
+      .from(holdings)
+      .where(eq(holdings.containerId, containerId))
+      .orderBy(asc(holdings.id))
+    for (const holding of rows)
+      await putHoldingLine(tx, trade, party, holding, holding.qty, true)
+    if (rows.length > 0) await bumpRevision(tx, trade.id)
+    return { added: rows.reduce((sum, row) => sum + row.qty, 0) }
   })
 }
 
@@ -381,19 +444,43 @@ export async function addCatalogLine(
   tradeId: string,
   input: CatalogLineInput,
 ): Promise<void> {
-  if (!Number.isInteger(input.qty) || input.qty < 1) throw new TradeError('invalid')
+  await addCatalogLines(userId, tradeId, [input])
+}
+
+// Plusieurs cartes d'un coup (liste importée), dans une seule transaction :
+// tout entre, ou rien.
+export async function addCatalogLines(
+  userId: string,
+  tradeId: string,
+  inputs: CatalogLineInput[],
+): Promise<void> {
+  if (inputs.length === 0) return
+  if (inputs.some((input) => !Number.isInteger(input.qty) || input.qty < 1))
+    throw new TradeError('invalid')
   await db.transaction(async (tx) => {
     const { trade, party } = await lockWritable(tx, userId, tradeId)
     if (modeOf(trade) !== 'in_person' || party !== 'initiator')
       throw new TradeError('forbidden')
 
-    const [card] = await tx
+    const known = await tx
       .select({ id: cards.id })
       .from(cards)
-      .where(eq(cards.id, input.cardId))
-      .limit(1)
-    if (!card) throw new TradeError('invalid')
+      .where(inArray(cards.id, [...new Set(inputs.map((input) => input.cardId))]))
+    const knownIds = new Set(known.map((card) => card.id))
+    if (inputs.some((input) => !knownIds.has(input.cardId)))
+      throw new TradeError('invalid')
 
+    for (const input of inputs) await putCatalogLine(tx, trade, input)
+    await bumpRevision(tx, trade.id)
+  })
+}
+
+async function putCatalogLine(
+  tx: Tx,
+  trade: Trade,
+  input: CatalogLineInput,
+): Promise<void> {
+  {
     const [existing] = await tx
       .select()
       .from(tradeLines)
@@ -419,14 +506,66 @@ export async function addCatalogLine(
         .insert(tradeLines)
         .values({ tradeId: trade.id, giver: 'counterparty', ...input })
     }
-    await bumpRevision(tx, trade.id)
-  })
+  }
+}
+
+// Aperçu d'une liste collée (decklist ou CSV) avant de l'ajouter : même
+// analyse et même résolution que l'import d'une liste dans un container.
+export interface ImportPreviewLine {
+  raw: string
+  qty: number
+  name: string
+  status: 'resolved' | 'ambiguous' | 'unknown'
+  cardId: string | null
+  finish: Finish
+  condition: Condition
+  language: string
+  candidates: Array<{
+    cardId: string
+    setCode: string
+    collectorNumber: string
+    priceMinor: number | null
+  }>
+}
+
+const IMPORT_LINE_LIMIT = 500
+
+export async function previewImport(
+  userId: string,
+  tradeId: string,
+  text: string,
+): Promise<{ lines: ImportPreviewLine[]; ignored: number }> {
+  const { trade, party } = await loadTradeFor(db, userId, tradeId)
+  if (modeOf(trade) !== 'in_person' || party !== 'initiator')
+    throw new TradeError('forbidden')
+  const parsed = parseList(text)
+  if (parsed.lines.length > IMPORT_LINE_LIMIT) throw new TradeError('invalid')
+  const { lines } = await resolveList(parsed.lines, { currency: trade.currency })
+  return {
+    ignored: parsed.ignored.length,
+    lines: lines.map((line) => ({
+      raw: line.raw,
+      qty: line.qty,
+      name: line.name,
+      status: line.status,
+      cardId: line.cardId,
+      finish: line.finish ?? 'nonfoil',
+      condition: line.condition ?? 'nm',
+      language: line.language ?? 'en',
+      candidates: line.candidates ?? [],
+    })),
+  }
 }
 
 export interface UpdateLinePatch {
   qty?: number
   // `null` efface le prix saisi et revient au prix du marché.
   priceOverrideMinor?: number | null
+  // Seulement pour une carte venue du catalogue : celle d'un holding porte
+  // déjà les siennes.
+  finish?: Finish
+  condition?: Condition
+  language?: string
 }
 
 async function lockLine(tx: Tx, tradeId: string, lineId: string): Promise<TradeLine> {
@@ -454,7 +593,9 @@ export async function updateLine(
   await db.transaction(async (tx) => {
     const { trade, party } = await lockWritable(tx, userId, tradeId)
     const line = await lockLine(tx, trade.id, lineId)
-    const set: Partial<Pick<TradeLine, 'qty' | 'priceOverrideMinor'>> = {}
+    const set: Partial<
+      Pick<TradeLine, 'qty' | 'priceOverrideMinor' | 'finish' | 'condition' | 'language'>
+    > = {}
 
     if (patch.qty !== undefined) {
       if (!canEditSide(trade, party, line.giver)) throw new TradeError('forbidden')
@@ -477,6 +618,17 @@ export async function updateLine(
         throw new TradeError('invalid')
       }
       set.priceOverrideMinor = patch.priceOverrideMinor
+    }
+    if (
+      patch.finish !== undefined ||
+      patch.condition !== undefined ||
+      patch.language !== undefined
+    ) {
+      if (line.holdingId !== null || !canEditSide(trade, party, line.giver))
+        throw new TradeError('forbidden')
+      if (patch.finish !== undefined) set.finish = patch.finish
+      if (patch.condition !== undefined) set.condition = patch.condition
+      if (patch.language !== undefined) set.language = patch.language
     }
     if (Object.keys(set).length === 0) return
 
@@ -522,6 +674,73 @@ export async function setRate(
       )
       .where(eq(trades.id, trade.id))
     await bumpRevision(tx, trade.id)
+  })
+}
+
+// Argent donné par `giver`, saisi par qui saisit ce côté. Change la valeur
+// de l'échange : toute acceptation en cours tombe.
+export async function setCash(
+  userId: string,
+  tradeId: string,
+  giver: TradeParty,
+  amountMinor: number,
+): Promise<void> {
+  if (!Number.isInteger(amountMinor) || amountMinor < 0 || amountMinor > MAX_CASH_MINOR)
+    throw new TradeError('invalid')
+  await db.transaction(async (tx) => {
+    const { trade, party } = await lockWritable(tx, userId, tradeId)
+    if (!canEditSide(trade, party, giver)) throw new TradeError('forbidden')
+    await tx
+      .update(trades)
+      .set(
+        giver === 'initiator'
+          ? { initiatorCashMinor: amountMinor }
+          : { counterpartyCashMinor: amountMinor },
+      )
+      .where(eq(trades.id, trade.id))
+    await bumpRevision(tx, trade.id)
+  })
+}
+
+// Notes d'un côté : n'entrent pas dans la valeur, donc ni révision ni
+// acceptation touchées, et restent modifiables une fois l'échange conclu.
+export async function setNotes(
+  userId: string,
+  tradeId: string,
+  giver: TradeParty,
+  notes: string,
+): Promise<void> {
+  const value = notes.trim()
+  if (value.length > MAX_NOTES_LENGTH) throw new TradeError('invalid')
+  await db.transaction(async (tx) => {
+    const { trade, party } = await loadTradeFor(tx, userId, tradeId, true)
+    if (trade.status === 'cancelled') throw new TradeError('not_open')
+    if (party === 'counterparty' && awaitsJoin(trade)) throw new TradeError('forbidden')
+    if (!canEditSide(trade, party, giver)) throw new TradeError('forbidden')
+    await assertCollectionWrite(userId, collectionOf(trade, party), tx)
+    await tx
+      .update(trades)
+      .set(
+        giver === 'initiator'
+          ? { initiatorNotes: value || null }
+          : { counterpartyNotes: value || null },
+      )
+      .where(eq(trades.id, trade.id))
+    await touch(tx, trade.id)
+  })
+}
+
+// La contrepartie accepte d'ouvrir l'échange après avoir vu l'offre ; elle
+// choisit ensuite ce qu'elle donne. Refuser l'offre, c'est annuler.
+export async function joinTrade(userId: string, tradeId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const { trade, party } = await lockWritable(tx, userId, tradeId, { beforeJoin: true })
+    if (party !== 'counterparty' || !awaitsJoin(trade)) throw new TradeError('forbidden')
+    await tx
+      .update(trades)
+      .set({ counterpartyJoinedAt: new Date() })
+      .where(eq(trades.id, trade.id))
+    await touch(tx, trade.id)
   })
 }
 
@@ -812,7 +1031,8 @@ export async function acceptTrade(
 ): Promise<{ completed: boolean }> {
   return db.transaction(async (tx) => {
     const { trade, party } = await lockWritable(tx, userId, tradeId)
-    if (modeOf(trade) !== 'account') throw new TradeError('forbidden')
+    if (modeOf(trade) !== 'account' || awaitsJoin(trade))
+      throw new TradeError('forbidden')
     if (trade.revision !== revision) throw new TradeError('stale')
 
     await tx
@@ -834,7 +1054,7 @@ export async function acceptTrade(
 
 export async function withdrawAcceptance(userId: string, tradeId: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const { trade, party } = await lockWritable(tx, userId, tradeId)
+    const { trade, party } = await lockWritable(tx, userId, tradeId, { beforeJoin: true })
     await tx
       .update(trades)
       .set(
@@ -990,12 +1210,19 @@ export interface TradeLineView {
   // collection de l'autre ne fuit jamais (ni container, ni quantité possédée).
   sourceName: string | null
   maxQty: number | null
+  // Carte reçue en personne, choisie au catalogue : sa finition et son état
+  // se règlent dans l'échange.
+  fromCatalog: boolean
 }
 
 export interface TradeSideView {
   giver: TradeParty
   ratePct: number
+  // Ajouter, retirer, changer les quantités et l'argent de ce côté.
   canEdit: boolean
+  cashMinor: number
+  notes: string | null
+  canEditNotes: boolean
   lines: TradeLineView[]
 }
 
@@ -1005,6 +1232,7 @@ export interface TradeView {
   mode: TradeMode
   currency: TradeCurrency
   me: TradeParty
+  myName: string
   partnerName: string
   revision: number
   createdAt: string
@@ -1015,6 +1243,9 @@ export interface TradeView {
   destination: { containerId: string | null; name: string | null }
   acceptedByMe: boolean
   acceptedByPartner: boolean
+  // Entre deux comptes : l'offre a-t-elle été acceptée par la contrepartie ?
+  // Toujours vrai en personne.
+  joined: boolean
   // Ma collection permet-elle encore d'écrire ? Faux pour un `viewer`.
   canWrite: boolean
 }
@@ -1038,7 +1269,9 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
     .leftJoin(holdings, eq(holdings.id, tradeLines.holdingId))
     .leftJoin(containers, eq(containers.id, holdings.containerId))
     .where(eq(tradeLines.tradeId, trade.id))
-    .orderBy(asc(tradeLines.addedAt), asc(tradeLines.id))
+    // Les lignes d'un même ajout groupé partagent leur horodatage : le nom
+    // départage, puis l'identifiant.
+    .orderBy(asc(tradeLines.addedAt), asc(cards.name), asc(tradeLines.id))
 
   const prices =
     trade.status === 'completed'
@@ -1076,6 +1309,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
           : row.sourceName
         : null,
       maxQty: mine ? row.holdingQty : null,
+      fromCatalog: mode === 'in_person' && row.line.giver === 'counterparty',
     }
   }
 
@@ -1089,7 +1323,10 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
   } catch (error) {
     if (!(error instanceof TradeError)) throw error
   }
-  const open = trade.status === 'open' && canWrite
+  const joined = !awaitsJoin(trade)
+  const open = trade.status === 'open' && canWrite && (joined || party === 'initiator')
+  const notesWritable =
+    trade.status !== 'cancelled' && canWrite && (joined || party === 'initiator')
 
   const destinationId = destinationOf(trade, party)
   let destinationName: string | null = null
@@ -1109,6 +1346,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
     mode,
     currency: trade.currency,
     me: party,
+    myName: party === 'initiator' ? trade.initiatorName : trade.counterpartyName,
     partnerName: party === 'initiator' ? trade.counterpartyName : trade.initiatorName,
     revision: trade.revision,
     createdAt: trade.createdAt.toISOString(),
@@ -1117,17 +1355,24 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
       giver: party,
       ratePct: rateOf(trade, party),
       canEdit: open && canEditSide(trade, party, party),
+      cashMinor: cashOf(trade, party),
+      notes: notesOf(trade, party),
+      canEditNotes: notesWritable && canEditSide(trade, party, party),
       lines: rows.filter((row) => row.line.giver === party).map(toLine),
     },
     get: {
       giver: other,
       ratePct: rateOf(trade, other),
       canEdit: open && canEditSide(trade, party, other),
+      cashMinor: cashOf(trade, other),
+      notes: notesOf(trade, other),
+      canEditNotes: notesWritable && canEditSide(trade, party, other),
       lines: rows.filter((row) => row.line.giver === other).map(toLine),
     },
     destination: { containerId: destinationId, name: destinationName },
     acceptedByMe: acceptedRevisionOf(trade, party) === trade.revision,
     acceptedByPartner: acceptedRevisionOf(trade, other) === trade.revision,
+    joined,
     canWrite,
   }
 }
@@ -1210,13 +1455,23 @@ export async function listTrades(userId: string): Promise<TradeSummary[]> {
       partnerName: party === 'initiator' ? trade.counterpartyName : trade.initiatorName,
       giveCount: give.reduce((sum, line) => sum + line.qty, 0),
       getCount: get.reduce((sum, line) => sum + line.qty, 0),
-      giveMinor: sideValueMinor(give, rateOf(trade, party)).valueMinor,
-      getMinor: sideValueMinor(get, rateOf(trade, other)).valueMinor,
+      giveMinor: sideTotalMinor({
+        lines: give,
+        ratePct: rateOf(trade, party),
+        cashMinor: cashOf(trade, party),
+      }).valueMinor,
+      getMinor: sideTotalMinor({
+        lines: get,
+        ratePct: rateOf(trade, other),
+        cashMinor: cashOf(trade, other),
+      }).valueMinor,
       awaitingMe:
         trade.status === 'open' &&
         modeOf(trade) === 'account' &&
-        acceptedRevisionOf(trade, party) !== trade.revision &&
-        acceptedRevisionOf(trade, other) === trade.revision,
+        ((party === 'counterparty' && awaitsJoin(trade)) ||
+          (!awaitsJoin(trade) &&
+            acceptedRevisionOf(trade, party) !== trade.revision &&
+            acceptedRevisionOf(trade, other) === trade.revision)),
       updatedAt: trade.updatedAt.toISOString(),
     }
   })
@@ -1234,20 +1489,43 @@ export interface TradeableHolding {
   condition: Condition
   language: string
   qty: number
-  // Déjà dans l'échange : le sélecteur n'en propose que le reste.
+  // Déjà dans l'échange (et sa ligne, pour l'en retirer).
   inTrade: number
+  lineId: string | null
   containerName: string
   thumbUrl: string
   marketPriceMinor: number | null
 }
 
-const HOLDING_SEARCH_LIMIT = 40
+export type BrowseScope = 'all' | 'collection' | 'binders' | 'decks'
 
-export async function searchTradeableHoldings(
+export interface BrowseGroup {
+  containerId: string
+  name: string
+  kind: 'collection' | 'binder' | 'deck'
+  cardCount: number
+  selectedCount: number
+  // Un deck s'affiche pour qu'on le retrouve, mais se défait d'abord.
+  tradeable: boolean
+  // Chargés seulement pour une recherche ou un container ouvert.
+  holdings: TradeableHolding[] | null
+}
+
+const BROWSE_SEARCH_LIMIT = 80
+const BROWSE_CONTAINER_LIMIT = 300
+
+function scopeKinds(scope: BrowseScope): Array<'collection' | 'binder' | 'deck'> {
+  if (scope === 'collection') return ['collection']
+  if (scope === 'binders') return ['binder']
+  if (scope === 'decks') return ['deck']
+  return ['collection', 'binder', 'deck']
+}
+
+export async function browseTradeable(
   userId: string,
   tradeId: string,
-  query: string,
-): Promise<TradeableHolding[]> {
+  options: { query?: string; scope?: BrowseScope; containerId?: string } = {},
+): Promise<BrowseGroup[]> {
   const { trade, party } = await loadTradeFor(db, userId, tradeId)
   const collectionId =
     collectionOf(trade, party) ??
@@ -1260,72 +1538,134 @@ export async function searchTradeableHoldings(
     throw error
   }
 
-  const words = query.trim().split(/\s+/).filter(Boolean)
+  const kinds = scopeKinds(options.scope ?? 'all')
+  const groupRows = await db
+    .select({
+      id: containers.id,
+      name: containers.name,
+      kind: containers.kind,
+      deckState: containers.deckState,
+      sortOrder: containers.sortOrder,
+      cardCount: sql<number>`coalesce(sum(${holdings.qty}), 0)::int`,
+    })
+    .from(containers)
+    .leftJoin(holdings, eq(holdings.containerId, containers.id))
+    .where(
+      and(
+        eq(containers.collectionId, collectionId),
+        inArray(containers.kind, kinds),
+        or(ne(containers.kind, 'deck'), eq(containers.deckState, 'built')),
+      ),
+    )
+    .groupBy(containers.id)
+    .orderBy(asc(containers.sortOrder), asc(containers.name))
+
+  const mine = await db
+    .select({
+      lineId: tradeLines.id,
+      holdingId: tradeLines.holdingId,
+      qty: tradeLines.qty,
+      containerId: holdings.containerId,
+    })
+    .from(tradeLines)
+    .innerJoin(holdings, eq(holdings.id, tradeLines.holdingId))
+    .where(and(eq(tradeLines.tradeId, trade.id), eq(tradeLines.giver, party)))
+  const selectedByContainer = new Map<string, number>()
+  const lineByHolding = new Map<string, { lineId: string; qty: number }>()
+  for (const line of mine) {
+    selectedByContainer.set(
+      line.containerId,
+      (selectedByContainer.get(line.containerId) ?? 0) + line.qty,
+    )
+    if (line.holdingId)
+      lineByHolding.set(line.holdingId, { lineId: line.lineId, qty: line.qty })
+  }
+
+  // La racine en tête, puis binders et decks dans leur ordre.
+  const rank = { collection: 0, binder: 1, deck: 2 } as const
+  const groups: BrowseGroup[] = groupRows
+    .map((row) => ({
+      containerId: row.id,
+      name: row.kind === 'collection' ? ROOT_LABEL : row.name,
+      kind: row.kind as BrowseGroup['kind'],
+      cardCount: Number(row.cardCount),
+      selectedCount: selectedByContainer.get(row.id) ?? 0,
+      tradeable: (TRADEABLE_KINDS as readonly string[]).includes(row.kind),
+      holdings: null as TradeableHolding[] | null,
+    }))
+    .sort((a, b) => rank[a.kind] - rank[b.kind])
+
+  const words = (options.query ?? '').trim().split(/\s+/).filter(Boolean)
+  const tradeableIds = groups
+    .filter((group) => group.tradeable)
+    .map((group) => group.containerId)
+  const targetIds = options.containerId
+    ? tradeableIds.filter((id) => id === options.containerId)
+    : words.length > 0
+      ? tradeableIds
+      : []
+  if (targetIds.length === 0) return words.length > 0 ? [] : groups
+
   const rows = await db
     .select({
       holding: holdings,
       name: cards.name,
       setCode: cards.setCode,
       collectorNumber: cards.collectorNumber,
-      containerName: containers.name,
-      containerKind: containers.kind,
     })
     .from(holdings)
-    .innerJoin(containers, eq(containers.id, holdings.containerId))
     .innerJoin(cards, eq(cards.id, holdings.cardId))
     .where(
       and(
-        eq(containers.collectionId, collectionId),
-        inArray(containers.kind, [...TRADEABLE_KINDS]),
+        inArray(holdings.containerId, targetIds),
         ...words.map((word) => ilike(cards.name, `%${escapeLike(word)}%`)),
       ),
     )
     .orderBy(asc(cards.name), asc(cards.setCode), asc(holdings.id))
-    .limit(HOLDING_SEARCH_LIMIT)
-
-  const inTrade = new Map<string, number>()
-  if (rows.length > 0) {
-    const existing = await db
-      .select({ holdingId: tradeLines.holdingId, qty: tradeLines.qty })
-      .from(tradeLines)
-      .where(
-        and(
-          eq(tradeLines.tradeId, trade.id),
-          inArray(
-            tradeLines.holdingId,
-            rows.map((row) => row.holding.id),
-          ),
-        ),
-      )
-    for (const line of existing) {
-      if (line.holdingId)
-        inTrade.set(line.holdingId, (inTrade.get(line.holdingId) ?? 0) + line.qty)
-    }
-  }
+    .limit(options.containerId ? BROWSE_CONTAINER_LIMIT : BROWSE_SEARCH_LIMIT)
   const prices = await latestPricesOf(
     db,
     rows.map((row) => row.holding.cardId),
   )
 
-  return rows.map((row) => ({
-    holdingId: row.holding.id,
-    cardId: row.holding.cardId,
-    name: row.name,
-    setCode: row.setCode,
-    collectorNumber: row.collectorNumber,
-    finish: row.holding.finish,
-    condition: row.holding.condition,
-    language: row.holding.language,
-    qty: row.holding.qty,
-    inTrade: inTrade.get(row.holding.id) ?? 0,
-    containerName: row.containerKind === 'collection' ? ROOT_LABEL : row.containerName,
-    thumbUrl: thumbUrl(row.holding.cardId, 'small'),
-    marketPriceMinor: marketPriceMinor(
-      prices.get(row.holding.cardId) ?? null,
-      row.holding.finish,
-      trade.currency,
-    ),
-  }))
+  const byContainer = new Map<string, TradeableHolding[]>()
+  for (const row of rows) {
+    const group = groups.find((entry) => entry.containerId === row.holding.containerId)!
+    const line = lineByHolding.get(row.holding.id)
+    const item: TradeableHolding = {
+      holdingId: row.holding.id,
+      cardId: row.holding.cardId,
+      name: row.name,
+      setCode: row.setCode,
+      collectorNumber: row.collectorNumber,
+      finish: row.holding.finish,
+      condition: row.holding.condition,
+      language: row.holding.language,
+      qty: row.holding.qty,
+      inTrade: line?.qty ?? 0,
+      lineId: line?.lineId ?? null,
+      containerName: group.name,
+      thumbUrl: thumbUrl(row.holding.cardId, 'small'),
+      marketPriceMinor: marketPriceMinor(
+        prices.get(row.holding.cardId) ?? null,
+        row.holding.finish,
+        trade.currency,
+      ),
+    }
+    const list = byContainer.get(row.holding.containerId)
+    if (list) list.push(item)
+    else byContainer.set(row.holding.containerId, [item])
+  }
+
+  // Une recherche ne garde que les containers où elle trouve quelque chose.
+  return groups
+    .map((group) => ({
+      ...group,
+      holdings:
+        byContainer.get(group.containerId) ??
+        (targetIds.includes(group.containerId) ? [] : null),
+    }))
+    .filter((group) => words.length === 0 || (group.holdings?.length ?? 0) > 0)
 }
 
 export interface TradeDestination {

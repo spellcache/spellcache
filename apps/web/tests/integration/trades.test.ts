@@ -355,15 +355,223 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
         'unavailable',
       )
 
-      const found = await trades.searchTradeableHoldings(me.userId, tradeId, 'bolt')
+      const found = await trades.browseTradeable(me.userId, tradeId, { query: 'bolt' })
       expect(found).toEqual([
         expect.objectContaining({
-          holdingId,
-          qty: 2,
-          inTrade: 2,
-          containerName: 'Collection',
+          name: 'Collection',
+          kind: 'collection',
+          selectedCount: 2,
+          holdings: [
+            expect.objectContaining({
+              holdingId,
+              qty: 2,
+              inTrade: 2,
+              lineId: expect.any(String),
+            }),
+          ],
         }),
       ])
+    })
+
+    it('browses containers, puts a whole binder in, and leaves built decks out', async () => {
+      const me = await createAccount('alice')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      const sol = await insertCard('Sol Ring', { eur: 3 })
+      const binder = await createBinder(me.collectionId, 'Trade binder')
+      await addHolding(
+        me.userId,
+        {
+          containerId: binder,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        3,
+      )
+      await addHolding(
+        me.userId,
+        {
+          containerId: binder,
+          cardId: sol,
+          finish: 'foil',
+          condition: 'lp',
+          language: 'en',
+        },
+        1,
+      )
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO containers (collection_id, kind, name, deck_state) VALUES ($1, 'deck', 'Burn', 'built') RETURNING id`,
+        [me.collectionId],
+      )
+      await pool.query(
+        `INSERT INTO holdings (container_id, card_id, qty) VALUES ($1, $2, 4)`,
+        [rows[0]!.id, bolt],
+      )
+
+      const { tradeId } = await trades.createTrade(me.userId, {})
+      const groups = await trades.browseTradeable(me.userId, tradeId)
+      expect(
+        groups.map((group) => [group.name, group.kind, group.cardCount, group.tradeable]),
+      ).toEqual([
+        ['Collection', 'collection', 0, true],
+        ['Trade binder', 'binder', 4, true],
+        ['Burn', 'deck', 4, false],
+      ])
+      expect(groups.every((group) => group.holdings === null)).toBe(true)
+
+      const opened = await trades.browseTradeable(me.userId, tradeId, {
+        containerId: binder,
+      })
+      expect(opened.find((group) => group.containerId === binder)?.holdings).toHaveLength(
+        2,
+      )
+      const deck = await trades.browseTradeable(me.userId, tradeId, {
+        containerId: rows[0]!.id,
+      })
+      expect(deck.find((group) => group.kind === 'deck')?.holdings).toBeNull()
+      await expectTradeError(
+        trades.addContainerLines(me.userId, tradeId, rows[0]!.id),
+        'unavailable',
+      )
+
+      expect(await trades.addContainerLines(me.userId, tradeId, binder)).toEqual({
+        added: 4,
+      })
+      // Une seconde fois : rien ne double, chaque holding reste à sa quantité.
+      await trades.addContainerLines(me.userId, tradeId, binder)
+      const view = await trades.getTradeView(me.userId, tradeId)
+      expect(view.give.lines.map((line) => line.qty).sort()).toEqual([1, 3])
+      const scoped = await trades.browseTradeable(me.userId, tradeId, {
+        scope: 'binders',
+      })
+      expect(scoped).toEqual([
+        expect.objectContaining({ name: 'Trade binder', selectedCount: 4 }),
+      ])
+    })
+
+    it('imports a pasted list, then fixes finish and condition of a received card', async () => {
+      const me = await createAccount('alice')
+      const sol = await insertCard('Sol Ring', { eur: 3, eurFoil: 9 })
+      await insertCard('Brainstorm', { eur: 1 })
+      const { tradeId } = await trades.createTrade(me.userId, {})
+
+      const preview = await trades.previewImport(
+        me.userId,
+        tradeId,
+        '2 Sol Ring\n1 Brainstorm\n1 Nonexistent Card\nnot a card line',
+      )
+      expect(preview.ignored).toBe(1)
+      expect(preview.lines.map((line) => [line.name, line.status])).toEqual([
+        ['Sol Ring', 'resolved'],
+        ['Brainstorm', 'resolved'],
+        ['Nonexistent Card', 'unknown'],
+      ])
+
+      await trades.addCatalogLines(
+        me.userId,
+        tradeId,
+        preview.lines
+          .filter((line) => line.cardId)
+          .map((line) => ({
+            cardId: line.cardId!,
+            finish: line.finish,
+            condition: line.condition,
+            language: line.language,
+            qty: line.qty,
+          })),
+      )
+      const view = await trades.getTradeView(me.userId, tradeId)
+      expect(view.get.lines.map((line) => [line.name, line.qty])).toEqual([
+        ['Brainstorm', 1],
+        ['Sol Ring', 2],
+      ])
+      const solLine = view.get.lines.find((line) => line.cardId === sol)!
+      expect(solLine.fromCatalog).toBe(true)
+
+      await trades.updateLine(me.userId, tradeId, solLine.id, {
+        finish: 'foil',
+        condition: 'lp',
+      })
+      const updated = (await trades.getTradeView(me.userId, tradeId)).get.lines.find(
+        (line) => line.id === solLine.id,
+      )!
+      expect(updated).toMatchObject({
+        finish: 'foil',
+        condition: 'lp',
+        marketPriceMinor: 900,
+      })
+
+      // Une carte d'un holding garde la finition de son holding.
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      const { holdingId } = await addHolding(
+        me.userId,
+        {
+          containerId: me.rootId,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        1,
+      )
+      await trades.addHoldingLine(me.userId, tradeId, holdingId, 1)
+      const mine = (await trades.getTradeView(me.userId, tradeId)).give.lines[0]!
+      await expectTradeError(
+        trades.updateLine(me.userId, tradeId, mine.id, { finish: 'foil' }),
+        'forbidden',
+      )
+    })
+
+    it('counts cash at face value and keeps notes editable after completion', async () => {
+      const me = await createAccount('alice')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      const { holdingId } = await addHolding(
+        me.userId,
+        {
+          containerId: me.rootId,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        2,
+      )
+      const { tradeId } = await trades.createTrade(me.userId, { counterpartyName: 'Sam' })
+      await trades.addHoldingLine(me.userId, tradeId, holdingId, 2)
+      await trades.setCash(me.userId, tradeId, 'counterparty', 500)
+      await trades.setRate(me.userId, tradeId, 'counterparty', 50)
+      await trades.setNotes(
+        me.userId,
+        tradeId,
+        'counterparty',
+        '  Sam brings the rest on Friday.  ',
+      )
+      await expectTradeError(
+        trades.setCash(me.userId, tradeId, 'initiator', -1),
+        'invalid',
+      )
+
+      const view = await trades.getTradeView(me.userId, tradeId)
+      expect(view.get).toMatchObject({
+        cashMinor: 500,
+        notes: 'Sam brings the rest on Friday.',
+        canEditNotes: true,
+      })
+      const [summary] = await trades.listTrades(me.userId)
+      expect(summary).toMatchObject({ giveMinor: 400, getMinor: 500 })
+
+      await trades.completeInPerson(me.userId, tradeId, view.revision)
+      await trades.setNotes(me.userId, tradeId, 'initiator', 'Done at the LGS.')
+      const done = await trades.getTradeView(me.userId, tradeId)
+      expect(done).toMatchObject({
+        status: 'completed',
+        give: { notes: 'Done at the LGS.' },
+      })
+      await expectTradeError(
+        trades.setCash(me.userId, tradeId, 'initiator', 100),
+        'not_open',
+      )
     })
 
     it('values each side with its rate and price overrides', async () => {
@@ -443,6 +651,22 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
       })
       await trades.addHoldingLine(alice.userId, tradeId, aliceBolt.holdingId, 2)
 
+      // Avant d'avoir accepté l'offre, Bob ne fait que la voir.
+      const offer = await trades.getTradeView(bob.userId, tradeId)
+      expect(offer).toMatchObject({ joined: false, give: { canEdit: false } })
+      expect((await trades.listTrades(bob.userId))[0]!.awaitingMe).toBe(true)
+      await expectTradeError(
+        trades.addHoldingLine(bob.userId, tradeId, bobSol.holdingId, 1),
+        'forbidden',
+      )
+      await expectTradeError(
+        trades.acceptTrade(alice.userId, tradeId, offer.revision),
+        'forbidden',
+      )
+      await expectTradeError(trades.joinTrade(alice.userId, tradeId), 'forbidden')
+      await trades.joinTrade(bob.userId, tradeId)
+      await expectTradeError(trades.joinTrade(bob.userId, tradeId), 'forbidden')
+
       // Bob ne peut pas puiser dans la collection d'Alice, ni toucher ses lignes.
       await expectTradeError(
         trades.addHoldingLine(bob.userId, tradeId, aliceBolt.holdingId, 1),
@@ -460,6 +684,22 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
 
       await trades.addHoldingLine(bob.userId, tradeId, bobSol.holdingId, 1)
       await trades.setDestination(bob.userId, tradeId, bobBinder)
+      // Chacun ne paie et n'annote que son côté.
+      await trades.setCash(bob.userId, tradeId, 'counterparty', 100)
+      await expectTradeError(
+        trades.setCash(bob.userId, tradeId, 'initiator', 100),
+        'forbidden',
+      )
+      await trades.setNotes(bob.userId, tradeId, 'counterparty', 'Cash by transfer.')
+      await expectTradeError(
+        trades.setNotes(bob.userId, tradeId, 'initiator', 'Nope'),
+        'forbidden',
+      )
+      expect((await trades.getTradeView(alice.userId, tradeId)).get).toMatchObject({
+        cashMinor: 100,
+        notes: 'Cash by transfer.',
+        canEditNotes: false,
+      })
 
       // Bob voit les lignes d'Alice, jamais sa collection.
       const bobView = await trades.getTradeView(bob.userId, tradeId)

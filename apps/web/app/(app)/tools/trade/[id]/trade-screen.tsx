@@ -1,192 +1,392 @@
 'use client'
 
-// Écran d'un échange : bandeau de balance, ce que je donne, ce que je reçois,
-// destination des cartes reçues, puis la conclusion.
+// Écran d'un échange. Selon l'avancement, il montre :
+// - une étape du parcours (`?step=cards|theirs|extras`) ;
+// - entre deux comptes, avant que la contrepartie ait accepté l'offre :
+//   l'attente côté initiateur, l'offre reçue côté contrepartie ;
+// - sinon le résumé : la balance, les deux côtés en liste compacte (détails
+//   dans une feuille), la destination des cartes reçues et la conclusion.
 //
-// Entre deux comptes, l'écran se relit toutes les 5 secondes tant que
-// l'échange est ouvert : l'autre partie modifie ses lignes ou accepte de son
-// côté. Une acceptation porte sur la révision affichée — si l'autre a changé
-// quelque chose entre-temps, le serveur refuse (`stale`) et l'écran se relit.
-//
-// Les contrôles d'édition partagés (`QtyStepper`, `AddCardSheet`) lisent le
-// droit d'écriture du contexte : il est reposé ici pour la collection de
-// l'échange, qui n'est pas forcément la collection active.
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, FolderInput, Plus } from 'lucide-react'
+// Une acceptation porte sur la révision affichée à l'ouverture de la
+// confirmation — si l'autre partie a changé quelque chose entre-temps, le
+// serveur refuse (`stale`) et l'écran se relit.
+import { ArrowLeftRight, Check, Clock, FolderInput, Share2 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import {
   acceptTradeAction,
-  addCatalogLineAction,
   cancelTradeAction,
   completeInPersonAction,
-  getTradeAction,
+  joinTradeAction,
   listTradeDestinationsAction,
   removeLineAction,
+  setCashAction,
   setDestinationAction,
+  setNotesAction,
   setRateAction,
   undoInPersonAction,
   updateLineAction,
   withdrawAcceptanceAction,
-  type TradeActionError,
   type TradeActionResult,
 } from '@/app/(app)/tools/trade/actions'
-import { AddCardSheet, type CardPick } from '@/app/(app)/container/[id]/add-card-sheet'
 import { SettingRow } from '@/components/settings/setting-row'
 import { SettingsGroup } from '@/components/settings/settings-group'
-import { HoldingPickerSheet } from '@/components/trades/holding-picker-sheet'
+import { CardsStep } from '@/components/trades/cards-step'
+import { CompactCardList } from '@/components/trades/compact-card-list'
+import { DetailsSheet } from '@/components/trades/details-sheet'
+import { ExportSheet } from '@/components/trades/export-sheet'
+import { ExtrasStep, type ExtrasDraft } from '@/components/trades/extras-step'
 import { PriceSheet } from '@/components/trades/price-sheet'
-import { RateChips } from '@/components/trades/rate-chips'
-import { TradeLineRow } from '@/components/trades/trade-line-row'
+import { SideZone } from '@/components/trades/side-zone'
+import { StepFooter } from '@/components/trades/step-footer'
+import { TheirCardsStep } from '@/components/trades/their-cards-step'
+import { stepsFor, useTrade, type RunAction, type TradeStep } from '@/components/trades/use-trade'
+import { WizardHeader } from '@/components/trades/wizard-header'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { NameSheet } from '@/components/ui/name-sheet'
 import { PickerSheet } from '@/components/ui/picker-sheet'
 import { Screen } from '@/components/ui/screen'
 import { ScreenHeader } from '@/components/ui/screen-header'
-import {
-  PrimaryButton,
-  SecondaryButton,
-  SectionLabel,
-} from '@/components/ui/sheet-controls'
+import { PrimaryButton, SecondaryButton, SectionLabel } from '@/components/ui/sheet-controls'
 import { UndoToast } from '@/components/ui/undo-toast'
 import { CollectionAccessProvider } from '@/lib/collections/access-context'
 import { formatMoney } from '@/lib/format/money'
-import { clampRate, RATE_MAX_PCT, RATE_MIN_PCT, tradeBalance } from '@/lib/trades/pricing'
-import type {
-  TradeDestination,
-  TradeLineView,
-  TradeSideView,
-  TradeView,
-} from '@/lib/trades/trades'
+import {
+  clampRate,
+  RATE_MAX_PCT,
+  RATE_MIN_PCT,
+  sideTotalMinor,
+  tradeBalance,
+} from '@/lib/trades/pricing'
+import type { TradeParty } from '@spellcache/db/schema'
+import type { TradeDestination, TradeLineView, TradeView } from '@/lib/trades/trades'
 
-const POLL_MS = 5_000
+type Confirm = { kind: 'complete' | 'accept' | 'cancel' | 'decline'; revision: number } | null
 
-const ERROR_MESSAGE: Record<TradeActionError, string> = {
-  stale: 'The trade changed in the meantime. Review it again before confirming.',
-  unavailable: 'Some cards are no longer available in that quantity.',
-  not_open: 'This trade is closed.',
-  forbidden: 'You cannot change this trade.',
-  empty: 'Add at least one card first.',
-  not_found: 'This trade no longer exists.',
-  expired: 'Too late to undo. The trade stays applied.',
-  invalid: 'Something went wrong. Please try again.',
+function cardCount(lines: TradeLineView[]): number {
+  return lines.reduce((sum, line) => sum + line.qty, 0)
 }
 
-// La révision est figée à l'ouverture de la confirmation : l'acceptation
-// porte sur ce que l'écran montrait, pas sur une relecture arrivée pendant
-// que la feuille était ouverte.
-type Confirm = { kind: 'complete' | 'accept' | 'cancel'; revision: number } | null
-
-function tradeKey(id: string) {
-  return ['trade', id] as const
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
 }
 
-export function TradeScreen({ initial }: { initial: TradeView }) {
-  const queryClient = useQueryClient()
-  const key = tradeKey(initial.id)
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+function day(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export function TradeScreen({ initial, step }: { initial: TradeView; step: TradeStep | null }) {
+  const router = useRouter()
   const [confirm, setConfirm] = useState<Confirm>(null)
-  const { data: trade } = useQuery({
-    queryKey: key,
-    queryFn: async () => {
-      const result = await getTradeAction({ tradeId: initial.id })
-      if (!result.ok) throw new Error(result.error)
-      return result.trade
-    },
-    initialData: initial,
-    refetchInterval: (query) =>
-      confirm === null &&
-      query.state.data?.mode === 'account' &&
-      query.state.data.status === 'open'
-        ? POLL_MS
-        : false,
+  const { trade, mutate, optimistic, pending, error, setError } = useTrade(initial, {
+    paused: confirm !== null,
   })
-  const [pickingHoldings, setPickingHoldings] = useState(false)
-  const [pickingCatalog, setPickingCatalog] = useState(false)
+
+  const [details, setDetails] = useState<'give' | 'get' | null>(null)
   const [pricing, setPricing] = useState<TradeLineView | null>(null)
-  const [customRate, setCustomRate] = useState<TradeSideView | null>(null)
+  const [customRate, setCustomRate] = useState<TradeParty | null>(null)
   const [destinations, setDestinations] = useState<TradeDestination[] | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [undoToken, setUndoToken] = useState<string | null>(null)
+  const [extras, setExtras] = useState<ExtrasDraft | null | undefined>(undefined)
 
+  const base = `/tools/trade/${trade.id}`
+  const partner = trade.partnerName
   const open = trade.status === 'open'
-  const editable = open && trade.canWrite
-  const balance = tradeBalance(trade.give, trade.get)
+  const editable = open && trade.canWrite && trade.joined
+  const live = trade.mode === 'account'
 
-  function refresh() {
-    return queryClient.invalidateQueries({ queryKey: key })
-  }
-
-  // Toute écriture : une seule à la fois, message d'erreur lisible, relecture
-  // de l'échange dans tous les cas (succès comme refus).
-  async function mutate<T extends object>(
-    action: () => Promise<TradeActionResult<T>>,
-  ): Promise<TradeActionResult<T> | null> {
-    setPending(true)
-    setError(null)
-    try {
-      const result = await action()
-      if (!result.ok) setError(ERROR_MESSAGE[result.error])
-      return result
-    } catch {
-      setError(ERROR_MESSAGE.invalid)
-      return null
-    } finally {
-      setPending(false)
-      await refresh()
-    }
-  }
-
-  // Quantité optimiste, annulée si le serveur refuse.
-  async function handleQty(line: TradeLineView, qty: number) {
-    await queryClient.cancelQueries({ queryKey: key })
-    const previous = queryClient.getQueryData<TradeView>(key)
-    queryClient.setQueryData<TradeView>(
-      key,
-      (current) =>
-        current && {
-          ...current,
-          give: {
-            ...current.give,
-            lines: current.give.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)),
-          },
-          get: {
-            ...current.get,
-            lines: current.get.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)),
-          },
-        },
-    )
-    const result = await updateLineAction({
-      tradeId: trade.id,
-      lineId: line.id,
-      qty,
-    }).catch(() => null)
-    if (!result?.ok) {
-      queryClient.setQueryData(key, previous)
-      setError(ERROR_MESSAGE[result && !result.ok ? result.error : 'invalid'])
-    }
-    await refresh()
-  }
-
-  async function handlePick(pick: CardPick): Promise<boolean> {
-    const result = await mutate(() =>
-      addCatalogLineAction({ tradeId: trade.id, ...pick }),
-    )
+  const run: RunAction = async (action) => {
+    const result = await mutate(action)
     return Boolean(result?.ok)
   }
 
-  async function openDestinations() {
-    const result = await listTradeDestinationsAction({ tradeId: trade.id })
-    setDestinations(result.ok ? result.destinations : [])
+  function lineQty(line: TradeLineView, qty: number) {
+    void optimistic(
+      (current) => ({
+        ...current,
+        give: { ...current.give, lines: current.give.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)) },
+        get: { ...current.get, lines: current.get.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)) },
+      }),
+      () => updateLineAction({ tradeId: trade.id, lineId: line.id, qty }),
+    )
   }
+
+  // --- Étapes --------------------------------------------------------------
+
+  const steps = stepsFor(trade)
+  const canFill = open && trade.canWrite && (trade.joined || trade.me === 'initiator')
+  // L'argent et les notes restent accessibles à l'initiateur d'un échange
+  // entre comptes, depuis le résumé, même si son parcours s'arrête à l'offre.
+  const reachable = steps.includes(step ?? 'who') || step === 'extras'
+  if (step && step !== 'who' && reachable && canFill) {
+    const index = steps.includes(step) ? steps.indexOf(step) : steps.length - 1
+    const previous =
+      index > 0 && steps[index - 1] !== 'who' ? `${base}?step=${steps[index - 1]}` : undefined
+    const giveTotal = sideTotalMinor(trade.give).valueMinor
+    const getTotal = sideTotalMinor(trade.get).valueMinor
+
+    async function saveExtras() {
+      const draft = extras
+      if (draft) {
+        const writes: Array<() => Promise<TradeActionResult<object>>> = []
+        if (draft.giveCashMinor !== trade.give.cashMinor)
+          writes.push(() =>
+            setCashAction({ tradeId: trade.id, giver: trade.give.giver, amountMinor: draft.giveCashMinor }),
+          )
+        if (trade.mode === 'in_person' && draft.getCashMinor !== trade.get.cashMinor)
+          writes.push(() =>
+            setCashAction({ tradeId: trade.id, giver: trade.get.giver, amountMinor: draft.getCashMinor }),
+          )
+        if (draft.notes.trim() !== (trade.give.notes ?? ''))
+          writes.push(() => setNotesAction({ tradeId: trade.id, giver: trade.give.giver, notes: draft.notes }))
+        for (const write of writes) if (!(await run(write))) return
+      }
+      router.push(base)
+    }
+
+    let body: React.ReactNode
+    let footer: React.ReactNode
+    let title: string
+    if (step === 'cards') {
+      title = 'What do you give?'
+      body = <CardsStep trade={trade} pending={pending} run={run} onChanged={() => setError(null)} />
+      const offer = live && trade.me === 'initiator'
+      footer = (
+        <StepFooter
+          title={plural(cardCount(trade.give.lines), 'card')}
+          subtitle={formatMoney(giveTotal, trade.currency)}
+          nextLabel={offer ? 'Send offer' : 'Next'}
+          nextHref={offer ? base : `${base}?step=${steps[index + 1] ?? ''}`}
+          disabled={offer && trade.give.lines.length === 0 && trade.give.cashMinor === 0}
+        />
+      )
+    } else if (step === 'theirs') {
+      title = `What does ${partner} give?`
+      body = <TheirCardsStep trade={trade} pending={pending} run={run} />
+      footer = (
+        <StepFooter
+          title={plural(cardCount(trade.get.lines), 'card')}
+          subtitle={formatMoney(getTotal, trade.currency)}
+          nextLabel="Next"
+          nextHref={`${base}?step=extras`}
+        />
+      )
+    } else {
+      title = 'Cash & notes'
+      body = <ExtrasStep trade={trade} onChange={setExtras} />
+      footer = (
+        <StepFooter
+          title={`You give ${formatMoney(giveTotal, trade.currency)}`}
+          subtitle={`You get ${formatMoney(getTotal, trade.currency)}`}
+          nextLabel="Review the trade"
+          disabled={pending || extras === null}
+          onNext={() => void saveExtras()}
+        />
+      )
+    }
+
+    return (
+      <Screen
+        header={
+          <WizardHeader
+            step={index + 1}
+            total={steps.length}
+            title={title}
+            label={trade.me === 'counterparty' ? `Trade with ${partner}` : 'New trade'}
+            backHref={previous}
+            closeHref={base}
+            action={
+              step === 'extras' ? (
+                <Link href={base} className="text-body font-bold text-text-2">
+                  Skip
+                </Link>
+              ) : undefined
+            }
+          />
+        }
+      >
+        {/* Le pied reste en bas de l'écran même quand l'étape est courte. */}
+        <div className="flex min-h-full w-full min-w-0 flex-col">
+          {body}
+          {error && (
+            <p role="alert" className="mt-14 text-meta text-danger">
+              {error}
+            </p>
+          )}
+          <div className="mt-auto">{footer}</div>
+        </div>
+      </Screen>
+    )
+  }
+
+  // --- Entre deux comptes, avant l'acceptation de l'offre --------------------
+
+  if (live && !trade.joined && open) {
+    const mine = trade.me === 'initiator'
+    const offer = mine ? trade.give : trade.get
+    const offerTotal = sideTotalMinor(offer).valueMinor
+
+    return (
+      <Screen
+        header={
+          <ScreenHeader
+            title={mine ? partner : `${partner} wants to trade`}
+            breadcrumb={mine ? 'Trading · Live' : 'Trade offer'}
+            backHref="/tools/trade"
+          />
+        }
+      >
+        {mine ? (
+          <div className="mb-18 rounded-card border border-border bg-surface-1 p-18" data-testid="trade-waiting">
+            <div className="flex items-center gap-12">
+              <span className="flex h-touch-target w-touch-target flex-shrink-0 items-center justify-center rounded-control bg-accent-bg text-accent-text">
+                <Clock width={20} height={20} strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="text-row-label font-bold text-text">Waiting for {partner}</div>
+                <div className="mt-2 text-meta text-text-2">
+                  {partner} sees your offer and picks what to give.
+                </div>
+              </div>
+            </div>
+            <ol className="m-0 mt-16 flex list-none flex-col gap-10 p-0 text-body text-text">
+              <li className="flex items-center gap-10">
+                <span className="flex h-selection-circle w-selection-circle items-center justify-center rounded-full bg-accent text-on-accent">
+                  <Check width={12} height={12} strokeWidth={3} />
+                </span>
+                Offer sent
+              </li>
+              <li className="flex items-center gap-10 font-bold">
+                <span className="h-selection-circle w-selection-circle rounded-full border-2 border-accent" />
+                {partner} accepts to start
+              </li>
+              <li className="flex items-center gap-10 text-text-2">
+                <span className="h-selection-circle w-selection-circle rounded-full border-2 border-text-3" />
+                {partner} picks cards or cash
+              </li>
+              <li className="flex items-center gap-10 text-text-2">
+                <span className="h-selection-circle w-selection-circle rounded-full border-2 border-text-3" />
+                You both review and accept
+              </li>
+            </ol>
+          </div>
+        ) : (
+          <div className="mb-18 rounded-card bg-gradient-value-band p-18">
+            <div className="text-meta font-semibold uppercase tracking-value-label text-value-band-label">
+              {partner} offers
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-value-total font-extrabold tracking-value-amount text-on-accent">
+                {formatMoney(offerTotal, trade.currency)}
+              </span>
+              <span className="text-body font-semibold text-value-band-caption">
+                {plural(cardCount(offer.lines), 'card')}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <SectionLabel>{mine ? 'Your offer' : 'The offer'}</SectionLabel>
+        <CompactCardList
+          lines={offer.lines}
+          currency={trade.currency}
+          cash={{
+            amountMinor: offer.cashMinor,
+            label: mine ? `Cash, you pay ${partner}` : `Cash, ${partner} pays you`,
+          }}
+        />
+        {mine && (
+          <Link href={`${base}?step=cards`} className="mt-10 ml-2 inline-block text-body font-bold text-accent-text">
+            Edit my offer
+          </Link>
+        )}
+        {offer.notes && (
+          <p className="mt-14 rounded-control border border-border bg-surface-1 px-14 py-12 text-body leading-normal text-text-2">
+            <b className="text-text">{mine ? 'Your note' : `${partner}'s note`}:</b> {offer.notes}
+          </p>
+        )}
+
+        {error && (
+          <p role="alert" className="mt-14 text-meta text-danger">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-24 flex flex-col gap-10">
+          {mine ? (
+            <SecondaryButton
+              onClick={() => setConfirm({ kind: 'cancel', revision: trade.revision })}
+              disabled={pending}
+            >
+              Cancel offer
+            </SecondaryButton>
+          ) : (
+            <>
+              <p className="text-center text-meta text-text-3">
+                Accepting opens the next step: pick what you give back.
+              </p>
+              <div className="grid grid-cols-3 gap-8">
+                <SecondaryButton
+                  onClick={() => setConfirm({ kind: 'decline', revision: trade.revision })}
+                  disabled={pending}
+                >
+                  Decline
+                </SecondaryButton>
+                <div className="col-span-2">
+                  <PrimaryButton
+                    disabled={pending || !trade.canWrite}
+                    onClick={() =>
+                      void run(() => joinTradeAction({ tradeId: trade.id })).then(
+                        (ok) => ok && router.push(`${base}?step=cards`),
+                      )
+                    }
+                  >
+                    Accept and pick
+                  </PrimaryButton>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <ConfirmDialog
+          open={confirm !== null}
+          title={confirm?.kind === 'decline' ? 'Decline this offer?' : 'Cancel this offer?'}
+          message="It stays in both histories. Nothing changes in any collection."
+          confirmLabel={confirm?.kind === 'decline' ? 'Decline' : 'Cancel offer'}
+          cancelLabel="Back"
+          pending={pending}
+          onConfirm={() =>
+            void mutate(() => cancelTradeAction({ tradeId: trade.id })).then(() => setConfirm(null))
+          }
+          onClose={() => setConfirm(null)}
+        />
+      </Screen>
+    )
+  }
+
+  // --- Résumé ---------------------------------------------------------------
+
+  const balance = tradeBalance(trade.give, trade.get)
+  const giveCount = cardCount(trade.give.lines)
+  const getCount = cardCount(trade.get.lines)
+  const canRate = editable && (live || trade.me === 'initiator')
+  const detailsSide = details === 'give' ? trade.give : details === 'get' ? trade.get : null
+  const status =
+    trade.status === 'completed'
+      ? `Completed ${day(trade.completedAt!)}`
+      : trade.status === 'cancelled'
+        ? 'Cancelled'
+        : null
 
   async function handleConfirm() {
     if (!confirm) return
     const { kind, revision } = confirm
     if (kind === 'complete') {
-      const result = await mutate(() =>
-        completeInPersonAction({ tradeId: trade.id, revision }),
-      )
+      const result = await mutate(() => completeInPersonAction({ tradeId: trade.id, revision }))
       if (result?.ok) setUndoToken(result.undoToken)
     } else if (kind === 'accept') {
       await mutate(() => acceptTradeAction({ tradeId: trade.id, revision }))
@@ -196,85 +396,9 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
     setConfirm(null)
   }
 
-  function side(view: TradeSideView, title: string) {
-    const editQty = editable && view.canEdit
-    return (
-      <section className="mb-22">
-        <SectionLabel>{title}</SectionLabel>
-        <div className="flex flex-col gap-8">
-          {view.lines.length === 0 && (
-            <p className="rounded-row border border-border bg-surface-1 px-12 py-14 text-meta text-text-2">
-              No cards yet.
-            </p>
-          )}
-          {view.lines.map((line) => (
-            <TradeLineRow
-              key={line.id}
-              line={line}
-              currency={trade.currency}
-              editQty={editQty}
-              editPrice={editable}
-              onQtyChange={(qty) => void handleQty(line, qty)}
-              onRemove={() =>
-                void mutate(() =>
-                  removeLineAction({ tradeId: trade.id, lineId: line.id }),
-                )
-              }
-              onPrice={() => setPricing(line)}
-              disabled={pending}
-            />
-          ))}
-          {editQty && (
-            <SecondaryButton
-              onClick={() =>
-                view.giver === trade.me
-                  ? setPickingHoldings(true)
-                  : setPickingCatalog(true)
-              }
-              disabled={pending}
-            >
-              <span className="flex items-center justify-center gap-6">
-                <Plus width={16} height={16} strokeWidth={2} />
-                {view.giver === trade.me
-                  ? 'Add from your collection'
-                  : 'Add a card you get'}
-              </span>
-            </SecondaryButton>
-          )}
-        </div>
-        <div className="mt-12">
-          <div className="mb-8 ml-2 text-meta text-text-2">Value at</div>
-          <RateChips
-            value={view.ratePct}
-            disabled={
-              !editable ||
-              pending ||
-              (trade.mode === 'in_person' && trade.me !== 'initiator')
-            }
-            onChange={(ratePct) =>
-              void mutate(() =>
-                setRateAction({ tradeId: trade.id, giver: view.giver, ratePct }),
-              )
-            }
-            onCustom={() => setCustomRate(view)}
-          />
-        </div>
-      </section>
-    )
+  async function saveNotes(giver: TradeParty, notes: string): Promise<boolean> {
+    return run(() => setNotesAction({ tradeId: trade.id, giver, notes }))
   }
-
-  const partner = trade.partnerName
-  const status =
-    trade.status === 'completed'
-      ? `Completed ${new Date(trade.completedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-      : trade.status === 'cancelled'
-        ? 'Cancelled'
-        : trade.mode === 'in_person'
-          ? 'In person'
-          : `With ${partner}`
-
-  const giveCount = trade.give.lines.reduce((sum, line) => sum + line.qty, 0)
-  const getCount = trade.get.lines.reduce((sum, line) => sum + line.qty, 0)
 
   return (
     <CollectionAccessProvider canEdit={trade.canWrite}>
@@ -282,125 +406,187 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
         header={
           <ScreenHeader
             title={partner}
-            breadcrumb="Trading"
+            breadcrumb={`Trading · ${live ? 'Live' : 'In person'}`}
             backHref="/tools/trade"
-            meta={<span className="text-meta text-text-2">{status}</span>}
+            meta={status ? <span className="text-meta text-text-2">{status}</span> : undefined}
+            actions={[{ icon: Share2, label: 'Export the trade', onClick: () => setExporting(true) }]}
           />
         }
       >
-        <div
-          className="mb-22 rounded-card bg-gradient-value-band p-20"
-          data-testid="trade-balance"
-        >
-          <div className="text-meta font-semibold tracking-value-label text-value-band-label">
-            BALANCE
-          </div>
-          <div className="mt-5 text-value-total font-extrabold tracking-value-amount text-on-accent">
-            {balance.deltaMinor === 0
-              ? 'Even'
-              : `${balance.deltaMinor > 0 ? '+' : '−'}${formatMoney(Math.abs(balance.deltaMinor), trade.currency)}`}
-          </div>
-          <div className="mt-14 flex gap-20">
-            <div>
-              <div className="text-value-stat font-bold text-on-accent">
-                {formatMoney(balance.giveMinor, trade.currency)}
+        <div className="flex flex-col gap-14">
+          <div className="rounded-row bg-gradient-value-band px-18 py-14" data-testid="trade-balance">
+            <div className="flex items-center justify-between">
+              <div className="text-meta font-semibold tracking-value-label text-value-band-label">BALANCE</div>
+              <div className="text-value-stat font-extrabold tracking-value-amount text-on-accent">
+                {balance.deltaMinor === 0
+                  ? 'Even'
+                  : `${balance.deltaMinor > 0 ? '+' : '−'}${formatMoney(Math.abs(balance.deltaMinor), trade.currency)}`}
               </div>
-              <div className="text-value-caption text-value-band-caption">you give</div>
             </div>
-            <div>
-              <div className="text-value-stat font-bold text-on-accent">
-                {formatMoney(balance.getMinor, trade.currency)}
+            <div className="mt-10 grid grid-cols-2 gap-10 border-t border-value-band-caption pt-10">
+              <div>
+                <div className="text-value-caption text-value-band-caption">You give</div>
+                <div className="text-row-label font-bold text-on-accent">
+                  {formatMoney(balance.giveMinor, trade.currency)}
+                </div>
               </div>
-              <div className="text-value-caption text-value-band-caption">you get</div>
+              <div className="text-right">
+                <div className="text-value-caption text-value-band-caption">{partner} gives</div>
+                <div className="text-row-label font-bold text-on-accent">
+                  {formatMoney(balance.getMinor, trade.currency)}
+                </div>
+              </div>
             </div>
+            {balance.missing > 0 && (
+              <div className="mt-8 text-value-caption text-value-band-caption">
+                {balance.missing === 1 ? '1 card has' : `${balance.missing} cards have`} no price and count as 0.
+              </div>
+            )}
           </div>
-          {balance.missing > 0 && (
-            <div className="mt-10 text-value-caption text-value-band-caption">
-              {balance.missing === 1 ? '1 card has' : `${balance.missing} cards have`} no
-              price and count as 0.
-            </div>
+
+          {trade.status === 'completed' && (
+            <PrimaryButton onClick={() => setExporting(true)}>Send the list to {partner}</PrimaryButton>
           )}
-        </div>
 
-        {side(trade.give, 'You give')}
-        {side(
-          trade.get,
-          trade.mode === 'in_person' ? 'You get' : `You get from ${partner}`,
-        )}
+          <SideZone
+            title="You give"
+            side={trade.give}
+            currency={trade.currency}
+            cashLabel={`Cash, you pay ${partner}`}
+            addHref={`${base}?step=cards`}
+            cashHref={`${base}?step=extras`}
+            onDetails={() => setDetails('give')}
+            canRate={canRate}
+            pending={pending}
+            onRate={(ratePct) =>
+              void mutate(() => setRateAction({ tradeId: trade.id, giver: trade.give.giver, ratePct }))
+            }
+            onCustomRate={() => setCustomRate(trade.give.giver)}
+            notesLabel={live ? `Your notes · ${partner} sees them` : 'Your notes'}
+            onSaveNotes={(notes) => saveNotes(trade.give.giver, notes)}
+          />
 
-        {(open || trade.destination.containerId) && (
-          <SettingsGroup label="Cards you get go to">
-            <SettingRow
-              icon={<FolderInput width={18} height={18} strokeWidth={1.75} />}
-              label={trade.destination.name ?? 'Collection'}
-              onClick={editable ? () => void openDestinations() : undefined}
-            />
-          </SettingsGroup>
-        )}
-
-        {error && (
-          <p role="alert" className="mb-14 text-meta text-danger">
-            {error}
-          </p>
-        )}
-
-        {editable && trade.mode === 'in_person' && (
-          <div className="flex flex-col gap-10">
-            <PrimaryButton
-              onClick={() => setConfirm({ kind: 'complete', revision: trade.revision })}
-              disabled={pending || giveCount + getCount === 0}
-            >
-              Complete trade
-            </PrimaryButton>
-            <SecondaryButton
-              onClick={() => setConfirm({ kind: 'cancel', revision: trade.revision })}
-              disabled={pending}
-            >
-              Cancel trade
-            </SecondaryButton>
-          </div>
-        )}
-
-        {editable && trade.mode === 'account' && (
-          <div className="flex flex-col gap-10">
-            <p className="text-meta text-text-2" data-testid="trade-acceptance">
-              {trade.acceptedByMe
-                ? `You accepted. Waiting for ${partner}.`
-                : trade.acceptedByPartner
-                  ? `${partner} accepted this version. Accept to apply the trade.`
-                  : `Both of you need to accept. Any change asks for a new acceptance.`}
+          <SideZone
+            title={`${partner} gives`}
+            side={trade.get}
+            currency={trade.currency}
+            cashLabel={`Cash, ${partner} pays you`}
+            addHref={live ? undefined : `${base}?step=theirs`}
+            cashHref={live ? undefined : `${base}?step=extras`}
+            onDetails={() => setDetails('get')}
+            canRate={canRate}
+            pending={pending}
+            onRate={(ratePct) =>
+              void mutate(() => setRateAction({ tradeId: trade.id, giver: trade.get.giver, ratePct }))
+            }
+            onCustomRate={() => setCustomRate(trade.get.giver)}
+            notesLabel={live ? `${partner}'s notes` : `Notes about ${partner}'s side`}
+            onSaveNotes={(notes) => saveNotes(trade.get.giver, notes)}
+          />
+          {live && editable && (
+            <p className="ml-2 text-meta-search text-text-3">
+              Only {partner} adds or removes their cards. You can still adjust prices and the value %.
             </p>
-            {trade.acceptedByMe ? (
-              <SecondaryButton
-                onClick={() =>
-                  void mutate(() => withdrawAcceptanceAction({ tradeId: trade.id }))
+          )}
+
+          {(open || trade.destination.containerId) && (
+            <SettingsGroup>
+              <SettingRow
+                icon={<FolderInput width={18} height={18} strokeWidth={1.75} />}
+                label={trade.destination.name ?? 'Collection'}
+                subtitle="Cards you get go to"
+                onClick={
+                  editable
+                    ? () =>
+                        void listTradeDestinationsAction({ tradeId: trade.id }).then((result) =>
+                          setDestinations(result.ok ? result.destinations : []),
+                        )
+                    : undefined
                 }
-                disabled={pending}
-              >
-                Withdraw acceptance
-              </SecondaryButton>
-            ) : (
+              />
+            </SettingsGroup>
+          )}
+
+          {error && (
+            <p role="alert" className="text-meta text-danger">
+              {error}
+            </p>
+          )}
+
+          {editable && !live && (
+            <div className="flex flex-col gap-10">
               <PrimaryButton
-                onClick={() => setConfirm({ kind: 'accept', revision: trade.revision })}
+                onClick={() => setConfirm({ kind: 'complete', revision: trade.revision })}
                 disabled={pending || giveCount + getCount === 0}
               >
-                {trade.acceptedByPartner ? 'Accept and apply trade' : 'Accept trade'}
+                Complete trade
               </PrimaryButton>
-            )}
-            <SecondaryButton
-              onClick={() => setConfirm({ kind: 'cancel', revision: trade.revision })}
-              disabled={pending}
-            >
-              Cancel trade
-            </SecondaryButton>
-          </div>
-        )}
+              <SecondaryButton
+                onClick={() => setConfirm({ kind: 'cancel', revision: trade.revision })}
+                disabled={pending}
+              >
+                Cancel trade
+              </SecondaryButton>
+            </div>
+          )}
 
-        {open && !trade.canWrite && (
-          <p className="text-meta text-text-2">
-            You have read-only access to your collection, so you cannot trade from it.
-          </p>
-        )}
+          {editable && live && (
+            <div className="flex flex-col gap-10">
+              <div
+                className="flex flex-col gap-8 rounded-row border border-border bg-surface-1 px-14 py-12 text-body"
+                data-testid="trade-acceptance"
+              >
+                {[
+                  {
+                    done: trade.acceptedByPartner,
+                    label: trade.acceptedByPartner
+                      ? `${partner} accepted this version`
+                      : `${partner} has not accepted yet`,
+                  },
+                  { done: trade.acceptedByMe, label: trade.acceptedByMe ? 'You accepted' : 'Your acceptance' },
+                ].map((entry) => (
+                  <div key={entry.label} className={`flex items-center gap-10 ${entry.done ? 'text-text' : 'text-text-2'}`}>
+                    <span
+                      className={`flex h-selection-circle w-selection-circle items-center justify-center rounded-full ${
+                        entry.done ? 'bg-accent text-on-accent' : 'border-2 border-text-3'
+                      }`}
+                    >
+                      {entry.done && <Check width={11} height={11} strokeWidth={3} />}
+                    </span>
+                    {entry.label}
+                  </div>
+                ))}
+              </div>
+              {trade.acceptedByMe ? (
+                <SecondaryButton
+                  onClick={() => void mutate(() => withdrawAcceptanceAction({ tradeId: trade.id }))}
+                  disabled={pending}
+                >
+                  Withdraw acceptance
+                </SecondaryButton>
+              ) : (
+                <PrimaryButton
+                  onClick={() => setConfirm({ kind: 'accept', revision: trade.revision })}
+                  disabled={pending || giveCount + getCount === 0}
+                >
+                  {trade.acceptedByPartner ? 'Accept and apply trade' : 'Accept trade'}
+                </PrimaryButton>
+              )}
+              <SecondaryButton
+                onClick={() => setConfirm({ kind: 'cancel', revision: trade.revision })}
+                disabled={pending}
+              >
+                Cancel trade
+              </SecondaryButton>
+            </div>
+          )}
+
+          {open && !trade.canWrite && (
+            <p className="text-meta text-text-2">
+              You have read-only access to your collection, so you cannot trade from it.
+            </p>
+          )}
+        </div>
 
         <ConfirmDialog
           open={confirm !== null}
@@ -421,11 +607,7 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
                   } added to ${trade.destination.name ?? 'Collection'}.`
           }
           confirmLabel={
-            confirm?.kind === 'cancel'
-              ? 'Cancel trade'
-              : confirm?.kind === 'accept'
-                ? 'Accept'
-                : 'Complete'
+            confirm?.kind === 'cancel' ? 'Cancel trade' : confirm?.kind === 'accept' ? 'Accept' : 'Complete'
           }
           cancelLabel="Back"
           destructive={confirm?.kind === 'cancel'}
@@ -434,22 +616,28 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
           onClose={() => setConfirm(null)}
         />
 
-        <HoldingPickerSheet
-          open={pickingHoldings}
-          onOpenChange={setPickingHoldings}
-          tradeId={trade.id}
-          currency={trade.currency}
-          onAdded={() => void refresh()}
-        />
-
-        <AddCardSheet
-          open={pickingCatalog}
-          onOpenChange={setPickingCatalog}
-          containerId={null}
-          onAdded={() => void refresh()}
-          onPick={handlePick}
-          pickLabel="Add to trade"
-        />
+        {detailsSide && (
+          <DetailsSheet
+            open
+            onClose={() => setDetails(null)}
+            title={details === 'give' ? 'You give' : `${partner} gives`}
+            side={detailsSide}
+            currency={trade.currency}
+            editPrice={editable}
+            pending={pending}
+            onQty={lineQty}
+            onRemove={(line) => void mutate(() => removeLineAction({ tradeId: trade.id, lineId: line.id }))}
+            onPrice={(line) => setPricing(line)}
+            onKey={(line, patch) =>
+              void mutate(() => updateLineAction({ tradeId: trade.id, lineId: line.id, ...patch }))
+            }
+            onAdd={
+              details === 'give' || !live
+                ? () => router.push(`${base}?step=${details === 'give' ? 'cards' : 'theirs'}`)
+                : undefined
+            }
+          />
+        )}
 
         {pricing && (
           <PriceSheet
@@ -463,11 +651,7 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
             pending={pending}
             onSave={(priceOverrideMinor) =>
               void mutate(() =>
-                updateLineAction({
-                  tradeId: trade.id,
-                  lineId: pricing.id,
-                  priceOverrideMinor,
-                }),
+                updateLineAction({ tradeId: trade.id, lineId: pricing.id, priceOverrideMinor }),
               ).then((result) => result?.ok && setPricing(null))
             }
           />
@@ -475,20 +659,19 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
 
         {customRate && (
           <NameSheet
-            key={customRate.giver}
+            key={customRate}
             open
             title="Value at"
             label={`Percentage (${RATE_MIN_PCT}–${RATE_MAX_PCT})`}
-            initialValue={String(customRate.ratePct)}
+            initialValue={String(customRate === trade.give.giver ? trade.give.ratePct : trade.get.ratePct)}
             confirmLabel="Set"
             pending={pending}
             onClose={() => setCustomRate(null)}
             onSubmit={(value) => {
               const parsed = Number.parseInt(value, 10)
               if (Number.isNaN(parsed)) return
-              const ratePct = clampRate(parsed)
               void mutate(() =>
-                setRateAction({ tradeId: trade.id, giver: customRate.giver, ratePct }),
+                setRateAction({ tradeId: trade.id, giver: customRate, ratePct: clampRate(parsed) }),
               ).then((result) => result?.ok && setCustomRate(null))
             }}
           />
@@ -503,10 +686,10 @@ export function TradeScreen({ initial }: { initial: TradeView }) {
             label: destination.name,
           }))}
           value={trade.destination.containerId}
-          onPick={(containerId) =>
-            void mutate(() => setDestinationAction({ tradeId: trade.id, containerId }))
-          }
+          onPick={(containerId) => void mutate(() => setDestinationAction({ tradeId: trade.id, containerId }))}
         />
+
+        <ExportSheet open={exporting} onClose={() => setExporting(false)} trade={trade} />
 
         {undoToken && (
           <UndoToast

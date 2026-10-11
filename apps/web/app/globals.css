@@ -679,6 +679,9 @@
      `--max-height-sheet` (770px), opt-in via
      `Sheet({ maxHeight: 'assemble' })`. */
   --max-height-sheet-assemble: 812px;
+  /* Aperçu de l'export d'un échange : défile au-delà, la feuille garde ses
+     boutons visibles. */
+  --max-height-export-preview: 250px;
   /* Hauteur fixe du tiroir d'ajout persistant — pas un `Sheet` (voir
      ci-dessus), donc pas `--max-height-sheet`. */
   --height-add-drawer: min(640px, calc(100dvh - var(--keyboard-inset, 0px) - 24px));

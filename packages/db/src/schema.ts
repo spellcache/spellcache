@@ -521,6 +521,19 @@ export const trades = pgTable(
     // en pourcent (« je prends tes cartes à 90 % »).
     initiatorRatePct: integer('initiator_rate_pct').notNull().default(100),
     counterpartyRatePct: integer('counterparty_rate_pct').notNull().default(100),
+    // Argent donné par chaque partie, en centimes de la devise de l'échange,
+    // compté à sa valeur faciale (l'ajustement ne s'y applique pas). Rien
+    // n'est encaissé : c'est un fait de l'échange, consigné.
+    initiatorCashMinor: integer('initiator_cash_minor').notNull().default(0),
+    counterpartyCashMinor: integer('counterparty_cash_minor').notNull().default(0),
+    // Notes libres de chaque partie sur son côté ; visibles des deux parties,
+    // modifiables même après la conclusion (suivi de ce qui a été promis).
+    initiatorNotes: text('initiator_notes'),
+    counterpartyNotes: text('counterparty_notes'),
+    // Entre deux comptes : la contrepartie accepte d'abord d'ouvrir l'échange
+    // (l'offre de l'initiateur), puis choisit ce qu'elle donne. `null` tant
+    // qu'elle n'a pas accepté ; sans objet en personne.
+    counterpartyJoinedAt: timestamp('counterparty_joined_at', { withTimezone: true }),
     // Incrémentée à chaque modification : une acceptation ne vaut que pour la
     // révision acceptée, toute modification l'invalide sans écriture de plus.
     revision: integer('revision').notNull().default(0),

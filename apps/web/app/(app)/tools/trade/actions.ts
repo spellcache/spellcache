@@ -11,26 +11,35 @@ import { getToolFlags } from '@/lib/tools/tool-flags'
 import {
   acceptTrade,
   addCatalogLine,
+  addCatalogLines,
+  addContainerLines,
   addHoldingLine,
+  browseTradeable,
   cancelTrade,
   completeInPerson,
   createTrade,
   getTradeView,
+  joinTrade,
   listTradeDestinations,
+  MAX_CASH_MINOR,
+  MAX_NOTES_LENGTH,
+  previewImport,
   removeLine,
   searchTradePartners,
-  searchTradeableHoldings,
+  setCash,
   setDestination,
+  setNotes,
   setRate,
   TradeError,
   undoInPerson,
   updateLine,
   withdrawAcceptance,
+  type BrowseGroup,
+  type ImportPreviewLine,
   type TradeDestination,
   type TradeErrorCode,
   type TradePartner,
   type TradeView,
-  type TradeableHolding,
 } from '@/lib/trades/trades'
 
 export type TradeActionError = TradeErrorCode
@@ -108,14 +117,30 @@ export async function getTradeAction(
   }))
 }
 
-const holdingSearchSchema = tradeIdSchema.extend({ query: z.string().max(100) })
+const browseSchema = tradeIdSchema.extend({
+  query: z.string().max(100).optional(),
+  scope: z.enum(['all', 'collection', 'binders', 'decks']).optional(),
+  containerId: z.uuid().optional(),
+})
 
-export async function searchTradeableHoldingsAction(
+export async function browseTradeableAction(
   input: unknown,
-): Promise<TradeActionResult<{ holdings: TradeableHolding[] }>> {
-  return run(holdingSearchSchema, input, async (session, data) => ({
-    holdings: await searchTradeableHoldings(session.id, data.tradeId, data.query),
+): Promise<TradeActionResult<{ groups: BrowseGroup[] }>> {
+  return run(browseSchema, input, async (session, data) => ({
+    groups: await browseTradeable(session.id, data.tradeId, data),
   }))
+}
+
+const containerLinesSchema = tradeIdSchema.extend({ containerId: z.uuid() })
+
+export async function addContainerLinesAction(
+  input: unknown,
+): Promise<TradeActionResult<{ added: number }>> {
+  return run(containerLinesSchema, input, async (session, data) => {
+    const result = await addContainerLines(session.id, data.tradeId, data.containerId)
+    revalidateTrades(data.tradeId)
+    return result
+  })
 }
 
 const addHoldingSchema = tradeIdSchema.extend({
@@ -148,10 +173,37 @@ export async function addCatalogLineAction(input: unknown): Promise<TradeActionR
   })
 }
 
+const catalogLineSchema = addCatalogSchema.omit({ tradeId: true })
+const addCatalogLinesSchema = tradeIdSchema.extend({
+  lines: z.array(catalogLineSchema).min(1).max(500),
+})
+
+export async function addCatalogLinesAction(input: unknown): Promise<TradeActionResult> {
+  return run(addCatalogLinesSchema, input, async (session, data) => {
+    await addCatalogLines(session.id, data.tradeId, data.lines)
+    revalidateTrades(data.tradeId)
+    return {}
+  })
+}
+
+// Une liste collée tient largement dans cette borne (500 lignes).
+const previewImportSchema = tradeIdSchema.extend({ text: z.string().max(100_000) })
+
+export async function previewImportAction(
+  input: unknown,
+): Promise<TradeActionResult<{ lines: ImportPreviewLine[]; ignored: number }>> {
+  return run(previewImportSchema, input, async (session, data) =>
+    previewImport(session.id, data.tradeId, data.text),
+  )
+}
+
 const updateLineSchema = tradeIdSchema.extend({
   lineId: z.uuid(),
   qty: z.int().min(1).max(999).optional(),
   priceOverrideMinor: z.int().min(0).max(MAX_PRICE_MINOR).nullable().optional(),
+  finish: finishSchema.optional(),
+  condition: conditionSchema.optional(),
+  language: z.string().trim().min(1).max(8).optional(),
 })
 
 export async function updateLineAction(input: unknown): Promise<TradeActionResult> {
@@ -159,6 +211,9 @@ export async function updateLineAction(input: unknown): Promise<TradeActionResul
     await updateLine(session.id, data.tradeId, data.lineId, {
       qty: data.qty,
       priceOverrideMinor: data.priceOverrideMinor,
+      finish: data.finish,
+      condition: data.condition,
+      language: data.language,
     })
     revalidateTrades(data.tradeId)
     return {}
@@ -261,6 +316,39 @@ export async function withdrawAcceptanceAction(
 export async function cancelTradeAction(input: unknown): Promise<TradeActionResult> {
   return run(tradeIdSchema, input, async (session, data) => {
     await cancelTrade(session.id, data.tradeId)
+    revalidateTrades(data.tradeId)
+    return {}
+  })
+}
+
+const cashSchema = tradeIdSchema.extend({
+  giver: partySchema,
+  amountMinor: z.int().min(0).max(MAX_CASH_MINOR),
+})
+
+export async function setCashAction(input: unknown): Promise<TradeActionResult> {
+  return run(cashSchema, input, async (session, data) => {
+    await setCash(session.id, data.tradeId, data.giver, data.amountMinor)
+    revalidateTrades(data.tradeId)
+    return {}
+  })
+}
+
+const notesSchema = tradeIdSchema.extend({
+  giver: partySchema,
+  notes: z.string().max(MAX_NOTES_LENGTH),
+})
+
+export async function setNotesAction(input: unknown): Promise<TradeActionResult> {
+  return run(notesSchema, input, async (session, data) => {
+    await setNotes(session.id, data.tradeId, data.giver, data.notes)
+    return {}
+  })
+}
+
+export async function joinTradeAction(input: unknown): Promise<TradeActionResult> {
+  return run(tradeIdSchema, input, async (session, data) => {
+    await joinTrade(session.id, data.tradeId)
     revalidateTrades(data.tradeId)
     return {}
   })

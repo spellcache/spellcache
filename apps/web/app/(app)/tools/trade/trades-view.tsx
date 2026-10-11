@@ -4,9 +4,8 @@
 // cours, puis l'historique. Aucun langage visuel nouveau : `SettingsGroup` et
 // `SettingRow`, comme Settings.
 import { ArrowLeftRight, Handshake, UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-import { NewTradeSheet } from '@/components/trades/new-trade-sheet'
 import { SettingRow } from '@/components/settings/setting-row'
 import { SettingsGroup } from '@/components/settings/settings-group'
 import { Screen } from '@/components/ui/screen'
@@ -49,7 +48,7 @@ function TradeRow({ trade }: { trade: TradeSummary }) {
 }
 
 export function TradesView({ trades }: { trades: TradeSummary[] }) {
-  const [creating, setCreating] = useState(false)
+  const router = useRouter()
   const open = trades.filter((trade) => trade.status === 'open')
   const awaiting = open.filter((trade) => trade.awaitingMe)
   const inProgress = open.filter((trade) => !trade.awaitingMe)
@@ -62,7 +61,7 @@ export function TradesView({ trades }: { trades: TradeSummary[] }) {
           title="Trading"
           breadcrumb="Tools"
           backHref="/tools"
-          onAdd={() => setCreating(true)}
+          onAdd={() => router.push('/tools/trade/new')}
           addLabel="New trade"
         />
       }
@@ -105,7 +104,6 @@ export function TradesView({ trades }: { trades: TradeSummary[] }) {
         </SettingsGroup>
       )}
 
-      <NewTradeSheet open={creating} onOpenChange={setCreating} />
     </Screen>
   )
 }

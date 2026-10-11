@@ -63,6 +63,7 @@ export function sideValueMinor(
 }
 
 export interface TradeBalance {
+  // Valeur totale de chaque côté, argent compris.
   giveMinor: number
   getMinor: number
   // Positif : on reçoit plus qu'on ne donne.
@@ -70,12 +71,25 @@ export interface TradeBalance {
   missing: number
 }
 
-export function tradeBalance(
-  give: { lines: PricedLine[]; ratePct: number },
-  get: { lines: PricedLine[]; ratePct: number },
-): TradeBalance {
-  const given = sideValueMinor(give.lines, give.ratePct)
-  const received = sideValueMinor(get.lines, get.ratePct)
+export interface PricedSide {
+  lines: PricedLine[]
+  ratePct: number
+  // Argent donné par ce côté, à sa valeur faciale : l'ajustement ne
+  // s'applique qu'aux cartes.
+  cashMinor?: number
+}
+
+export function sideTotalMinor(side: PricedSide): {
+  valueMinor: number
+  missing: number
+} {
+  const cards = sideValueMinor(side.lines, side.ratePct)
+  return { valueMinor: cards.valueMinor + (side.cashMinor ?? 0), missing: cards.missing }
+}
+
+export function tradeBalance(give: PricedSide, get: PricedSide): TradeBalance {
+  const given = sideTotalMinor(give)
+  const received = sideTotalMinor(get)
   return {
     giveMinor: given.valueMinor,
     getMinor: received.valueMinor,

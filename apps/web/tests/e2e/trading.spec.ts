@@ -1,5 +1,6 @@
-// Trading mode, de bout en bout : un échange en personne conclu depuis
-// l'écran, puis un échange entre deux comptes accepté de part et d'autre.
+// Trading mode, de bout en bout : un échange en personne mené pas à
+// pas jusqu'à l'export et l'annulation, puis un échange entre deux
+// comptes (offre, acceptation de démarrer, chaque côté, double acceptation).
 // Même patron que `life-tracker.spec.ts` : comptes neufs par lien magique,
 // écriture directe en base pour amorcer ce que l'écran ne construit pas
 // lui-même (l'outil activé, les cartes du catalogue et les holdings).
@@ -84,54 +85,80 @@ async function qtyOf(containerId: string, cardId: string): Promise<number> {
   return rows.reduce((sum, row) => sum + row.qty, 0)
 }
 
-test('an in-person trade swaps cards in the collection, then undoes', async ({
+// Étape « What do you give? » : ouvrir la collection et cocher une carte.
+async function pickFromCollection(page: Page, cardName: string): Promise<void> {
+  await page
+    .locator('[data-trade-group="Collection"]')
+    .getByRole('button', { name: /Collection/ })
+    .first()
+    .click()
+  await page.getByRole('checkbox', { name: new RegExp(cardName) }).click()
+  await expect(
+    page.getByRole('checkbox', { name: new RegExp(cardName) }),
+  ).toHaveAttribute('aria-checked', 'true')
+}
+
+test('an in-person trade goes through the wizard, applies, exports, then undoes', async ({
   page,
 }) => {
   const run = Date.now().toString(36)
   const { email } = await signInWithFreshAccount(page, 'trade')
   const root = await rootContainerOf(email)
   const given = await seedCard(`Trade Given ${run}`, 4)
-  const received = await seedCard(`Trade Received ${run}`, 5)
+  const received = await seedCard(`Trade Received ${run}`, 3)
   await seedHolding(root, given, 2)
 
+  // 1 · Who
   await page.goto('/tools/trade')
   await page.getByRole('button', { name: 'New trade' }).click()
-  await page.getByLabel('Trade partner (optional)').fill('Sam')
-  await page.getByRole('button', { name: 'Start trade' }).click()
-  await expect(page).toHaveURL(/\/tools\/trade\/[0-9a-f-]{36}$/)
-  await expect(page.getByRole('heading', { name: 'Sam' })).toBeVisible()
+  await expect(page).toHaveURL(/\/tools\/trade\/new$/)
+  await page.getByLabel('Their name (optional)').fill('Sam')
+  await page.getByRole('button', { name: 'Next: your cards' }).click()
+  await expect(page).toHaveURL(/\/tools\/trade\/[0-9a-f-]{36}\?step=cards$/)
+  const tradeUrl = page.url().replace(/\?step=cards$/, '')
 
-  await page.getByRole('button', { name: 'Add from your collection' }).click()
-  await page.getByRole('button', { name: new RegExp(`Trade Given ${run}`) }).click()
-  await expect(page.getByText('All in trade').or(page.getByText('1 left'))).toBeVisible()
-  await page.keyboard.press('Escape')
+  // 2 · Your cards
+  await pickFromCollection(page, `Trade Given ${run}`)
+  await expect(page.getByTestId('trade-step-footer')).toContainText('1 card')
+  await page.getByTestId('trade-step-footer').getByRole('link', { name: 'Next' }).click()
 
-  await page.getByRole('button', { name: 'Add a card you get' }).click()
+  // 3 · Their cards
+  await expect(page).toHaveURL(/step=theirs/)
   await page.getByPlaceholder('Search card name...').fill(`Trade Received ${run}`)
   await page
-    .getByRole('button', { name: new RegExp(`Trade Received ${run}`) })
-    .first()
+    .getByRole('button', { name: new RegExp(`Add Trade Received ${run}`) })
     .click()
-  await page
-    .getByRole('button', { name: new RegExp(`Trade Received ${run}`) })
-    .first()
-    .click()
-  await page.getByRole('button', { name: 'Add to trade' }).click()
+  await expect(page.getByTestId('trade-compact-list')).toContainText(
+    `Trade Received ${run}`,
+  )
+  await page.getByTestId('trade-step-footer').getByRole('link', { name: 'Next' }).click()
 
+  // 4 · Cash & notes
+  await expect(page).toHaveURL(/step=extras/)
+  await page.getByRole('button', { name: 'Sam pays me' }).click()
+  await page.getByLabel(/Amount/).fill('1')
+  await page.getByLabel('Notes (optional)').fill('Sam brings the rest on Friday.')
+  await page.getByRole('button', { name: 'Review the trade' }).click()
+
+  // Résumé : 4 € donnés, 3 € + 1 € reçus.
+  await expect(page).toHaveURL(tradeUrl)
   const balance = page.getByTestId('trade-balance')
-  await expect(balance).toContainText('+€1.00')
-  // Ce que je reçois, valorisé à 80 % : 5 € → 4 €, l'échange est à l'équilibre.
-  await page
-    .getByRole('group', { name: 'Value adjustment' })
-    .last()
-    .getByRole('button', { name: '80%' })
-    .click()
   await expect(balance).toContainText('Even')
+  await expect(balance).toContainText('€4.00')
+  await expect(page.getByTestId('trade-zone-counterparty')).toContainText(
+    'Cash, Sam pays you',
+  )
+
+  await page.getByRole('button', { name: 'Export the trade' }).click()
+  await expect(page.getByTestId('trade-export-preview')).toContainText('+ €1.00 cash')
+  await page.getByRole('button', { name: 'CSV' }).click()
+  await expect(page.getByTestId('trade-export-preview')).toContainText('Giver,Count,Name')
+  await page.keyboard.press('Escape')
 
   await page.getByRole('button', { name: 'Complete trade' }).click()
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Trade completed')
-  await expect(page.getByText(/^Completed /)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Send the list to Sam' })).toBeVisible()
   expect(await qtyOf(root, given)).toBe(1)
   expect(await qtyOf(root, received)).toBe(1)
 
@@ -141,7 +168,9 @@ test('an in-person trade swaps cards in the collection, then undoes', async ({
   expect(await qtyOf(root, received)).toBe(0)
 })
 
-test('a trade between two accounts applies once both accepted', async ({ browser }) => {
+test('a live trade: offer, acceptance to start, both sides, then both accept', async ({
+  browser,
+}) => {
   const run = Date.now().toString(36)
   const aliceContext = await browser.newContext()
   const bobContext = await browser.newContext()
@@ -157,32 +186,47 @@ test('a trade between two accounts applies once both accepted', async ({ browser
   await seedHolding(aliceRoot, aliceCard, 1)
   await seedHolding(bobRoot, bobCard, 1)
 
-  await alicePage.goto('/tools/trade')
-  await alicePage.getByRole('button', { name: 'New trade' }).click()
-  await alicePage.getByRole('button', { name: 'With a user' }).click()
+  // Alice : avec qui, puis son offre.
+  await alicePage.goto('/tools/trade/new')
+  await alicePage.getByRole('button', { name: /A user of spellcache/ }).click()
   await alicePage.getByPlaceholder('Search a username...').fill(bob.username)
   await alicePage.getByRole('button', { name: bob.username }).click()
-  await alicePage.getByRole('button', { name: 'Start trade' }).click()
-  await expect(alicePage).toHaveURL(/\/tools\/trade\/[0-9a-f-]{36}$/)
+  await alicePage.getByRole('button', { name: 'Next: your cards' }).click()
+  await pickFromCollection(alicePage, `Alice Card ${run}`)
+  await alicePage
+    .getByTestId('trade-step-footer')
+    .getByRole('link', { name: 'Send offer' })
+    .click()
+  await expect(alicePage.getByTestId('trade-waiting')).toContainText(
+    `Waiting for ${bob.username}`,
+  )
   const tradeUrl = alicePage.url()
 
-  await alicePage.getByRole('button', { name: 'Add from your collection' }).click()
-  await alicePage.getByRole('button', { name: new RegExp(`Alice Card ${run}`) }).click()
-  await expect(alicePage.getByText('All in trade')).toBeVisible()
-  await alicePage.keyboard.press('Escape')
-
-  // Bob trouve l'échange dans sa liste et y met sa propre carte.
+  // Bob voit l'offre, l'accepte et choisit ce qu'il donne.
   await bobPage.goto('/tools/trade')
   await bobPage.getByRole('link', { name: new RegExp(alice.username) }).click()
+  await expect(
+    bobPage.getByRole('heading', { name: `${alice.username} wants to trade` }),
+  ).toBeVisible()
+  await expect(bobPage.getByTestId('trade-compact-list')).toContainText(
+    `Alice Card ${run}`,
+  )
+  await bobPage.getByRole('button', { name: 'Accept and pick' }).click()
+  await expect(bobPage).toHaveURL(/step=cards/)
+  await pickFromCollection(bobPage, `Bob Card ${run}`)
+  await bobPage
+    .getByTestId('trade-step-footer')
+    .getByRole('link', { name: 'Next' })
+    .click()
+  await expect(bobPage).toHaveURL(/step=extras/)
+  await bobPage.getByRole('button', { name: 'Review the trade' }).click()
   await expect(bobPage).toHaveURL(tradeUrl)
-  await expect(bobPage.getByText(`Alice Card ${run}`)).toBeVisible()
-  await bobPage.getByRole('button', { name: 'Add from your collection' }).click()
-  await bobPage.getByRole('button', { name: new RegExp(`Bob Card ${run}`) }).click()
-  await expect(bobPage.getByText('All in trade')).toBeVisible()
-  await bobPage.keyboard.press('Escape')
 
+  // Alice voit le côté de Bob dans le résumé et accepte.
   await alicePage.reload()
-  await expect(alicePage.getByText(`Bob Card ${run}`)).toBeVisible()
+  await expect(alicePage.getByTestId('trade-zone-counterparty')).toContainText(
+    `Bob Card ${run}`,
+  )
   await alicePage.getByRole('button', { name: 'Accept trade' }).click()
   await alicePage.getByRole('button', { name: 'Accept', exact: true }).click()
   await expect(alicePage.getByTestId('trade-acceptance')).toContainText('You accepted')

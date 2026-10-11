@@ -6,12 +6,26 @@ import {
   clampRate,
   marketPriceMinor,
   parsePriceMinor,
+  sideTotalMinor,
   sideValueMinor,
   tradeBalance,
   unitPriceMinor,
 } from '@/lib/trades/pricing'
 
 const prices = { usd: '1.50', usd_foil: '4.00', eur: '1.20', eur_foil: null }
+
+describe('cash', () => {
+  it('adds cash at face value, outside the rate', () => {
+    const lines = [{ qty: 2, marketPriceMinor: 500, priceOverrideMinor: null }]
+    expect(sideTotalMinor({ lines, ratePct: 50, cashMinor: 300 })).toEqual({
+      valueMinor: 800,
+      missing: 0,
+    })
+    expect(
+      tradeBalance({ lines, ratePct: 100 }, { lines: [], ratePct: 100, cashMinor: 1500 }),
+    ).toEqual({ giveMinor: 1000, getMinor: 1500, deltaMinor: 500, missing: 0 })
+  })
+})
 
 describe('marketPriceMinor', () => {
   it('reads the column of the finish and currency', () => {

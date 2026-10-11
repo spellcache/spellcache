@@ -49,8 +49,8 @@ function summary(trade: TradeView): string {
   const myName = trade.myName
   const give = sideTotalMinor(trade.give)
   const get = sideTotalMinor(trade.get)
-  const verb = trade.status === 'completed' ? 'gave' : 'give'
-  const partnerVerb = trade.status === 'completed' ? 'gave' : 'gives'
+  // Les deux noms sont à la troisième personne : le texte est partagé tel quel.
+  const verb = trade.status === 'completed' ? 'gave' : 'gives'
   const out: string[] = [
     `Trade between ${myName} and ${trade.partnerName} · ${day(trade.completedAt ?? trade.createdAt)}`,
     '',
@@ -61,7 +61,7 @@ function summary(trade: TradeView): string {
     out.push(`+ ${money(trade.give.cashMinor, trade.currency)} cash`)
   out.push(
     '',
-    `${trade.partnerName} ${partnerVerb} (${money(get.valueMinor, trade.currency)})`,
+    `${trade.partnerName} ${verb} (${money(get.valueMinor, trade.currency)})`,
     ...trade.get.lines.map(summaryLine),
   )
   if (trade.get.cashMinor > 0)

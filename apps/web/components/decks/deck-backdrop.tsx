@@ -25,7 +25,6 @@ import { ChevronLeft, Ellipsis } from 'lucide-react'
 
 import type { GradientKey } from '@/lib/binders/gradients'
 import { BACKDROP_FADE_MASK, BACKDROP_SCRIM, binderBackdropGradient } from '@/lib/binders/gradients'
-import { useCanEdit } from '@/lib/collections/access-context'
 
 function IconButton({
   label,
@@ -122,10 +121,9 @@ export function DeckBackdrop({
   coverArtUrl: string | null
   coverIntensity: number
   onBack: () => void
-  onMore: () => void
+  // `null` : aucun menu d'actions à offrir (`viewer` sans outil Playtest).
+  onMore: (() => void) | null
 }) {
-  // Lecture seule (`viewer`) : pas de menu d'actions du deck.
-  const canEdit = useCanEdit()
   const artUrl = coverCardId !== null ? coverArtUrl : coverGradient === null ? commanderArtUrl : null
   // Un fond vient d'un choix (dérogation posée dans `Deck look`) ou, à
   // défaut, de l'illustration du commandant. **Jamais** d'un dégradé dérivé
@@ -160,7 +158,7 @@ export function DeckBackdrop({
           <ChevronLeft width={20} height={20} strokeWidth={1.75} />
         </IconButton>
         <div className="flex-1" />
-        {canEdit && (
+        {onMore && (
           <IconButton label="Deck actions" onClick={onMore}>
             <Ellipsis width={18} height={18} strokeWidth={1.75} />
           </IconButton>

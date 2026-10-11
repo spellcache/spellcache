@@ -150,3 +150,20 @@ test('a full game: mulligan, play a land, next turn, and resume after a reload',
   await page.getByRole('button', { name: 'End game' }).click()
   await expect(page.getByRole('button', { name: 'On the play' })).toBeVisible()
 })
+
+test('the deck menu opens Playtest once the tool is on', async ({ page }) => {
+  const email = await signInWithFreshAccount(page)
+  const deckId = await createTestDeck(email)
+
+  await page.goto(`/decks/${deckId}`)
+  await page.getByRole('button', { name: 'Deck actions' }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: /^Playtest/ })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  await db.update(users).set({ toolPlaytest: true }).where(eq(users.email, email))
+  await page.reload()
+  await page.getByRole('button', { name: 'Deck actions' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Playtest/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/tools/playtest/${deckId}$`))
+  await expect(page.getByRole('button', { name: 'On the play' })).toBeVisible()
+})

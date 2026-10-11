@@ -5,6 +5,8 @@
 // `getDeck` ne duplique pas ces champs (le contrat de `DeckDetail` ne les
 // porte pas).
 import { requireSession } from '@/lib/auth-guards'
+import { getToolFlags } from '@/lib/tools/tool-flags'
+import { isToolEnabled } from '@/lib/tools/tools'
 import { CollectionAccessProvider } from '@/lib/collections/access-context'
 
 import { DeckView } from './deck-view'
@@ -15,12 +17,21 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const user = await requireSession()
   const { id } = await params
 
-  const [deck, header] = await Promise.all([getDeck(user.id, id), getContainerHeader(user.id, id)])
+  const [deck, header, tools] = await Promise.all([
+    getDeck(user.id, id),
+    getContainerHeader(user.id, id),
+    getToolFlags(user.id),
+  ])
 
   // `canEdit` de la collection de CE deck, pas de l'active (lien direct).
   return (
     <CollectionAccessProvider canEdit={header.canEdit}>
-      <DeckView deckId={id} initialDeck={deck} initialHeader={header} />
+      <DeckView
+        deckId={id}
+        initialDeck={deck}
+        initialHeader={header}
+        playtestEnabled={isToolEnabled('playtest', tools)}
+      />
     </CollectionAccessProvider>
   )
 }

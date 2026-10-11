@@ -70,10 +70,14 @@ export function EditionButton({
       className="flex w-full items-center gap-10 rounded-control border border-border bg-surface-2 px-14 py-12 text-left"
     >
       <span className="flex-shrink-0 text-body font-semibold text-text-2">Edition</span>
+      {/* Nom et numéro alignés sur leur ligne de base (polices différentes),
+          l'icône centrée sur eux. */}
       <span className="flex min-w-0 flex-1 items-center justify-end gap-6 text-body font-semibold text-text">
         <SetIcon uri={setIconUri} />
-        <span className="min-w-0 truncate">{setName ?? setCode.toUpperCase()}</span>
-        <span className="flex-shrink-0 font-mono text-meta text-text-3">#{collectorNumber}</span>
+        <span className="flex min-w-0 items-baseline gap-6 leading-none">
+          <span className="min-w-0 truncate">{setName ?? setCode.toUpperCase()}</span>
+          <span className="flex-shrink-0 font-mono text-meta text-text-3">#{collectorNumber}</span>
+        </span>
       </span>
       <ChevronRight width={16} height={16} strokeWidth={1.75} className="flex-shrink-0 text-text-3" />
     </button>

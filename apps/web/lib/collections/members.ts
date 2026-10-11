@@ -252,6 +252,9 @@ export async function transferOwnership(
   targetUserId: string,
 ): Promise<{ ok: true } | { ok: false; error: TransferOwnershipError }> {
   await assertOwner(actingUserId, collectionId)
+  // Vers soi-même, la seconde écriture rétrograderait l'unique `owner` en
+  // `editor` : la collection resterait sans propriétaire.
+  if (targetUserId === actingUserId) return { ok: false, error: 'not_found' }
 
   return db.transaction(async (tx) => {
     const [target] = await tx

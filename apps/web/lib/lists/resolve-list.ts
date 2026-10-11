@@ -58,6 +58,10 @@ const MAX_CANDIDATES = 20
 // Nombre de propositions du repli trigramme pour un nom inconnu (le choix
 // « corriger »).
 const MAX_SUGGESTIONS = 5
+// Noms inconnus soumis au repli trigramme : chacun coûte une recherche floue
+// sur tout le catalogue. Au-delà, les lignes restent inconnues sans
+// propositions.
+export const MAX_SUGGESTED_NAMES = 200
 
 interface CatalogRow extends Record<string, unknown> {
   card_id: string
@@ -221,7 +225,10 @@ export async function resolveList(
   }
 
   if (unknownNames.length > 0) {
-    const suggestions = await suggestByTrigram([...new Set(unknownNames)], currency)
+    const suggestions = await suggestByTrigram(
+      [...new Set(unknownNames)].slice(0, MAX_SUGGESTED_NAMES),
+      currency,
+    )
     for (const line of resolved) {
       if (line.status !== 'unknown') continue
       const proposed = suggestions.get(line.name)

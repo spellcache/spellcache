@@ -50,6 +50,12 @@ const CARD_LINE = /^(\d{1,4})\s*[xX]?\s+(.+)$/
 // termine par une parenthèse, ce suffixe est donc sans ambiguïté.
 const SET_SUFFIX = /^(.+?)\s+\(([^()\s]{2,8})\)(?:\s+([^\s()]{1,12}))?$/
 
+// Le plus long nom du catalogue fait ~140 caractères : une ligne plus longue
+// n'est pas une carte. La borne garde aussi les expressions ci-dessus (dont le
+// retour arrière est quadratique) hors de portée d'une ligne géante, qui
+// bloquerait le process entier.
+export const MAX_LINE_LENGTH = 300
+
 // En-têtes de section (lignes `Deck`, `Sideboard`, `Commander`, ignorées
 // ou utilisées comme zone). Les
 // synonymes courants des exports (`Maindeck`, `Mainboard`, `Side`) sont
@@ -94,6 +100,10 @@ export function parseList(text: string): ParseResult {
     // Ligne vide : ni carte, ni ignorée listée — une chaîne vide dans
     // `ignored` ne dirait rien à l'utilisateur.
     if (trimmed.length === 0) continue
+    if (trimmed.length > MAX_LINE_LENGTH) {
+      ignored.push(`${trimmed.slice(0, MAX_LINE_LENGTH)}…`)
+      continue
+    }
 
     const section = sectionZone(trimmed)
     if (section) {

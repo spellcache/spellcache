@@ -171,9 +171,13 @@ function undoStore(): Map<string, ContainerUndoEntry> {
 // container racine (`kind === 'collection'`) est protégé : le supprimer
 // casserait l'invariant posé par `bootstrapCollection` (une collection a
 // toujours un container racine).
+// `kind` : celui qu'attend l'appelant. Sans ce contrôle, l'action de
+// suppression d'un deck ou d'une liste détruirait un binder entier, cartes
+// comprises, sans passer par `deleteBinder` qui les rend à la collection.
 export async function deleteContainer(
   userId: string,
   containerId: string,
+  kind?: Exclude<ContainerKind, 'collection'>,
 ): Promise<DeleteContainerResult> {
   await requireContainerAccess(userId, containerId, 'write')
 
@@ -183,6 +187,9 @@ export async function deleteContainer(
   const [target] = await db.select().from(containers).where(eq(containers.id, containerId)).limit(1)
   if (target!.kind === 'collection') {
     throw new Error(`Container ${containerId} is a collection root and cannot be deleted.`)
+  }
+  if (kind && target!.kind !== kind) {
+    throw new Error(`Container ${containerId} is not a ${kind}.`)
   }
 
   return db.transaction(async (tx) => {
@@ -334,15 +341,19 @@ export async function deleteBinder(userId: string, containerId: string): Promise
     // ('update')` ci-dessous) avant de toucher la ligne du binder par son
     // `id`, jamais l'inverse.
     //
-    // Ce choix laisse ouverte une fenêtre que ce verrou aurait fermée : un
-    // `addHolding` qui insère une **nouvelle** clé dans ce binder après cet
-    // instantané mais avant le `delete from containers` plus bas n'est vu par
-    // aucun des deux verrous ci-dessus (Postgres n'a pas de verrou de
-    // prédicat) et serait détruit par la cascade FK sans avoir été déplacé.
-    // La fermer proprement demande soit une transaction `SERIALIZABLE` avec
-    // retry côté appelant, soit un verrou consultatif posé aussi par
-    // `addHolding`. Retenu : l'ordre de verrou cohérent avec
-    // `moveHoldings`, pas la fermeture de la fenêtre.
+    // Le binder lui-même est verrouillé : une seconde suppression simultanée
+    // attend la première, puis ne trouve plus rien à déplacer — sans quoi
+    // chacune ajouterait les mêmes quantités à la racine. Le verrou bloque
+    // aussi toute insertion dans le binder (verrou de clé étrangère) jusqu'à
+    // la fin : aucune ligne ajoutée entre-temps n'est détruite par la cascade.
+    const [stillThere] = await tx
+      .select({ id: containers.id })
+      .from(containers)
+      .where(eq(containers.id, containerId))
+      .for('update')
+    if (!stillThere) return { movedHoldings: 0 }
+
+
     const rows = await tx.select().from(holdings).where(eq(holdings.containerId, containerId))
 
     for (const row of rows) {
@@ -361,8 +372,16 @@ export async function deleteBinder(userId: string, containerId: string): Promise
         .for('update')
         .limit(1)
 
+      // Relue verrouillée après la ligne de la racine, comme dans
+      // `moveHoldings` : un déplacement simultané l'a peut-être déjà sortie.
+      const [current] = await tx.select().from(holdings).where(eq(holdings.id, row.id)).for('update')
+      if (!current || current.containerId !== containerId) continue
+
       if (existing) {
-        await tx.update(holdings).set({ qty: existing.qty + row.qty }).where(eq(holdings.id, existing.id))
+        await tx
+          .update(holdings)
+          .set({ qty: existing.qty + current.qty })
+          .where(eq(holdings.id, existing.id))
         await tx.delete(holdings).where(eq(holdings.id, row.id))
       } else {
         await tx.update(holdings).set({ containerId: root.id }).where(eq(holdings.id, row.id))

@@ -4,7 +4,7 @@
 // `normal` servie directement par le CDN Scryfall
 // (`packages/core/src/images.ts#largeUrl` — jamais le proxy, réservé aux
 // vignettes d'une liste de centaines de lignes), nom, coût, type, set/numéro/rareté, prix, puis un
-// bloc de lignes label/valeur (Quantity, Finish, Condition, Language,
+// bloc de lignes label/valeur (Edition, Quantity, Finish, Condition, Language,
 // Binder, Notes) — ni bouton `Add to deck`/`Binder` désactivé, ni contrôles
 // de quantité/condition/foil : toute édition passe par le bouton `Edit` de
 // l'en-tête, qui ouvre `EditCardSheet`/`EditListCardSheet` (composants
@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react'
 
 import { CONDITION_LABEL } from '@/components/cards/card-edit-controls'
 import { ManaCost } from '@/components/cards/mana-cost'
+import { SetIcon } from '@/components/cards/set-icon'
 import { Sheet } from '@/components/ui/sheet'
 import { useCanEdit } from '@/lib/collections/access-context'
 import { largeUrl } from '@spellcache/core/images'
@@ -33,11 +34,13 @@ import {
 import type { HoldingRow } from '@/app/(app)/container/[id]/holdings-data'
 
 // Une ligne label/valeur — absente quand la
-// valeur est `null`/vide, jamais un tiret creux affiché pour rien.
+// valeur est `null`/vide, jamais un tiret creux affiché pour rien. Pas de
+// séparateur sous la dernière ligne affichée (`last:`, les lignes absentes ne
+// sont pas rendues).
 function Row({ label, value }: { label: string; value: string | null }) {
   if (value === null || value === '') return null
   return (
-    <div className="flex items-baseline justify-between gap-12 border-b border-border py-9">
+    <div className="flex items-baseline justify-between gap-12 border-b border-border py-9 last:border-b-0">
       <span className="flex-shrink-0 text-meta font-semibold text-text-2">{label}</span>
       <span className="min-w-0 text-right text-row-value font-semibold text-text">{value}</span>
     </div>
@@ -155,6 +158,7 @@ export function CardSheet({
               {detail && <span className="text-meta text-text-2">{detail.typeLine}</span>}
             </div>
             <div className="mt-6 flex items-center gap-6 font-mono text-meta-search text-text-2">
+              <SetIcon uri={holding.setIconUri} />
               <span className="font-bold text-text-2">{holding.setCode.toUpperCase()}</span>
               <span className="text-text-3">#{holding.collectorNumber}</span>
               <span className="text-tab-label font-bold uppercase tracking-section-label text-text-3">
@@ -175,6 +179,7 @@ export function CardSheet({
         )}
 
         <div className="mt-auto">
+          <Row label="Edition" value={holding.setName} />
           <Row label="Quantity" value={`×${holding.qty}`} />
           <Row label="Finish" value={isFoil ? 'Foil' : 'Non-foil'} />
           <Row label="Condition" value={CONDITION_LABEL[holding.condition] ?? holding.condition} />

@@ -86,6 +86,7 @@ import {
   createQuantityMutationOptions,
   createUndoHandler,
 } from './mutations'
+import { toPrintingPatch } from './optimistic'
 import type { ContainerHeader, HoldingPage, HoldingRow } from './holdings-data'
 
 function priceLabel(priceMinor: number | null, currency: 'usd' | 'eur'): string {
@@ -605,26 +606,17 @@ export function ContainerView({
     if (density === 'compact') {
       return (
         <CompactRow
-          holdingId={item.holdingId}
           thumbUrl={item.thumbUrl}
           name={item.name}
           manaCost={item.manaCost}
           setCode={item.setCode}
+          setIconUri={item.setIconUri}
           collectorNumber={item.collectorNumber}
           condition={item.condition}
           isFoil={isFoil}
           qty={item.qty}
           available={item.available}
           priceLabel={label}
-          // Le stepper est du bruit en sélection groupée et n'existe jamais
-          // sur une liste : `undefined` replie
-          // `CompactRow` sur une puce `×N` en lecture seule dans les deux
-          // cas.
-          onQtyChange={
-            !selectionEnabled || selection.active
-              ? undefined
-              : (next) => qtyMutation.mutate({ holdingId: item.holdingId, qty: next })
-          }
           onOpen={() => handleRowOpen(item.holdingId)}
           selectable={selectionEnabled && selection.active}
           selected={visual.selected}
@@ -654,23 +646,17 @@ export function ContainerView({
 
     return (
       <CardRow
-        holdingId={item.holdingId}
         thumbUrl={item.thumbUrl}
         name={item.name}
         manaCost={item.manaCost}
         setCode={item.setCode}
-        setName={item.setName}
+        setIconUri={item.setIconUri}
         collectorNumber={item.collectorNumber}
         condition={item.condition}
         isFoil={isFoil}
         qty={item.qty}
         available={item.available}
         priceLabel={label}
-        onQtyChange={
-          !selectionEnabled || selection.active
-            ? undefined
-            : (next) => qtyMutation.mutate({ holdingId: item.holdingId, qty: next })
-        }
         onOpen={() => handleRowOpen(item.holdingId)}
         selectable={selectionEnabled && selection.active}
         selected={visual.selected}
@@ -1049,6 +1035,13 @@ export function ContainerView({
               finish: isFoil ? 'foil' : 'nonfoil',
             })
           }}
+          onPrintingChange={(printing) => {
+            if (!editingHolding) return
+            patchMutation.mutate({
+              holdingId: editingHolding.holdingId,
+              printing: toPrintingPatch(printing),
+            })
+          }}
           onRemove={() => {
             if (!editingHolding) return
             qtyMutation.mutate({ holdingId: editingHolding.holdingId, qty: 0 })
@@ -1083,6 +1076,13 @@ export function ContainerView({
             patchMutation.mutate({
               holdingId: editingHolding.holdingId,
               finish: isFoil ? 'foil' : 'nonfoil',
+            })
+          }}
+          onPrintingChange={(printing) => {
+            if (!editingHolding) return
+            patchMutation.mutate({
+              holdingId: editingHolding.holdingId,
+              printing: toPrintingPatch(printing),
             })
           }}
           onDelete={() => {

@@ -21,6 +21,8 @@ const authState = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/auth', () => ({
   auth: async () => (authState.user ? { user: authState.user } : null),
+  // Envoi du lien d'invitation : hors du sujet de ce fichier.
+  signIn: async () => undefined,
 }))
 
 // `revalidatePath` exige le contexte d'une vraie requête Next, absent sous
@@ -44,6 +46,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Settings & preferences', () => 
   let updatePreferenceAction: typeof import('@/app/(app)/settings/preferences-actions').updatePreferenceAction
   let addMemberAction: typeof import('@/app/(app)/settings/members-actions').addMemberAction
   let renameCollectionAction: typeof import('@/app/(app)/settings/collection-actions').renameCollectionAction
+  let inviteUserAction: typeof import('@/app/(app)/settings/actions').inviteUserAction
 
   beforeAll(async () => {
     pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL })
@@ -56,6 +59,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Settings & preferences', () => 
     ;({ updatePreferenceAction } = await import('@/app/(app)/settings/preferences-actions'))
     ;({ addMemberAction } = await import('@/app/(app)/settings/members-actions'))
     ;({ renameCollectionAction } = await import('@/app/(app)/settings/collection-actions'))
+    ;({ inviteUserAction } = await import('@/app/(app)/settings/actions'))
   })
 
   afterAll(async () => {
@@ -128,6 +132,20 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Settings & preferences', () => 
       if (result.ok) {
         expect(result.preferences.priceSource).toBe('tcgplayer_usd')
       }
+    })
+  })
+
+  describe('inviteUserAction', () => {
+    it('stores the invited email the way sign-in looks it up, and spots an existing one whatever its case', async () => {
+      await setupOwner('admin1')
+      authState.user = { ...authState.user!, role: 'admin' }
+
+      const fresh = await inviteUserAction({ email: '  New.Player@Example.COM ' })
+      expect(fresh).toMatchObject({ ok: true })
+      const [row] = await db.select({ email: users.email }).from(users).where(eq(users.email, 'new.player@example.com'))
+      expect(row).toBeDefined()
+
+      expect(await inviteUserAction({ email: 'ADMIN1@example.com' })).toEqual({ ok: false, error: 'exists' })
     })
   })
 

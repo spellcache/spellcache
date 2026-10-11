@@ -1,7 +1,9 @@
 'use client'
 
 // Une carte d'une liste de deck : vignette, nom et coût, code de set, les
-// trois zones, le compteur d'exemplaires et la suppression.
+// trois zones, le nombre d'exemplaires et la suppression. Le nombre reste en
+// lecture seule : un compteur en ligne se déclenchait au défilement, il vit
+// dans la feuille de la carte (`CardPreviewSheet`).
 //
 // C'est une ligne d'**édition**, pas une ligne de lecture : `SlotRow`
 // (`components/decks/slot-row.tsx`) reste la ligne inerte des écrans qui ne
@@ -12,6 +14,7 @@ import { Trash2 } from 'lucide-react'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { DeckZone } from '@spellcache/db/schema'
 import { useCanEdit } from '@/lib/collections/access-context'
+import { SetIcon } from '@/components/cards/set-icon'
 
 const ZONES: Array<{ value: DeckZone; label: string }> = [
   { value: 'main', label: 'Main' },
@@ -24,9 +27,9 @@ export function DeckCardRow({
   name,
   manaCost,
   setLine,
+  setIconUri,
   qty,
   zone,
-  onQtyChange,
   onZoneChange,
   onRemove,
   onOpen,
@@ -35,18 +38,17 @@ export function DeckCardRow({
   name: string
   manaCost: string | null
   setLine: string
+  setIconUri?: string | null
   qty: number
   zone: DeckZone
-  onQtyChange: (next: number) => void
   onZoneChange: (next: DeckZone) => void
   onRemove: () => void
-  // Vignette et nom ouvrent la feuille de la carte ; les puces de zone, le
-  // compteur et la corbeille gardent leur propre geste.
+  // Vignette et nom ouvrent la feuille de la carte ; les puces de zone et la
+  // corbeille gardent leur propre geste.
   onOpen?: () => void
 }) {
-  // Lecture seule (`viewer`) : ni zones, ni compteur, ni corbeille — la
-  // quantité seule, comme `QtyStepper`. La zone se lit déjà au titre de
-  // section (Commander / Mainboard / Sideboard).
+  // Lecture seule (`viewer`) : ni zones, ni corbeille. La zone se lit déjà au
+  // titre de section (Commander / Mainboard / Sideboard).
   const canEdit = useCanEdit()
   return (
     <div className="flex items-center gap-12 rounded-card border border-border bg-surface-1 px-12 py-10">
@@ -74,7 +76,10 @@ export function DeckCardRow({
             <span className="min-w-0 truncate text-deck-row-name font-bold text-text">{name}</span>
             <ManaCost cost={manaCost} size={14} />
           </span>
-          <span className="mt-2 block text-deck-row-set text-text-2">{setLine}</span>
+          <span className="mt-2 flex min-w-0 items-center gap-5 text-deck-row-set text-text-2">
+            <SetIcon uri={setIconUri} />
+            <span className="min-w-0 truncate">{setLine}</span>
+          </span>
         </button>
         {canEdit && (
         <div className="mt-6 flex gap-5">
@@ -100,43 +105,21 @@ export function DeckCardRow({
         )}
       </div>
 
-      {!canEdit ? (
+      <div className="flex flex-shrink-0 items-center gap-8">
         <span className="min-w-stepper-count text-center font-mono text-deck-row-qty font-bold text-text">
           ×{qty}
         </span>
-      ) : (
-      <div className="flex flex-shrink-0 items-center gap-8">
-        <button
-          type="button"
-          aria-label={`One less ${name}`}
-          // Le compteur ne descend pas à zéro : retirer une carte de la liste
-          // est la corbeille à côté, un geste distinct d'une décrémentation.
-          onClick={() => onQtyChange(Math.max(1, qty - 1))}
-          className="flex h-stepper-round w-stepper-round items-center justify-center rounded-full bg-surface-2 text-body font-bold text-text"
-        >
-          −
-        </button>
-        <span className="min-w-stepper-count text-center font-mono text-deck-row-qty font-bold text-text">
-          {qty}
-        </span>
-        <button
-          type="button"
-          aria-label={`One more ${name}`}
-          onClick={() => onQtyChange(qty + 1)}
-          className="flex h-stepper-round w-stepper-round items-center justify-center rounded-full bg-surface-2 text-body font-bold text-text"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          aria-label={`Remove ${name}`}
-          onClick={onRemove}
-          className="ml-2 flex p-4 text-text-3"
-        >
-          <Trash2 width={16} height={16} strokeWidth={1.75} />
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            aria-label={`Remove ${name}`}
+            onClick={onRemove}
+            className="ml-2 flex p-4 text-text-3"
+          >
+            <Trash2 width={16} height={16} strokeWidth={1.75} />
+          </button>
+        )}
       </div>
-      )}
     </div>
   )
 }

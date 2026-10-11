@@ -15,7 +15,7 @@ export default function CollectionLoading() {
         <div className="h-header-action flex-1 animate-pulse rounded-control bg-surface-1" />
         <div className="flex items-center gap-8">
           <div className="h-header-action w-header-action flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
-          <div className="h-header-add w-header-add flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
+          <div className="h-header-action w-header-action flex-shrink-0 animate-pulse rounded-full bg-surface-1" />
         </div>
       </div>
 

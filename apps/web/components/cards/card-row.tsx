@@ -1,7 +1,6 @@
 // Ligne de carte, densité `rows` — 84px de haut
-// (`ROW_HEIGHT.rows`). Contrôle de quantité en ligne : la puce `×N` cède la
-// place à un stepper quand `onQtyChange` est fourni — absent en mode sélection,
-// où la puce reste la seule lecture, cf. `container-view.tsx`.
+// (`ROW_HEIGHT.rows`). Quantité en lecture seule (puce `×N`) : voir
+// `CompactRow`, elle se modifie dans la feuille d'édition.
 //
 // La ligne n'a pas de hauteur forcée : elle additionne exactement à 84px
 // (bordure 2px + padding 10px×2 + vignette 44×61 en flux), la vignette
@@ -16,9 +15,9 @@
 // deux compensations avec.
 import { Check } from 'lucide-react'
 
-import { QtyStepper } from '@/components/cards/qty-stepper'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
+import { SetIcon } from '@/components/cards/set-icon'
 
 // `selectable`/`selected` : même case ronde 18px et mêmes tokens de
 // fond/bordure que `CompactRow` — la seule densité dessinée pour la
@@ -30,35 +29,27 @@ import type { Condition } from '@spellcache/db/schema'
 // existants plutôt que d'inventer un traitement propre à cette densité
 // (docs/development.md : ne pas inventer de langage visuel).
 export function CardRow({
-  holdingId,
   thumbUrl,
   name,
   manaCost,
   setCode,
-  setName,
+  setIconUri,
   collectorNumber,
   condition,
   isFoil,
   qty,
   available,
   priceLabel,
-  onQtyChange,
   onOpen,
   selectable = false,
   selected = false,
   current = false,
 }: {
-  // Requis seulement quand `onQtyChange` est fourni (le stepper en a besoin,
-  // même contrat que `CompactRow`) — laissé optionnel pour ne pas forcer
-  // les rares appelants sans quantité éditable à en inventer un.
-  holdingId?: string
   thumbUrl: string
   name: string
   manaCost: string | null
   setCode: string
-  // Nom complet du set — `null`/absent replie sur le seul code, jamais une
-  // chaîne vide qui laisserait un « · » orphelin.
-  setName?: string | null
+  setIconUri?: string | null
   collectorNumber: string
   condition: Condition
   isFoil: boolean
@@ -69,10 +60,6 @@ export function CardRow({
   // est réservée par un deck `built`.
   available?: number
   priceLabel: string
-  // Stepper en ligne à la place de la puce `×N` — absent en mode sélection
-  // (`container-view.tsx` ne le passe pas alors), où la puce redevient une
-  // simple lecture.
-  onQtyChange?: (next: number) => void
   onOpen: () => void
   selectable?: boolean
   selected?: boolean
@@ -82,7 +69,6 @@ export function CardRow({
 }) {
   const highlighted = selected || current
   const reserved = available !== undefined && available < qty
-  const setLine = `${setCode.toUpperCase()}${setName ? ` · ${setName}` : ''} #${collectorNumber}`
 
   return (
     <button
@@ -115,7 +101,12 @@ export function CardRow({
           <div className="min-w-0 truncate text-card-name-row font-bold text-text">{name}</div>
           <ManaCost cost={manaCost} size={14} />
         </div>
-        <div className="mt-2 text-setline-row text-text-2">{setLine}</div>
+        <div className="mt-2 flex min-w-0 items-center gap-5 text-setline-row text-text-2">
+          <SetIcon uri={setIconUri} />
+          <span className="min-w-0 truncate">
+            {setCode.toUpperCase()} #{collectorNumber}
+          </span>
+        </div>
         <div className="mt-6 flex gap-6">
           <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
             {condition.toUpperCase()}
@@ -125,15 +116,9 @@ export function CardRow({
               FOIL
             </span>
           )}
-          {onQtyChange && holdingId ? (
-            <span onClick={(event) => event.stopPropagation()}>
-              <QtyStepper holdingId={holdingId} qty={qty} onChange={onQtyChange} />
-            </span>
-          ) : (
-            <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
-              ×{qty}
-            </span>
-          )}
+          <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
+            ×{qty}
+          </span>
           {reserved && (
             <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-success">
               IN DECK

@@ -13,10 +13,12 @@ import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { CardEditControls } from '@/components/cards/card-edit-controls'
+import { EditionButton, PrintingPickerSheet } from '@/components/cards/printing-picker-sheet'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PickerSheet } from '@/components/ui/picker-sheet'
 import { Sheet } from '@/components/ui/sheet'
 import type { Condition } from '@spellcache/db/schema'
+import type { CardSearchItem } from '@/lib/search/search-cards'
 
 import {
   getHoldingDetailAction,
@@ -42,6 +44,7 @@ export function EditCardSheet({
   onQtyChange,
   onConditionChange,
   onFoilChange,
+  onPrintingChange,
   onDelete,
   // Rappelé après un déplacement de binder réussi — la
   // ligne quitte la vue courante, l'écran de container doit relire
@@ -57,6 +60,9 @@ export function EditCardSheet({
   onQtyChange: (next: number) => void
   onConditionChange: (condition: Condition) => void
   onFoilChange: (isFoil: boolean) => void
+  // Autre impression de la même carte : mutation optimiste de l'écran, comme
+  // condition/foil (une fusion peut changer le `holdingId`).
+  onPrintingChange: (printing: CardSearchItem) => void
   onDelete: () => void
   onMoved: () => void
 }) {
@@ -65,6 +71,7 @@ export function EditCardSheet({
   const [notes, setNotes] = useState('')
   const [binderPickerOpen, setBinderPickerOpen] = useState(false)
   const [binderOptions, setBinderOptions] = useState<HoldingBinderOption[]>([])
+  const [editionsOpen, setEditionsOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -136,6 +143,14 @@ export function EditCardSheet({
             onFoilChange={onFoilChange}
           />
 
+          <EditionButton
+            setName={holding.setName}
+            setCode={holding.setCode}
+            setIconUri={holding.setIconUri}
+            collectorNumber={holding.collectorNumber}
+            onClick={() => setEditionsOpen(true)}
+          />
+
           <div>
             <div className="mb-8 text-body font-semibold text-text-2">Language</div>
             <input
@@ -192,6 +207,14 @@ export function EditCardSheet({
         }))}
         onPick={(value) => void handlePickBinder(value)}
         emptyMessage="No binder yet — create one from the Collection tab."
+      />
+
+      <PrintingPickerSheet
+        open={editionsOpen}
+        onClose={() => setEditionsOpen(false)}
+        card={{ name: holding.name, manaCost: holding.manaCost }}
+        currentCardId={holding.cardId}
+        onPick={(printing) => onPrintingChange(printing)}
       />
 
       <ConfirmDialog

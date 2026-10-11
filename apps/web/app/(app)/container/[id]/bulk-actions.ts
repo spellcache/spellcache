@@ -15,27 +15,29 @@ import { requireSession } from '@/lib/auth-guards'
 import { bulkDelete, bulkEdit, bulkUndo, DeckLockedError, type BulkEdit, type BulkTarget } from '@/lib/containers/bulk'
 import { db } from '@spellcache/db'
 import type { HoldingFilters, ViewState } from '@/lib/view-state/parse'
+import { MAX_HOLDING_QTY } from '@/lib/containers/holdings'
+import { MAX_QUERY_LENGTH } from '@/lib/search/normalize'
 
 const finishSchema = z.enum(['nonfoil', 'foil', 'etched'])
 const conditionSchema = z.enum(['nm', 'lp', 'mp', 'hp', 'dmg'])
 
 const holdingFiltersSchema: z.ZodType<HoldingFilters> = z.object({
-  colors: z.array(z.enum(['W', 'U', 'B', 'R', 'G', 'C'])),
+  colors: z.array(z.enum(['W', 'U', 'B', 'R', 'G', 'C'])).max(6),
   colorMatch: z.enum(['including', 'exactly', 'atMost']),
   multicolourOnly: z.boolean(),
   monoOnly: z.boolean(),
-  types: z.array(z.string()),
-  rarities: z.array(z.string()),
-  finishes: z.array(finishSchema),
-  conditions: z.array(conditionSchema),
-  setCode: z.string().nullable(),
+  types: z.array(z.string().max(64)).max(32),
+  rarities: z.array(z.string().max(16)).max(8),
+  finishes: z.array(finishSchema).max(3),
+  conditions: z.array(conditionSchema).max(5),
+  setCode: z.string().max(16).nullable(),
   binderId: z.uuid().nullable(),
   priceMinMinor: z.number().int().nullable(),
   priceMaxMinor: z.number().int().nullable(),
 })
 
 const viewStateSchema: z.ZodType<ViewState> = z.object({
-  query: z.string(),
+  query: z.string().max(MAX_QUERY_LENGTH),
   filters: holdingFiltersSchema,
   sort: z.object({
     key: z.enum(['name', 'price', 'cmc', 'rarity', 'set', 'added', 'qty']),
@@ -50,7 +52,7 @@ const viewStateSchema: z.ZodType<ViewState> = z.object({
 const bulkTargetSchema = z
   .object({
     containerId: z.uuid(),
-    holdingIds: z.array(z.uuid()).optional(),
+    holdingIds: z.array(z.uuid()).max(10_000).optional(),
     matching: viewStateSchema.optional(),
   })
   .refine((v) => (v.holdingIds !== undefined) !== (v.matching !== undefined), {
@@ -68,7 +70,7 @@ function toBulkTarget(parsed: z.infer<typeof bulkTargetSchema>): BulkTarget {
 const bulkEditSchema = z.object({
   target: bulkTargetSchema,
   edit: z.object({
-    qty: z.number().int().positive().optional(),
+    qty: z.number().int().positive().max(MAX_HOLDING_QTY).optional(),
     condition: conditionSchema.optional(),
     finish: finishSchema.optional(),
     targetContainerId: z.uuid().optional(),

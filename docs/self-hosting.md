@@ -144,7 +144,9 @@ make sure it:
   (`Strict-Transport-Security`);
 - forwards the original `Host` header;
 - sets `X-Forwarded-For` to the **client** IP — sign-in rate limits are per IP,
-  so a proxy that sends its own IP for everyone makes all users share one limit;
+  so a proxy that sends its own IP for everyone makes all users share one limit.
+  spellcache reads the last entry of the header, the one your proxy writes:
+  replace the header (as below) rather than append to a value the client sent;
 - does not cache HTML responses.
 
 `AUTH_URL` must be the public HTTPS URL users type in their browser.

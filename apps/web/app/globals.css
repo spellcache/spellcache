@@ -182,8 +182,8 @@
      couleur/l'alpha réutilisés ici, pas à la forme du dégradé.
      Palier intermédiaire à 52 % — la valeur exacte du design validé. Un
      palier plus précoce supposerait que le titre s'assoit après lui, ce que
-     la mesure réelle infirme (le titre s'assoit à 190px sur 460, soit
-     41.3 %, avant 52 %). Le contraste ≥ 4.5:1 au pire cas reste garanti à
+     la mesure réelle infirme (le titre s'assoit à 186px sur 460, soit
+     40.4 %, avant 52 %). Le contraste ≥ 4.5:1 au pire cas reste garanti à
      52 % par interpolation réelle de ce dégradé à la position du titre —
      voir `lib/binders/gradients.ts#worstCaseTitleContrast`, prouvé par
      `tests/unit/gradients.test.ts` — pas en avançant le palier. */
@@ -512,10 +512,6 @@
      `--width-back-button`/`--height-back-button` ci-dessus (même gabarit de
      bouton rond, prévu pour cette réutilisation, voir le commentaire
      ci-dessus). */
-  /* Bouton `+` accent de l'en-tête de binder illustré — distinct de
-     `--width-header-add` (42px, en-têtes sans illustration). */
-  --width-header-add-binder: 40px;
-  --height-header-add-binder: 40px;
   /* Pastille de dégradé de la feuille `Binder look`. */
   --width-swatch: 52px;
   --height-swatch: 52px;

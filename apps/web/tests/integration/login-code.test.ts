@@ -25,11 +25,15 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Login code', () => {
     await pool.query('TRUNCATE verification_tokens')
   })
 
+  // Unique par exécution : le plafond horaire survit à la base de test
+  // quand Redis tourne.
+  const email = `player-${Date.now()}@example.com`
+
   async function insertCode(token: string, minutesLeft = 10) {
     await pool.query(
       `INSERT INTO verification_tokens (identifier, token, expires)
-       VALUES ('player@example.com', $1, now() + ($2 || ' minutes')::interval)`,
-      [token, String(minutesLeft)],
+       VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
+      [email, token, String(minutesLeft)],
     )
   }
 
@@ -40,18 +44,34 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Login code', () => {
   it('revokes pending codes once the attempt limit is passed', async () => {
     await insertCode('hash-a')
     for (let i = 0; i < code.MAX_LOGIN_ATTEMPTS; i++) {
-      expect(await code.registerLoginAttempt('Player@Example.com')).toBe(true)
+      expect(await code.registerLoginAttempt(email.toUpperCase())).toBe(true)
     }
-    expect(await code.registerLoginAttempt('player@example.com')).toBe(false)
+    expect(await code.registerLoginAttempt(email)).toBe(false)
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM verification_tokens')
     expect(rows[0].n).toBe(0)
+  })
+
+  it('caps attempts per hour even when fresh codes keep being requested', async () => {
+    const hourly = `hourly-${Date.now()}@example.com`
+    let allowed = 0
+    for (let i = 0; i < code.MAX_LOGIN_ATTEMPTS_PER_HOUR + 5; i++) {
+      // Un code neuf avant chaque essai : seul le plafond horaire peut refuser.
+      await pool.query(
+        `INSERT INTO verification_tokens (identifier, token, expires)
+         VALUES ($1, $2, now() + interval '10 minutes')`,
+        [hourly, `hash-${i}`],
+      )
+      if (await code.registerLoginAttempt(hourly)) allowed++
+      await pool.query('DELETE FROM verification_tokens WHERE identifier = $1', [hourly])
+    }
+    expect(allowed).toBe(code.MAX_LOGIN_ATTEMPTS_PER_HOUR)
   })
 
   it('stops sending new codes past the active-code limit, expired ones excepted', async () => {
     for (let i = 0; i < code.MAX_ACTIVE_CODES - 1; i++) await insertCode(`hash-${i}`)
     await insertCode('hash-expired', -1)
-    expect(await code.canSendLoginCode('player@example.com')).toBe(true)
+    expect(await code.canSendLoginCode(email)).toBe(true)
     await insertCode('hash-last')
-    expect(await code.canSendLoginCode('player@example.com')).toBe(false)
+    expect(await code.canSendLoginCode(email)).toBe(false)
   })
 })

@@ -62,7 +62,7 @@ function IconButton({
   children: React.ReactNode
 }) {
   const className = accent
-    ? 'flex h-header-add-binder w-header-add-binder flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent'
+    ? 'flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full bg-accent text-on-accent'
     : `flex h-back-button w-back-button flex-shrink-0 items-center justify-center rounded-full text-text ${
         illustrated ? 'bg-header-icon-veil' : 'bg-surface-1'
       }`

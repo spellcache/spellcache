@@ -136,3 +136,50 @@ describe('openLayer', () => {
     expect(history.href).toBe('/a')
   })
 })
+
+// App Android : le shell appelle `window.__spellcacheBack()` au lieu de
+// remonter l'historique de la WebView, qui ne doit plus contenir que des pages.
+describe('openLayer in the Android shell', () => {
+  let openLayer: typeof import('@/components/ui/use-back-to-close').openLayer
+  let history: ReturnType<typeof installFakeHistory>
+
+  beforeEach(async () => {
+    vi.resetModules()
+    history = installFakeHistory()
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) SpellcacheAndroid' })
+    ;({ openLayer } = await import('@/components/ui/use-back-to-close'))
+  })
+
+  function shellBack(): boolean {
+    return (window as unknown as { __spellcacheBack: () => boolean }).__spellcacheBack()
+  }
+
+  it('opens layers without adding history entries', () => {
+    openLayer(vi.fn())
+    openLayer(vi.fn())
+    expect(history.depth).toBe(0)
+  })
+
+  it('closes the top layer first, then reports nothing left to close', () => {
+    const closeSheet = vi.fn()
+    const closeZoom = vi.fn()
+    openLayer(closeSheet)
+    openLayer(closeZoom)
+
+    expect(shellBack()).toBe(true)
+    expect(closeZoom).toHaveBeenCalledOnce()
+    expect(closeSheet).not.toHaveBeenCalled()
+
+    expect(shellBack()).toBe(true)
+    expect(closeSheet).toHaveBeenCalledOnce()
+
+    expect(shellBack()).toBe(false)
+  })
+
+  it('forgets a layer closed from the interface', () => {
+    const closeSheet = vi.fn()
+    openLayer(closeSheet)()
+    expect(shellBack()).toBe(false)
+    expect(closeSheet).not.toHaveBeenCalled()
+  })
+})

@@ -371,4 +371,38 @@ describe('mutation options against a mocked Server Action', () => {
     )
     expect(onFailure).toHaveBeenCalledWith('Could not update the card. Try again.')
   })
+  it('sends only the new cardId and redraws the row with the picked printing', async () => {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(HOLDINGS_KEY, seedData([holding({ holdingId: 'h1', qty: 2 })]))
+    const updateHoldingAction = vi.fn().mockResolvedValue({ ok: true, holdingId: 'h1' })
+
+    const options = createPatchMutationOptions({
+      queryClient,
+      holdingsKey: HOLDINGS_KEY,
+      headerKey: HEADER_KEY,
+      updateHoldingAction,
+      onFailure: vi.fn(),
+      onMerged: vi.fn(),
+    })
+
+    const vars = {
+      holdingId: 'h1',
+      printing: {
+        cardId: 'card-2',
+        setCode: '7ed',
+        setName: 'Seventh Edition',
+        collectorNumber: '92',
+        rarity: 'rare',
+        priceMinor: 1200,
+        thumbUrl: '/api/card-image/card-2/small',
+      },
+    }
+    const context = await options.onMutate(vars)
+    const row = queryClient.getQueryData<InfiniteData<HoldingPage>>(HOLDINGS_KEY)?.pages[0]?.items[0]
+    expect(row).toMatchObject({ ...vars.printing, holdingId: 'h1', qty: 2, name: 'Rhystic Study' })
+
+    const result = await options.mutationFn(vars)
+    expect(updateHoldingAction).toHaveBeenCalledWith({ holdingId: 'h1', cardId: 'card-2' })
+    options.onSuccess(result, vars, context)
+  })
 })

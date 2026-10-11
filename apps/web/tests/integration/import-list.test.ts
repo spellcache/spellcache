@@ -652,6 +652,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('import de liste et partage publ
         'priceMinor',
         'qty',
         'setCode',
+        'setIconUri',
         'thumbUrl',
       ].sort(),
     )

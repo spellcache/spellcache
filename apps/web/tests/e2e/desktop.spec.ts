@@ -206,15 +206,14 @@ test('editing the quantity in the pane updates the row and survives a reload', a
   const pane = page.getByTestId('preview-pane')
   await expect(pane.getByText('Alpha rules text.')).toBeVisible()
 
-  const rowStepper = rows.nth(0).locator('[data-holding-id]')
-  await expect(rowStepper).toContainText('1')
+  await expect(rows.nth(0)).toContainText('×1')
 
   await pane.getByRole('button', { name: 'Increase quantity' }).click()
-  await expect(rowStepper).toContainText('2')
+  await expect(rows.nth(0)).toContainText('×2')
 
   await page.reload()
   await expect(page.getByText('Desktop Card Alpha').first()).toBeVisible()
-  await expect(page.locator('[data-virtual-item-key]').nth(0).locator('[data-holding-id]')).toContainText('2')
+  await expect(page.locator('[data-virtual-item-key]').nth(0)).toContainText('×2')
 })
 
 test('turning the pane off gives the list the full width and brings back the card sheet', async ({
@@ -267,18 +266,16 @@ test('the pane moves the current card to a binder through the bulk edit sheet', 
 
   await pane.getByRole('button', { name: 'Move to binder' }).click()
 
-  // La feuille d'édition groupée, visant la seule ligne du panneau — d'où « 1 card »,
-  // et non le compteur d'une sélection.
-  const sheet = page.getByRole('dialog', { name: 'Edit 1 card' })
+  // Mode déplacement de la feuille groupée, visant la seule ligne du panneau —
+  // d'où « 1 card », et non le compteur d'une sélection : la liste des binders
+  // et `Move 1 card`, sans le formulaire d'édition.
+  const sheet = page.getByRole('dialog', { name: 'Move 1 card to a binder' })
   await expect(sheet).toBeVisible()
-  // `destinationKind = 'binder'` : la ligne de destination s'appelle
-  // `Binder`, pas `Destination`. Elle ouvre la `PickerSheet` partagée.
-  await sheet.getByRole('button', { name: 'Binder No binder' }).click()
-  const picker = page.getByRole('dialog', { name: 'Move 1 card' })
-  await picker.getByRole('button', { name: /^Desktop Trade Binder/ }).click()
-  await expect(sheet.getByRole('button', { name: 'Binder Desktop Trade Binder' })).toBeVisible()
-
-  await sheet.getByRole('button', { name: 'Apply to 1 card' }).click()
+  await expect(sheet.getByText('Condition')).toHaveCount(0)
+  const move = sheet.getByRole('button', { name: 'Move 1 card', exact: true })
+  await expect(move).toBeDisabled()
+  await sheet.getByRole('button', { name: /^Desktop Trade Binder/ }).click()
+  await move.click()
 
   await expect(page.getByText('1 card updated')).toBeVisible()
 

@@ -34,6 +34,7 @@ import { db } from '@spellcache/db'
 import { parseList } from '@/lib/lists/parse-list'
 import { resolveList, type ResolveSummary, type ResolvedLine } from '@/lib/lists/resolve-list'
 import { getPreferences } from '@/lib/preferences'
+import { rateLimit } from '@/lib/redis'
 import { currencyOf } from '@/lib/price-source'
 
 // Une ligne de liste texte ne porte ni finition, ni état, ni langue (un
@@ -49,6 +50,12 @@ const conditionSchema = z.enum(['nm', 'lp', 'mp', 'hp', 'dmg'])
 
 // Caractères d'une liste collée ou d'un fichier importé.
 const MAX_LIST_TEXT = 1_500_000
+
+// Aperçus et imports de liste par compte : chacun parcourt le catalogue
+// entier, un appel en boucle occuperait la base pour tout le monde.
+async function allowListWork(userId: string): Promise<boolean> {
+  return rateLimit(`ratelimit:list:${userId}`, 60, 600)
+}
 
 // ---------------------------------------------------------------- visibilité
 
@@ -152,6 +159,7 @@ export async function resolveListAction(
   if (!parsed.success) return { ok: false, error: 'invalid' }
 
   const user = await requireSession()
+  if (!(await allowListWork(user.id))) return { ok: false, error: 'rate_limited' }
 
   try {
     await requireContainerAccess(user.id, parsed.data.containerId, 'write')
@@ -270,6 +278,7 @@ export async function importListAction(
   // tant que la feuille `Import & export` unifiée n'a rien précisé.
   const writeCondition: Condition = parsed.data.condition ?? IMPORT_CONDITION
   const writeFinish: Finish = parsed.data.foil ? 'foil' : IMPORT_FINISH
+  if (!(await allowListWork(user.id))) return { ok: false, error: 'rate_limited' }
 
   try {
     await requireContainerAccess(user.id, containerId, 'write')
@@ -444,6 +453,9 @@ export async function undoImportAction(
     return { ok: true, undone: false }
   }
   if (entry.userId !== user.id) return { ok: false, error: 'forbidden' }
+  // Consommé avant la moindre attente : deux annulations simultanées
+  // retireraient sinon deux fois le même delta.
+  undoStore().delete(parsed.data.undoToken)
 
   try {
     await requireContainerAccess(user.id, entry.containerId, 'write')
@@ -479,7 +491,6 @@ export async function undoImportAction(
       await recomputeContainerStats(entry.containerId, tx)
     })
 
-    undoStore().delete(parsed.data.undoToken)
     revalidatePath('/collection')
     return { ok: true, undone: true }
   } catch (error) {

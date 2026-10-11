@@ -123,7 +123,11 @@ interface ImportResult {
   skippedNames: string[]
 }
 
-function ImportTab({ destinations, onImported, onDone }: {
+function ImportTab({
+  destinations,
+  onImported,
+  onDone,
+}: {
   destinations: ImportExportDestinations | null
   onImported: () => void
   // Ferme la feuille depuis l'écran de résultat (`Done`) — jamais
@@ -180,14 +184,19 @@ function ImportTab({ destinations, onImported, onDone }: {
     // reste à créer : une liste illisible ne doit pas laisser derrière elle
     // un binder vide.
     const preview = await resolveListAction({
-      containerId: creatingNew || target === COLLECTION_VALUE ? destinations.rootContainerId : target,
+      containerId:
+        creatingNew || target === COLLECTION_VALUE
+          ? destinations.rootContainerId
+          : target,
       text: content,
     })
     if (!preview.ok) {
       setError(
         preview.error === 'invalid'
           ? 'That list is too large to import at once. Split the file and try again.'
-          : 'Could not read that list. Try again.',
+          : preview.error === 'rate_limited'
+            ? 'Too many imports in a short time. Wait a few minutes and try again.'
+            : 'Could not read that list. Try again.',
       )
       setBusy(false)
       return
@@ -227,13 +236,20 @@ function ImportTab({ destinations, onImported, onDone }: {
       destinationName = found?.name ?? 'the destination'
     }
 
-    const imported = await importListAction({ containerId, text: content, condition, foil })
+    const imported = await importListAction({
+      containerId,
+      text: content,
+      condition,
+      foil,
+    })
     setBusy(false)
     if (!imported.ok) {
       setError(
         imported.error === 'nothing_to_import'
           ? 'Nothing in that list could be matched to the catalogue.'
-          : 'Import failed. Check the destination and try again.',
+          : imported.error === 'rate_limited'
+            ? 'Too many imports in a short time. Wait a few minutes and try again.'
+            : 'Import failed. Check the destination and try again.',
       )
       return
     }
@@ -255,22 +271,26 @@ function ImportTab({ destinations, onImported, onDone }: {
     const shown = result.skippedNames.slice(0, 8)
     const hidden = result.skippedNames.length - shown.length
     return (
-      <div>
-        <div className="mb-6 text-body font-bold text-text">
-          {formatCount(result.imported)} card{result.imported === 1 ? '' : 's'} imported
+      <div className="flex min-h-0 flex-1 flex-col gap-14">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mb-6 text-body font-bold text-text">
+            {formatCount(result.imported)} card{result.imported === 1 ? '' : 's'} imported
+          </div>
+          <div className="mb-14 text-meta leading-normal text-text-2">
+            Into {result.destinationName}
+            {result.skipped > 0 ? ` · ${formatCount(result.skipped)} skipped` : ''}
+          </div>
+          {shown.length > 0 && (
+            <ScrollArea className="mb-14 flex max-h-import-errors flex-col gap-4 rounded-control bg-surface-2 px-12 py-10 text-meta leading-normal text-text-2">
+              {shown.map((name, index) => (
+                <div key={index}>{name}</div>
+              ))}
+              {hidden > 0 && (
+                <div className="mt-6">...and {formatCount(hidden)} more.</div>
+              )}
+            </ScrollArea>
+          )}
         </div>
-        <div className="mb-14 text-meta leading-normal text-text-2">
-          Into {result.destinationName}
-          {result.skipped > 0 ? ` · ${formatCount(result.skipped)} skipped` : ''}
-        </div>
-        {shown.length > 0 && (
-          <ScrollArea className="mb-14 flex max-h-import-errors flex-col gap-4 rounded-control bg-surface-2 px-12 py-10 text-meta leading-normal text-text-2">
-            {shown.map((name, index) => (
-              <div key={index}>{name}</div>
-            ))}
-            {hidden > 0 && <div className="mt-6">...and {formatCount(hidden)} more.</div>}
-          </ScrollArea>
-        )}
         <button
           type="button"
           onClick={() => {
@@ -287,92 +307,100 @@ function ImportTab({ destinations, onImported, onDone }: {
   }
 
   return (
-    <div className="flex flex-col gap-14">
-      <p className="text-meta leading-normal text-text-2">
-        Paste a decklist (Moxfield, Archidekt, MTGO, Arena) or a CSV export (ManaBox, Deckbox,
-        Moxfield, Delver Lens). The format is detected automatically.
-      </p>
+    <div className="flex min-h-0 flex-1 flex-col gap-14">
+      <div className="flex min-h-0 flex-1 flex-col gap-14 overflow-y-auto">
+        <p className="text-meta leading-normal text-text-2">
+          Paste a decklist (Moxfield, Archidekt, MTGO, Arena) or a CSV export (ManaBox,
+          Deckbox, Moxfield, Delver Lens). The format is detected automatically.
+        </p>
 
-      <textarea
-        value={content}
-        onChange={(event) => setContent(event.target.value)}
-        rows={5}
-        aria-label="List to import"
-        placeholder={'4 Lightning Bolt (M11) 149\n2 Counterspell'}
-        className="w-full resize-y rounded-control border border-border bg-surface-1 px-14 py-11 font-mono text-meta-mono leading-normal text-text outline-none placeholder:text-text-3"
-      />
+        {/* Grandit dans la hauteur fixe de la feuille plutôt que de laisser
+            un vide au-dessus du bouton ; jamais sous ses cinq lignes. */}
+        <textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          rows={5}
+          aria-label="List to import"
+          placeholder={'4 Lightning Bolt (M11) 149\n2 Counterspell'}
+          className="w-full flex-[1_0_auto] resize-none rounded-control border border-border bg-surface-1 px-14 py-11 font-mono text-meta-mono leading-normal text-text outline-none placeholder:text-text-3"
+        />
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        // Les sélecteurs de fichiers Android (Drive, Téléchargements) étiquettent
-        // souvent un CSV `text/comma-separated-values` ou `application/vnd.ms-excel` :
-        // sans ces types, il apparaît grisé.
-        accept=".csv,.txt,.tsv,text/csv,text/plain,text/comma-separated-values,text/tab-separated-values,application/csv,application/vnd.ms-excel"
-        onChange={(event) => void handleFile(event)}
-        className="hidden"
-      />
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className="w-full rounded-control border-thin border-dashed border-border-dashed bg-transparent py-11 text-meta font-semibold text-text-2"
-      >
-        Choose a file...
-      </button>
-
-      <div>
-        <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-          Import into
-        </div>
-        <select
-          value={target}
-          onChange={(event) => setTarget(event.target.value)}
-          aria-label="Import into"
-          className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none"
+        <input
+          ref={fileInputRef}
+          type="file"
+          // Les sélecteurs de fichiers Android (Drive, Téléchargements) étiquettent
+          // souvent un CSV `text/comma-separated-values` ou `application/vnd.ms-excel` :
+          // sans ces types, il apparaît grisé.
+          accept=".csv,.txt,.tsv,text/csv,text/plain,text/comma-separated-values,text/tab-separated-values,application/csv,application/vnd.ms-excel"
+          onChange={(event) => void handleFile(event)}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full rounded-control border-thin border-dashed border-border-dashed bg-transparent py-11 text-meta font-semibold text-text-2"
         >
-          <option value={COLLECTION_VALUE}>Collection (no binder)</option>
-          {destinations?.binders.map((binder) => (
-            <option key={binder.id} value={binder.id}>
-              Binder · {binder.name}
-            </option>
-          ))}
-          {destinations?.lists.map((list) => (
-            <option key={list.id} value={list.id}>
-              List · {list.name}
-            </option>
-          ))}
-          <option value={NEW_BINDER_VALUE}>+ New binder...</option>
-          <option value={NEW_LIST_VALUE}>+ New list...</option>
-        </select>
-      </div>
+          Choose a file...
+        </button>
 
-      {creatingNew && (
         <div>
           <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-            {target === NEW_BINDER_VALUE ? 'New binder name' : 'New list name'}
+            Import into
           </div>
-          <input
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-            placeholder={target === NEW_BINDER_VALUE ? 'Imported binder' : 'Imported list'}
-            className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none placeholder:text-text-3"
-          />
+          <select
+            value={target}
+            onChange={(event) => setTarget(event.target.value)}
+            aria-label="Import into"
+            className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none"
+          >
+            <option value={COLLECTION_VALUE}>Collection (no binder)</option>
+            {destinations?.binders.map((binder) => (
+              <option key={binder.id} value={binder.id}>
+                Binder · {binder.name}
+              </option>
+            ))}
+            {destinations?.lists.map((list) => (
+              <option key={list.id} value={list.id}>
+                List · {list.name}
+              </option>
+            ))}
+            <option value={NEW_BINDER_VALUE}>+ New binder...</option>
+            <option value={NEW_LIST_VALUE}>+ New list...</option>
+          </select>
         </div>
-      )}
 
-      <div>
-        <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-          Condition when the source doesn&rsquo;t say
+        {creatingNew && (
+          <div>
+            <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
+              {target === NEW_BINDER_VALUE ? 'New binder name' : 'New list name'}
+            </div>
+            <input
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              placeholder={
+                target === NEW_BINDER_VALUE ? 'Imported binder' : 'Imported list'
+              }
+              className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none placeholder:text-text-3"
+            />
+          </div>
+        )}
+
+        <div>
+          <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
+            Condition when the source doesn&rsquo;t say
+          </div>
+          <Segmented options={CONDITIONS} value={condition} onChange={setCondition} />
         </div>
-        <Segmented options={CONDITIONS} value={condition} onChange={setCondition} />
-      </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-body font-semibold text-text">Treat as foil by default</span>
-        <Switch checked={foil} onChange={setFoil} label="Treat as foil by default" />
-      </div>
+        <div className="flex items-center justify-between">
+          <span className="text-body font-semibold text-text">
+            Treat as foil by default
+          </span>
+          <Switch checked={foil} onChange={setFoil} label="Treat as foil by default" />
+        </div>
 
-      {error && <p className="text-meta text-danger">{error}</p>}
+        {error && <p className="text-meta text-danger">{error}</p>}
+      </div>
 
       <button
         type="button"
@@ -419,49 +447,52 @@ function ExportTab({ destinations }: { destinations: ImportExportDestinations | 
           )
 
     if (format === 'csv') downloadText(toCsv(result.rows), `${name}.csv`, 'text/csv')
-    else if (format === 'json') downloadText(toJson(result.rows), `${name}.json`, 'application/json')
+    else if (format === 'json')
+      downloadText(toJson(result.rows), `${name}.json`, 'application/json')
     else downloadText(toText(result.rows), `${name}.txt`, 'text/plain')
   }
 
   return (
-    <div className="flex flex-col gap-14">
-      <div>
-        <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-          What to export
+    <div className="flex min-h-0 flex-1 flex-col gap-14">
+      <div className="flex min-h-0 flex-1 flex-col gap-14 overflow-y-auto">
+        <div>
+          <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
+            What to export
+          </div>
+          <select
+            value={scope}
+            onChange={(event) => setScope(event.target.value)}
+            aria-label="What to export"
+            className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none"
+          >
+            <option value={COLLECTION_VALUE}>All collection</option>
+            {destinations?.binders.map((binder) => (
+              <option key={binder.id} value={binder.id}>
+                Binder · {binder.name}
+              </option>
+            ))}
+            {destinations?.lists.map((list) => (
+              <option key={list.id} value={list.id}>
+                List · {list.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={scope}
-          onChange={(event) => setScope(event.target.value)}
-          aria-label="What to export"
-          className="w-full rounded-control border border-border bg-surface-1 px-14 py-10 text-body text-text outline-none"
-        >
-          <option value={COLLECTION_VALUE}>All collection</option>
-          {destinations?.binders.map((binder) => (
-            <option key={binder.id} value={binder.id}>
-              Binder · {binder.name}
-            </option>
-          ))}
-          {destinations?.lists.map((list) => (
-            <option key={list.id} value={list.id}>
-              List · {list.name}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      <div>
-        <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-          Format
+        <div>
+          <div className="mb-8 text-section-label font-semibold uppercase tracking-section-label text-text-2">
+            Format
+          </div>
+          <Segmented options={FORMATS} value={format} onChange={setFormat} />
         </div>
-        <Segmented options={FORMATS} value={format} onChange={setFormat} />
+
+        <p className="text-meta leading-normal text-text-2">
+          CSV and JSON carry quantity, finish, condition and prices. Text is a plain
+          decklist other apps can re-import.
+        </p>
+
+        {error && <p className="text-meta text-danger">{error}</p>}
       </div>
-
-      <p className="text-meta leading-normal text-text-2">
-        CSV and JSON carry quantity, finish, condition and prices. Text is a plain decklist other
-        apps can re-import.
-      </p>
-
-      {error && <p className="text-meta text-danger">{error}</p>}
 
       <button
         type="button"
@@ -505,8 +536,13 @@ export function ImportExportSheet({
       onOpenChange={onOpenChange}
       title="Import & export"
       closeLabel="Close import and export sheet"
+      // Hauteur fixe et corps non défilant : onglets et champs en haut, bouton
+      // en bas, quel que soit l'onglet — l'export, plus court, rétrécissait la
+      // feuille au changement d'onglet.
+      fixedHeight
+      scrollBody={false}
     >
-      <div className="mb-16">
+      <div className="mb-16 flex-shrink-0">
         <Segmented
           options={[
             { value: 'import', label: 'Import' },

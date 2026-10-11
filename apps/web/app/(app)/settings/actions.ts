@@ -4,7 +4,7 @@
 // externe est validée par Zod à la frontière avant de toucher la base
 // (docs/development.md) — un username non validé
 // ouvrirait une injection dans le futur routage public `/u/<username>`.
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -23,7 +23,9 @@ import { setSignupMode } from '@/lib/site-settings'
 // (contrainte de build Next.js) — voir le commentaire de lib/username.ts.
 import { usernameSchema } from '@/lib/username'
 
-const inviteEmailSchema = z.string().email()
+// Normalisé comme Auth.js le fait à la connexion : un email invité avec des
+// majuscules créerait sinon un compte que la connexion ne retrouve jamais.
+const inviteEmailSchema = z.string().trim().toLowerCase().email()
 
 // Invitation, avec la bascule Admin / Regular user : l'objet remplace la chaîne nue d'origine, `isAdmin` optionnel pour ne pas
 // casser un appelant qui n'a pas encore d'avis sur le rôle.
@@ -81,7 +83,7 @@ export async function inviteUserAction(
   const [existing] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, email))
+    .where(sql`lower(${users.email}) = ${email}`)
     .limit(1)
   if (existing) return { ok: false, error: 'exists' }
 

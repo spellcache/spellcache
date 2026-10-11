@@ -145,6 +145,19 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Multi-collection', () => {
     expect(row).toBeDefined()
   })
 
+  it('refuses an ownership transfer to the owner, which would leave no owner', async () => {
+    const alice = await setupOwner('alice')
+
+    const result = await members.transferOwnership(alice.userId, alice.collectionId, alice.userId)
+
+    expect(result).toEqual({ ok: false, error: 'not_found' })
+    const [row] = await db
+      .select({ role: schema.collectionMembers.role })
+      .from(schema.collectionMembers)
+      .where(eq(schema.collectionMembers.userId, alice.userId))
+    expect(row?.role).toBe('owner')
+  })
+
   it('lets only an owner delete a collection, and falls back for its members', async () => {
     const alice = await setupOwner('alice')
     const bob = await setupOwner('bob')

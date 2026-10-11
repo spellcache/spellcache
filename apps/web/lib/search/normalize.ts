@@ -9,6 +9,9 @@ import { DEFAULT_SET_TYPE_GROUPS, type SetTypeGroup } from '@/lib/search/set-typ
 
 export const DEFAULT_LIMIT = 50
 export const MAX_LIMIT = 100
+// Une requête devient une condition `ILIKE` par mot : bornée pour qu'un
+// texte géant ne produise pas une requête SQL démesurée.
+export const MAX_QUERY_LENGTH = 200
 // Bumped to `v4` : `colorSpread` a rejoint `NormalizedSearchFilters`, et le
 // classement par nom (sémantique `unique=cards, order=name` — un résultat
 // par nom, cf. `search-cards.ts`) change la forme des résultats pour des paramètres par ailleurs identiques.
@@ -16,7 +19,8 @@ export const MAX_LIMIT = 100
 // du même nom ou ignorerait silencieusement `colorSpread` pendant la fenêtre
 // de TTL de 10 minutes qui suit — même raison que le bump `v2` → `v3`
 // ci-dessous, jamais compter sur le TTL pour s'auto-corriger.
-const CACHE_KEY_VERSION = 'v8'
+// `v9` : les résultats portent désormais `setIconUri`.
+const CACHE_KEY_VERSION = 'v9'
 
 export interface NormalizedSearchFilters {
   colors: string[]

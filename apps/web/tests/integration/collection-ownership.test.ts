@@ -278,6 +278,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('collection ownership', () => {
     expect(await readStats(pool, rootId)).toEqual(await aggregateHoldings(pool, [rootId]))
   })
 
+  it('refuses to delete a binder through the deck or list deletion path', async () => {
+    const { userId, collectionId } = await setup('wrongkind')
+    const binder = await createContainer(userId, collectionId, { kind: 'binder', name: 'Keep' })
+
+    await expect(deleteContainer(userId, binder.id, 'deck')).rejects.toThrow()
+    await expect(deleteContainer(userId, binder.id, 'list')).rejects.toThrow()
+
+    const { rows } = await pool.query('SELECT 1 FROM containers WHERE id = $1', [binder.id])
+    expect(rows).toHaveLength(1)
+  })
+
   it('deleting a list never brings its cards into owned stock', async () => {
     const { userId, collectionId, rootId } = await setup('dellist')
     const cardId = await insertCard(pool, { name: 'Mana Crypt', priceEur: 150 })

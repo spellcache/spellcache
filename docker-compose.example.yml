@@ -25,8 +25,27 @@ x-logging: &logging
     max-size: '10m'
     max-file: '5'
 
+# Aucun service ne doit gagner de privilège en cours de route (binaire setuid,
+# `su`…) : les entrypoints de postgres et valkey abandonnent root au démarrage,
+# jamais l'inverse.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+
+# web et worker n'ont besoin d'aucune capacité Linux (port > 1024, aucun
+# fichier d'un autre utilisateur) ni d'écrire dans leur image : système de
+# fichiers en lecture seule, `/tmp` en mémoire.
+x-app-hardening: &app-hardening
+  <<: *hardening
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp
+
 services:
   postgres:
+    <<: *hardening
     image: postgres:17-alpine
     restart: unless-stopped
     logging: *logging
@@ -69,9 +88,15 @@ services:
           memory: 1g
 
   redis:
+    <<: *hardening
     image: valkey/valkey:8-alpine
     restart: unless-stopped
     logging: *logging
+    # Mot de passe exigé : sans lui, tout conteneur du réseau Compose lit et
+    # écrit la file de jobs, les verrous et les compteurs de connexion.
+    # `valkey-cli` (healthcheck) le lit dans `REDISCLI_AUTH`.
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
     # `volatile-lru`, jamais `allkeys-*` : les clés du cache de recherche
     # portent un TTL et sont donc évinçables, la file de jobs et le verrou
     # nocturne n'en portent pas — les évincer perdrait une nuit
@@ -84,6 +109,8 @@ services:
       - 192mb
       - --maxmemory-policy
       - volatile-lru
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
     volumes:
       - redis-data:/data
     healthcheck:
@@ -98,12 +125,18 @@ services:
           memory: 256m
 
   web:
+    <<: *app-hardening
     image: ghcr.io/spellcache/web:${SPELLCACHE_VERSION:-latest}
     restart: unless-stopped
     logging: *logging
+    # Cache de rendu de Next : seul répertoire de l'image où le serveur écrit,
+    # monté pour l'utilisateur `nextjs` de l'image (uid/gid 1001).
+    tmpfs:
+      - /tmp
+      - /app/apps/web/.next/cache:uid=1001,gid=1001,mode=0700
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # `output: 'standalone'` déplace le répertoire d'exécution : le chemin du
       # cache disque des vignettes est posé explicitement, et le volume monté
       # au même endroit — sinon il repart de zéro à chaque déploiement.
@@ -147,12 +180,13 @@ services:
           memory: 768m
 
   worker:
+    <<: *app-hardening
     image: ghcr.io/spellcache/worker:${SPELLCACHE_VERSION:-latest}
     restart: unless-stopped
     logging: *logging
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       WORKER_NIGHTLY_AT: ${WORKER_NIGHTLY_AT}
       WORKER_TIMEZONE: ${WORKER_TIMEZONE}
       WORKER_HEALTH_PORT: '8081'

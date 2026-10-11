@@ -155,7 +155,10 @@ describe.skipIf(!HAS_OPENSSL)('deploy/backup.sh, rotation et chiffrement', () =>
       echo "header=$(head -c 6 "$dir/a.enc")"
       echo "plaintext_leaked=$(grep -c 'the payload' "$dir/a.enc" || true)"
       echo "roundtrip=$(decrypt_stream < "$dir/a.enc" | gzip -dc)"
-      if BACKUP_PASSPHRASE='wrong' decrypt_stream < "$dir/a.enc" >/dev/null 2>&1; then
+      # Même chaîne que restore.sh : AES-CBC n'a pas de code d'authentification,
+      # une mauvaise phrase donne un remplissage valide environ une fois sur
+      # 256 ; c'est alors gzip, avec son CRC, qui refuse le résultat.
+      if BACKUP_PASSPHRASE='wrong' decrypt_stream < "$dir/a.enc" 2>/dev/null | gzip -dc >/dev/null 2>&1; then
         echo 'wrong_passphrase=accepted'
       else
         echo 'wrong_passphrase=rejected'
@@ -221,6 +224,50 @@ describe.skipIf(!HAS_OPENSSL)('deploy/backup.sh, rotation et chiffrement', () =>
     `).trim()
 
     expect(verdict).toBe('rejected')
+  })
+
+  it('accepts what pg_dump --data-only writes and nothing else', () => {
+    // Un dump altéré passerait sinon tel quel à psql, en superutilisateur.
+    const verdicts = bash(`
+      source deploy/backup.sh
+      dir=$(mktemp -d)
+      check() {
+        if assert_dump_statements "$dir/dump.sql" >/dev/null 2>&1; then echo "$1=accepted"; else echo "$1=rejected"; fi
+      }
+      {
+        echo '\\restrict abc123'
+        echo '-- PostgreSQL database dump'
+        echo 'SET client_encoding = '"'"'UTF8'"'"';'
+        echo "SELECT pg_catalog.set_config('search_path', '', false);"
+        echo 'COPY public.deck_folders (id, "position") FROM stdin;'
+        printf '1\\t\\\\! rm -rf /\\n'
+        echo '\\.'
+        echo '\\unrestrict abc123'
+      } > "$dir/dump.sql"
+      check genuine
+      { echo 'COPY public.users (id) FROM stdin;'; echo '\\.'; echo '\\! touch /tmp/pwned'; } > "$dir/dump.sql"
+      check meta
+      { echo 'COPY public.users (id) FROM stdin;'; echo '\\.'; echo 'ALTER ROLE app SUPERUSER;'; } > "$dir/dump.sql"
+      check statement
+      rm -rf "$dir"
+    `)
+
+    expect(verdicts).toContain('genuine=accepted')
+    expect(verdicts).toContain('meta=rejected')
+    expect(verdicts).toContain('statement=rejected')
+  })
+
+  it('rejects an ssh destination that ssh or the remote shell would misread', () => {
+    const verdicts = bash(`
+      source deploy/backup.sh
+      for dest in 'ssh://-oProxyCommand=x:/backups' "ssh://user@host:/backups/'; touch x; '"; do
+        if ship_archive /dev/null "$dest" 30 >/dev/null 2>&1; then echo accepted; else echo rejected; fi
+      done
+    `)
+      .trim()
+      .split('\n')
+
+    expect(verdicts).toEqual(['rejected', 'rejected'])
   })
 
   it('rejects a destination that is neither file:// nor ssh://', () => {

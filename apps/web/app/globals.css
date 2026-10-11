@@ -449,6 +449,12 @@
   /* `MiniTile` de la section `Recently added` de l'accueil Shelves. */
   --width-mini-tile: 76px;
   --height-mini-tile: 106px;
+  /* Carte du champ de bataille de Playtest : cinq par rangée sur 390px.
+     Engagée, la boîte pivote — largeur et hauteur échangées. */
+  --width-playtest-card: 64px;
+  --height-playtest-card: 90px;
+  --width-playtest-card-tapped: 90px;
+  --height-playtest-card-tapped: 64px;
   /* Ligne de deck (`DeckRow`) : hauteur fixe, celle d'une ligne avec sa puce
      de statut — une ligne sans puce (`noRules`) ne rétrécit plus et la liste
      garde un rythme régulier. */

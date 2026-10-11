@@ -16,6 +16,7 @@ import { ArrowLeftRight, FlaskConical, HeartPulse, ScanLine, Sparkles, type Luci
 // base en dérivent, livrer un outil revient à y ajouter une ligne.
 export const TOOL_PREFERENCE = {
   life_tracker: 'toolLifeTracker',
+  playtest: 'toolPlaytest',
 } as const
 
 export type ShippedToolKey = keyof typeof TOOL_PREFERENCE
@@ -28,7 +29,7 @@ const SHIPPED_TOOL_KEYS = Object.keys(TOOL_PREFERENCE) as ShippedToolKey[]
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { life_tracker: false }
+export const NO_TOOLS: ToolFlags = { life_tracker: false, playtest: false }
 
 // Les apps font partie de l'application, il n'y a ni store ni greffons.
 export function anyToolEnabled(tools: ToolFlags): boolean {
@@ -52,9 +53,8 @@ export function toolPreferenceOf(key: ToolCatalogEntry['key']): ToolPreferenceFi
 
 // Catalogue unique des outils : l'onglet `Tools` et le groupe `Tools` de
 // Settings lisent tous deux cette même liste — une nouvelle app ne s'ajoute
-// donc qu'à un seul endroit. Seul `life_tracker` porte `state: 'shipped'`
-// aujourd'hui, les trois autres sont des lignes `Planned` grisées sans écran
-// (docs/development.md).
+// donc qu'à un seul endroit. Les outils `planned` sont des lignes grisées
+// sans écran (docs/development.md).
 export type ToolCatalogState = 'shipped' | 'planned'
 
 export interface ToolCatalogEntry {
@@ -82,7 +82,8 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'playtest',
     name: 'Playtest',
     Icon: FlaskConical,
-    state: 'planned',
+    path: '/tools/playtest',
+    state: 'shipped',
     description: 'Test your decks: draw opening hands, mulligan and play the first turns',
   },
   {

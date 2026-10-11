@@ -10,6 +10,7 @@ import {
   BadgeDollarSign,
   Check,
   Contrast,
+  FlaskConical,
   HeartPulse,
   LayoutGrid,
   List,
@@ -118,6 +119,7 @@ const TOGGLE_ICON: Record<ToggleField, React.ReactNode> = {
   pricesOnArt: <BadgeDollarSign width={18} height={18} strokeWidth={1.75} />,
   binderBackdrops: <Palette width={18} height={18} strokeWidth={1.75} />,
   toolLifeTracker: <HeartPulse width={18} height={18} strokeWidth={1.75} />,
+  toolPlaytest: <FlaskConical width={18} height={18} strokeWidth={1.75} />,
   pureBlack: <Contrast width={18} height={18} strokeWidth={1.75} />,
 }
 

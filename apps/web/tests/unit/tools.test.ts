@@ -19,14 +19,19 @@ describe('tool flags', () => {
   })
 
   it('maps every preference column onto its tool flag', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true })
-    expect(flags).toEqual({ life_tracker: true })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: false })
+    expect(flags).toEqual({ life_tracker: true, playtest: false })
     expect(anyToolEnabled(flags)).toBe(true)
     expect(isToolEnabled('life_tracker', flags)).toBe(true)
+    expect(isToolEnabled('playtest', flags)).toBe(false)
+  })
+
+  it('shows the Tools tab when any single tool is on', () => {
+    expect(anyToolEnabled(toolFlagsOf({ toolLifeTracker: false, toolPlaytest: true }))).toBe(true)
   })
 
   it('never enables a planned tool', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: true })
     for (const tool of TOOLS.filter((entry) => entry.state === 'planned')) {
       expect(isToolEnabled(tool.key, flags)).toBe(false)
       expect(toolPreferenceOf(tool.key)).toBeNull()

@@ -14,6 +14,7 @@ import { NO_TOOLS, toolFlagsOf, type ToolFlags, type ToolPreferenceField } from 
 // compilation tant qu'un outil livré n'a pas sa colonne ici.
 export const toolFlagColumns = {
   toolLifeTracker: users.toolLifeTracker,
+  toolPlaytest: users.toolPlaytest,
 } satisfies Record<ToolPreferenceField, unknown>
 
 export async function getToolFlags(userId: string): Promise<ToolFlags> {

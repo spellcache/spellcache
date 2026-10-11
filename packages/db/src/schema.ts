@@ -164,12 +164,13 @@ export const users = pgTable('users', {
   // Unique source de vérité pour la devise/le marché (docs/development.md) — aucun
   // second réglage de devise ni taux de change n'existe dans l'app.
   priceSource: text('price_source').$type<PriceSource>().notNull().default('cardmarket_eur'),
-  // Outils de table : le seul outil réellement livré. `false` par défaut —
+  // Outils de table, un drapeau par outil livré. `false` par défaut —
   // l'onglet `Tools` reste absent de la barre tant qu'aucun outil n'est
   // actif, et les comptes créés avant cette colonne héritent du même défaut
   // via le `DEFAULT false NOT NULL` de la migration : aucune ligne
   // existante ne se retrouve avec un outil activé sans l'avoir demandé.
   toolLifeTracker: boolean('tool_life_tracker').notNull().default(false),
+  toolPlaytest: boolean('tool_playtest').notNull().default(false),
   // État replié/déplié de l'arbre de la barre latérale desktop : il survit à
   // une reconnexion. Une préférence de compte comme les autres — jamais
   // `localStorage` (docs/development.md). Porte les nœuds **repliés**, pas les

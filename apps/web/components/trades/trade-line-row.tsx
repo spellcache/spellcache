@@ -90,7 +90,13 @@ export function TradeLineRow({
         )}
       </div>
       <div className="flex items-center justify-between pl-2">
-        {editQty ? (
+        {editQty && line.wholeDeck ? (
+          <span className="text-meta text-text-2">
+            <span className="font-mono font-bold text-text">×{line.qty}</span> · whole
+            deck
+            {line.sourceName ? ` ${line.sourceName}` : ''}
+          </span>
+        ) : editQty ? (
           <QtyStepper
             holdingId={line.id}
             qty={line.qty}
@@ -106,7 +112,7 @@ export function TradeLineRow({
         ) : (
           <span className="font-mono text-body font-bold text-text">×{line.qty}</span>
         )}
-        {line.maxQty !== null && editQty && (
+        {line.maxQty !== null && editQty && !line.wholeDeck && (
           <span className="text-meta text-text-3">{line.maxQty} owned</span>
         )}
         {editQty && (
@@ -114,7 +120,11 @@ export function TradeLineRow({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            aria-label={`Remove ${line.name}`}
+            aria-label={
+              line.wholeDeck
+                ? `Remove the whole deck ${line.sourceName ?? ''}`
+                : `Remove ${line.name}`
+            }
             className="flex h-touch-target w-touch-target items-center justify-center text-text-2"
           >
             <X width={17} height={17} strokeWidth={1.75} />

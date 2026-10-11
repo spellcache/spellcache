@@ -26,6 +26,7 @@ import {
   setDestinationAction,
   setNotesAction,
   setRateAction,
+  setSideValueAction,
   undoInPersonAction,
   updateLineAction,
   withdrawAcceptanceAction,
@@ -42,28 +43,34 @@ import { PriceSheet } from '@/components/trades/price-sheet'
 import { SideZone } from '@/components/trades/side-zone'
 import { StepFooter } from '@/components/trades/step-footer'
 import { TheirCardsStep } from '@/components/trades/their-cards-step'
-import { stepsFor, useTrade, type RunAction, type TradeStep } from '@/components/trades/use-trade'
+import { ValueSheet } from '@/components/trades/value-sheet'
+import {
+  stepsFor,
+  useTrade,
+  type RunAction,
+  type TradeStep,
+} from '@/components/trades/use-trade'
 import { WizardHeader } from '@/components/trades/wizard-header'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { NameSheet } from '@/components/ui/name-sheet'
 import { PickerSheet } from '@/components/ui/picker-sheet'
 import { Screen } from '@/components/ui/screen'
 import { ScreenHeader } from '@/components/ui/screen-header'
-import { PrimaryButton, SecondaryButton, SectionLabel } from '@/components/ui/sheet-controls'
+import {
+  PrimaryButton,
+  SecondaryButton,
+  SectionLabel,
+} from '@/components/ui/sheet-controls'
 import { UndoToast } from '@/components/ui/undo-toast'
 import { CollectionAccessProvider } from '@/lib/collections/access-context'
 import { formatMoney } from '@/lib/format/money'
-import {
-  clampRate,
-  RATE_MAX_PCT,
-  RATE_MIN_PCT,
-  sideTotalMinor,
-  tradeBalance,
-} from '@/lib/trades/pricing'
+import { sideTotalMinor, sideValueMinor, tradeBalance } from '@/lib/trades/pricing'
 import type { TradeParty } from '@spellcache/db/schema'
 import type { TradeDestination, TradeLineView, TradeView } from '@/lib/trades/trades'
 
-type Confirm = { kind: 'complete' | 'accept' | 'cancel' | 'decline'; revision: number } | null
+type Confirm = {
+  kind: 'complete' | 'accept' | 'cancel' | 'decline'
+  revision: number
+} | null
 
 function cardCount(lines: TradeLineView[]): number {
   return lines.reduce((sum, line) => sum + line.qty, 0)
@@ -74,10 +81,20 @@ function plural(count: number, word: string): string {
 }
 
 function day(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
-export function TradeScreen({ initial, step }: { initial: TradeView; step: TradeStep | null }) {
+export function TradeScreen({
+  initial,
+  step,
+}: {
+  initial: TradeView
+  step: TradeStep | null
+}) {
   const router = useRouter()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const { trade, mutate, optimistic, pending, error, setError } = useTrade(initial, {
@@ -107,8 +124,14 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
     void optimistic(
       (current) => ({
         ...current,
-        give: { ...current.give, lines: current.give.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)) },
-        get: { ...current.get, lines: current.get.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)) },
+        give: {
+          ...current.give,
+          lines: current.give.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)),
+        },
+        get: {
+          ...current.get,
+          lines: current.get.lines.map((l) => (l.id === line.id ? { ...l, qty } : l)),
+        },
       }),
       () => updateLineAction({ tradeId: trade.id, lineId: line.id, qty }),
     )
@@ -124,7 +147,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
   if (step && step !== 'who' && reachable && canFill) {
     const index = steps.includes(step) ? steps.indexOf(step) : steps.length - 1
     const previous =
-      index > 0 && steps[index - 1] !== 'who' ? `${base}?step=${steps[index - 1]}` : undefined
+      index > 0 && steps[index - 1] !== 'who'
+        ? `${base}?step=${steps[index - 1]}`
+        : undefined
     const giveTotal = sideTotalMinor(trade.give).valueMinor
     const getTotal = sideTotalMinor(trade.get).valueMinor
 
@@ -134,14 +159,28 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
         const writes: Array<() => Promise<TradeActionResult<object>>> = []
         if (draft.giveCashMinor !== trade.give.cashMinor)
           writes.push(() =>
-            setCashAction({ tradeId: trade.id, giver: trade.give.giver, amountMinor: draft.giveCashMinor }),
+            setCashAction({
+              tradeId: trade.id,
+              giver: trade.give.giver,
+              amountMinor: draft.giveCashMinor,
+            }),
           )
         if (trade.mode === 'in_person' && draft.getCashMinor !== trade.get.cashMinor)
           writes.push(() =>
-            setCashAction({ tradeId: trade.id, giver: trade.get.giver, amountMinor: draft.getCashMinor }),
+            setCashAction({
+              tradeId: trade.id,
+              giver: trade.get.giver,
+              amountMinor: draft.getCashMinor,
+            }),
           )
         if (draft.notes.trim() !== (trade.give.notes ?? ''))
-          writes.push(() => setNotesAction({ tradeId: trade.id, giver: trade.give.giver, notes: draft.notes }))
+          writes.push(() =>
+            setNotesAction({
+              tradeId: trade.id,
+              giver: trade.give.giver,
+              notes: draft.notes,
+            }),
+          )
         for (const write of writes) if (!(await run(write))) return
       }
       router.push(base)
@@ -152,7 +191,14 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
     let title: string
     if (step === 'cards') {
       title = 'What do you give?'
-      body = <CardsStep trade={trade} pending={pending} run={run} onChanged={() => setError(null)} />
+      body = (
+        <CardsStep
+          trade={trade}
+          pending={pending}
+          run={run}
+          onChanged={() => setError(null)}
+        />
+      )
       const offer = live && trade.me === 'initiator'
       footer = (
         <StepFooter
@@ -240,13 +286,18 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
         }
       >
         {mine ? (
-          <div className="mb-18 rounded-card border border-border bg-surface-1 p-18" data-testid="trade-waiting">
+          <div
+            className="mb-18 rounded-card border border-border bg-surface-1 p-18"
+            data-testid="trade-waiting"
+          >
             <div className="flex items-center gap-12">
               <span className="flex h-touch-target w-touch-target flex-shrink-0 items-center justify-center rounded-control bg-accent-bg text-accent-text">
                 <Clock width={20} height={20} strokeWidth={1.75} />
               </span>
               <div>
-                <div className="text-row-label font-bold text-text">Waiting for {partner}</div>
+                <div className="text-row-label font-bold text-text">
+                  Waiting for {partner}
+                </div>
                 <div className="mt-2 text-meta text-text-2">
                   {partner} sees your offer and picks what to give.
                 </div>
@@ -299,13 +350,17 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
           }}
         />
         {mine && (
-          <Link href={`${base}?step=cards`} className="mt-10 ml-2 inline-block text-body font-bold text-accent-text">
+          <Link
+            href={`${base}?step=cards`}
+            className="mt-10 ml-2 inline-block text-body font-bold text-accent-text"
+          >
             Edit my offer
           </Link>
         )}
         {offer.notes && (
           <p className="mt-14 rounded-control border border-border bg-surface-1 px-14 py-12 text-body leading-normal text-text-2">
-            <b className="text-text">{mine ? 'Your note' : `${partner}'s note`}:</b> {offer.notes}
+            <b className="text-text">{mine ? 'Your note' : `${partner}'s note`}:</b>{' '}
+            {offer.notes}
           </p>
         )}
 
@@ -330,7 +385,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
               </p>
               <div className="grid grid-cols-3 gap-8">
                 <SecondaryButton
-                  onClick={() => setConfirm({ kind: 'decline', revision: trade.revision })}
+                  onClick={() =>
+                    setConfirm({ kind: 'decline', revision: trade.revision })
+                  }
                   disabled={pending}
                 >
                   Decline
@@ -354,13 +411,17 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
 
         <ConfirmDialog
           open={confirm !== null}
-          title={confirm?.kind === 'decline' ? 'Decline this offer?' : 'Cancel this offer?'}
+          title={
+            confirm?.kind === 'decline' ? 'Decline this offer?' : 'Cancel this offer?'
+          }
           message="It stays in both histories. Nothing changes in any collection."
           confirmLabel={confirm?.kind === 'decline' ? 'Decline' : 'Cancel offer'}
           cancelLabel="Back"
           pending={pending}
           onConfirm={() =>
-            void mutate(() => cancelTradeAction({ tradeId: trade.id })).then(() => setConfirm(null))
+            void mutate(() => cancelTradeAction({ tradeId: trade.id })).then(() =>
+              setConfirm(null),
+            )
           }
           onClose={() => setConfirm(null)}
         />
@@ -374,7 +435,8 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
   const giveCount = cardCount(trade.give.lines)
   const getCount = cardCount(trade.get.lines)
   const canRate = editable && (live || trade.me === 'initiator')
-  const detailsSide = details === 'give' ? trade.give : details === 'get' ? trade.get : null
+  const detailsSide =
+    details === 'give' ? trade.give : details === 'get' ? trade.get : null
   const status =
     trade.status === 'completed'
       ? `Completed ${day(trade.completedAt!)}`
@@ -386,7 +448,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
     if (!confirm) return
     const { kind, revision } = confirm
     if (kind === 'complete') {
-      const result = await mutate(() => completeInPersonAction({ tradeId: trade.id, revision }))
+      const result = await mutate(() =>
+        completeInPersonAction({ tradeId: trade.id, revision }),
+      )
       if (result?.ok) setUndoToken(result.undoToken)
     } else if (kind === 'accept') {
       await mutate(() => acceptTradeAction({ tradeId: trade.id, revision }))
@@ -408,15 +472,28 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             title={partner}
             breadcrumb={`Trading · ${live ? 'Live' : 'In person'}`}
             backHref="/tools/trade"
-            meta={status ? <span className="text-meta text-text-2">{status}</span> : undefined}
-            actions={[{ icon: Share2, label: 'Export the trade', onClick: () => setExporting(true) }]}
+            meta={
+              status ? <span className="text-meta text-text-2">{status}</span> : undefined
+            }
+            actions={[
+              {
+                icon: Share2,
+                label: 'Export the trade',
+                onClick: () => setExporting(true),
+              },
+            ]}
           />
         }
       >
         <div className="flex flex-col gap-14">
-          <div className="rounded-row bg-gradient-value-band px-18 py-14" data-testid="trade-balance">
+          <div
+            className="rounded-row bg-gradient-value-band px-18 py-14"
+            data-testid="trade-balance"
+          >
             <div className="flex items-center justify-between">
-              <div className="text-meta font-semibold tracking-value-label text-value-band-label">BALANCE</div>
+              <div className="text-meta font-semibold tracking-value-label text-value-band-label">
+                BALANCE
+              </div>
               <div className="text-value-stat font-extrabold tracking-value-amount text-on-accent">
                 {balance.deltaMinor === 0
                   ? 'Even'
@@ -431,7 +508,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-value-caption text-value-band-caption">{partner} gives</div>
+                <div className="text-value-caption text-value-band-caption">
+                  {partner} gives
+                </div>
                 <div className="text-row-label font-bold text-on-accent">
                   {formatMoney(balance.getMinor, trade.currency)}
                 </div>
@@ -439,13 +518,16 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             </div>
             {balance.missing > 0 && (
               <div className="mt-8 text-value-caption text-value-band-caption">
-                {balance.missing === 1 ? '1 card has' : `${balance.missing} cards have`} no price and count as 0.
+                {balance.missing === 1 ? '1 card has' : `${balance.missing} cards have`}{' '}
+                no price and count as 0.
               </div>
             )}
           </div>
 
           {trade.status === 'completed' && (
-            <PrimaryButton onClick={() => setExporting(true)}>Send the list to {partner}</PrimaryButton>
+            <PrimaryButton onClick={() => setExporting(true)}>
+              Send the list to {partner}
+            </PrimaryButton>
           )}
 
           <SideZone
@@ -459,7 +541,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             canRate={canRate}
             pending={pending}
             onRate={(ratePct) =>
-              void mutate(() => setRateAction({ tradeId: trade.id, giver: trade.give.giver, ratePct }))
+              void mutate(() =>
+                setRateAction({ tradeId: trade.id, giver: trade.give.giver, ratePct }),
+              )
             }
             onCustomRate={() => setCustomRate(trade.give.giver)}
             notesLabel={live ? `Your notes · ${partner} sees them` : 'Your notes'}
@@ -477,7 +561,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             canRate={canRate}
             pending={pending}
             onRate={(ratePct) =>
-              void mutate(() => setRateAction({ tradeId: trade.id, giver: trade.get.giver, ratePct }))
+              void mutate(() =>
+                setRateAction({ tradeId: trade.id, giver: trade.get.giver, ratePct }),
+              )
             }
             onCustomRate={() => setCustomRate(trade.get.giver)}
             notesLabel={live ? `${partner}'s notes` : `Notes about ${partner}'s side`}
@@ -485,7 +571,8 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
           />
           {live && editable && (
             <p className="ml-2 text-meta-search text-text-3">
-              Only {partner} adds or removes their cards. You can still adjust prices and the value %.
+              Only {partner} adds or removes their cards. You can still adjust prices and
+              the value %.
             </p>
           )}
 
@@ -498,8 +585,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
                 onClick={
                   editable
                     ? () =>
-                        void listTradeDestinationsAction({ tradeId: trade.id }).then((result) =>
-                          setDestinations(result.ok ? result.destinations : []),
+                        void listTradeDestinationsAction({ tradeId: trade.id }).then(
+                          (result) =>
+                            setDestinations(result.ok ? result.destinations : []),
                         )
                     : undefined
                 }
@@ -543,9 +631,15 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
                       ? `${partner} accepted this version`
                       : `${partner} has not accepted yet`,
                   },
-                  { done: trade.acceptedByMe, label: trade.acceptedByMe ? 'You accepted' : 'Your acceptance' },
+                  {
+                    done: trade.acceptedByMe,
+                    label: trade.acceptedByMe ? 'You accepted' : 'Your acceptance',
+                  },
                 ].map((entry) => (
-                  <div key={entry.label} className={`flex items-center gap-10 ${entry.done ? 'text-text' : 'text-text-2'}`}>
+                  <div
+                    key={entry.label}
+                    className={`flex items-center gap-10 ${entry.done ? 'text-text' : 'text-text-2'}`}
+                  >
                     <span
                       className={`flex h-selection-circle w-selection-circle items-center justify-center rounded-full ${
                         entry.done ? 'bg-accent text-on-accent' : 'border-2 border-text-3'
@@ -559,7 +653,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
               </div>
               {trade.acceptedByMe ? (
                 <SecondaryButton
-                  onClick={() => void mutate(() => withdrawAcceptanceAction({ tradeId: trade.id }))}
+                  onClick={() =>
+                    void mutate(() => withdrawAcceptanceAction({ tradeId: trade.id }))
+                  }
                   disabled={pending}
                 >
                   Withdraw acceptance
@@ -604,10 +700,18 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
                 ? `Nothing changes until ${partner} accepts this same version too.`
                 : `${giveCount} ${giveCount === 1 ? 'card leaves' : 'cards leave'} your collection, ${getCount} ${
                     getCount === 1 ? 'card is' : 'cards are'
-                  } added to ${trade.destination.name ?? 'Collection'}.`
+                  } added to ${trade.destination.name ?? 'Collection'}.${
+                    trade.give.lines.some((line) => line.wholeDeck)
+                      ? ' Your whole deck is dismantled, so this trade cannot be undone.'
+                      : ''
+                  }`
           }
           confirmLabel={
-            confirm?.kind === 'cancel' ? 'Cancel trade' : confirm?.kind === 'accept' ? 'Accept' : 'Complete'
+            confirm?.kind === 'cancel'
+              ? 'Cancel trade'
+              : confirm?.kind === 'accept'
+                ? 'Accept'
+                : 'Complete'
           }
           cancelLabel="Back"
           destructive={confirm?.kind === 'cancel'}
@@ -626,14 +730,19 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             editPrice={editable}
             pending={pending}
             onQty={lineQty}
-            onRemove={(line) => void mutate(() => removeLineAction({ tradeId: trade.id, lineId: line.id }))}
+            onRemove={(line) =>
+              void mutate(() => removeLineAction({ tradeId: trade.id, lineId: line.id }))
+            }
             onPrice={(line) => setPricing(line)}
             onKey={(line, patch) =>
-              void mutate(() => updateLineAction({ tradeId: trade.id, lineId: line.id, ...patch }))
+              void mutate(() =>
+                updateLineAction({ tradeId: trade.id, lineId: line.id, ...patch }),
+              )
             }
             onAdd={
               details === 'give' || !live
-                ? () => router.push(`${base}?step=${details === 'give' ? 'cards' : 'theirs'}`)
+                ? () =>
+                    router.push(`${base}?step=${details === 'give' ? 'cards' : 'theirs'}`)
                 : undefined
             }
           />
@@ -651,29 +760,57 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             pending={pending}
             onSave={(priceOverrideMinor) =>
               void mutate(() =>
-                updateLineAction({ tradeId: trade.id, lineId: pricing.id, priceOverrideMinor }),
+                updateLineAction({
+                  tradeId: trade.id,
+                  lineId: pricing.id,
+                  priceOverrideMinor,
+                }),
               ).then((result) => result?.ok && setPricing(null))
             }
           />
         )}
 
         {customRate && (
-          <NameSheet
+          <ValueSheet
             key={customRate}
             open
-            title="Value at"
-            label={`Percentage (${RATE_MIN_PCT}–${RATE_MAX_PCT})`}
-            initialValue={String(customRate === trade.give.giver ? trade.give.ratePct : trade.get.ratePct)}
-            confirmLabel="Set"
+            title={
+              customRate === trade.give.giver
+                ? 'Value of what you give'
+                : `Value of what ${partner} gives`
+            }
+            currency={trade.currency}
+            ratePct={
+              customRate === trade.give.giver ? trade.give.ratePct : trade.get.ratePct
+            }
+            fixedMinor={
+              customRate === trade.give.giver
+                ? trade.give.fixedMinor
+                : trade.get.fixedMinor
+            }
+            marketMinor={
+              sideValueMinor(
+                customRate === trade.give.giver ? trade.give.lines : trade.get.lines,
+                100,
+              ).valueMinor
+            }
             pending={pending}
             onClose={() => setCustomRate(null)}
-            onSubmit={(value) => {
-              const parsed = Number.parseInt(value, 10)
-              if (Number.isNaN(parsed)) return
+            onSave={(value) =>
               void mutate(() =>
-                setRateAction({ tradeId: trade.id, giver: customRate, ratePct: clampRate(parsed) }),
+                value.kind === 'rate'
+                  ? setRateAction({
+                      tradeId: trade.id,
+                      giver: customRate,
+                      ratePct: value.ratePct,
+                    })
+                  : setSideValueAction({
+                      tradeId: trade.id,
+                      giver: customRate,
+                      amountMinor: value.amountMinor,
+                    }),
               ).then((result) => result?.ok && setCustomRate(null))
-            }}
+            }
           />
         )}
 
@@ -686,7 +823,9 @@ export function TradeScreen({ initial, step }: { initial: TradeView; step: Trade
             label: destination.name,
           }))}
           value={trade.destination.containerId}
-          onPick={(containerId) => void mutate(() => setDestinationAction({ tradeId: trade.id, containerId }))}
+          onPick={(containerId) =>
+            void mutate(() => setDestinationAction({ tradeId: trade.id, containerId }))
+          }
         />
 
         <ExportSheet open={exporting} onClose={() => setExporting(false)} trade={trade} />

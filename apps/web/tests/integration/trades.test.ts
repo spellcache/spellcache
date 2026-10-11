@@ -179,7 +179,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
       expect(done.status).toBe('completed')
       expect(done.give.lines[0]!.marketPriceMinor).toBe(200)
 
-      await trades.undoInPerson(me.userId, undoToken)
+      await trades.undoInPerson(me.userId, undoToken!)
       const restored = await holdingsOf(me.rootId)
       expect(restored).toHaveLength(1)
       expect(restored[0]).toMatchObject({ id: holdingId, qty: 4 })
@@ -210,7 +210,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
       const { undoToken } = await trades.completeInPerson(me.userId, tradeId, revision)
       expect(await holdingsOf(me.rootId)).toHaveLength(0)
 
-      await trades.undoInPerson(me.userId, undoToken)
+      await trades.undoInPerson(me.userId, undoToken!)
       expect(await holdingsOf(me.rootId)).toEqual([
         expect.objectContaining({ id: holdingId, qty: 2 }),
       ])
@@ -218,7 +218,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
       expect(view.give.lines[0]!.maxQty).toBe(2)
 
       // Le jeton ne sert qu'une fois ; un jeton inconnu ou expiré refuse.
-      await expectTradeError(trades.undoInPerson(me.userId, undoToken), 'expired')
+      await expectTradeError(trades.undoInPerson(me.userId, undoToken!), 'expired')
     })
 
     it('refuses to undo once a received card left the collection', async () => {
@@ -245,7 +245,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
         sol,
       ])
 
-      await expectTradeError(trades.undoInPerson(me.userId, undoToken), 'unavailable')
+      await expectTradeError(trades.undoInPerson(me.userId, undoToken!), 'unavailable')
       expect((await trades.getTradeView(me.userId, tradeId)).status).toBe('completed')
     })
 
@@ -614,9 +614,199 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
         getMinor: 1350,
       })
     })
+
+    it('values a side at a fixed amount instead of a percentage', async () => {
+      const me = await createAccount('alice')
+      const sol = await insertCard('Sol Ring', { eur: 3 })
+      const { tradeId } = await trades.createTrade(me.userId, {})
+      await trades.addCatalogLine(me.userId, tradeId, {
+        cardId: sol,
+        finish: 'nonfoil',
+        condition: 'nm',
+        language: 'en',
+        qty: 4,
+      })
+      await trades.setCash(me.userId, tradeId, 'counterparty', 100)
+      await trades.setSideValue(me.userId, tradeId, 'counterparty', 1000)
+
+      const view = await trades.getTradeView(me.userId, tradeId)
+      expect(view.get).toMatchObject({ fixedMinor: 1000, ratePct: 100 })
+      expect((await trades.listTrades(me.userId))[0]!.getMinor).toBe(1100)
+
+      // Un pourcentage remplace la valeur fixe.
+      await trades.setRate(me.userId, tradeId, 'counterparty', 50)
+      expect((await trades.getTradeView(me.userId, tradeId)).get.fixedMinor).toBeNull()
+      expect((await trades.listTrades(me.userId))[0]!.getMinor).toBe(700)
+      await expectTradeError(
+        trades.setSideValue(me.userId, tradeId, 'counterparty', -5),
+        'invalid',
+      )
+    })
+
+    it('gives a whole built deck away, dismantled, without undo', async () => {
+      const me = await createAccount('alice')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      const sol = await insertCard('Sol Ring', { eur: 3 })
+      // Le deck réserve 4 Bolt et 1 Sol Ring, adossés au stock de la racine.
+      await addHolding(
+        me.userId,
+        {
+          containerId: me.rootId,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        4,
+      )
+      await addHolding(
+        me.userId,
+        {
+          containerId: me.rootId,
+          cardId: sol,
+          finish: 'foil',
+          condition: 'lp',
+          language: 'en',
+        },
+        1,
+      )
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO containers (collection_id, kind, name, deck_state) VALUES ($1, 'deck', 'Burn', 'built') RETURNING id`,
+        [me.collectionId],
+      )
+      const deckId = rows[0]!.id
+      await pool.query(
+        `INSERT INTO holdings (container_id, card_id, qty) VALUES ($1, $2, 4), ($1, $3, 1)`,
+        [deckId, bolt, sol],
+      )
+
+      const { tradeId } = await trades.createTrade(me.userId, {})
+      const deckHolding = (
+        await pool.query<{ id: string }>(
+          'SELECT id FROM holdings WHERE container_id = $1 LIMIT 1',
+          [deckId],
+        )
+      ).rows[0]!.id
+      await expectTradeError(
+        trades.addHoldingLine(me.userId, tradeId, deckHolding, 1),
+        'unavailable',
+      )
+
+      expect(await trades.addDeckLines(me.userId, tradeId, deckId)).toEqual({ added: 5 })
+      let view = await trades.getTradeView(me.userId, tradeId)
+      expect(
+        view.give.lines.every((line) => line.wholeDeck && line.sourceName === 'Burn'),
+      ).toBe(true)
+      await expectTradeError(
+        trades.updateLine(me.userId, tradeId, view.give.lines[0]!.id, { qty: 1 }),
+        'forbidden',
+      )
+
+      // Retirer une carte du deck retire tout le deck.
+      await trades.removeLine(me.userId, tradeId, view.give.lines[0]!.id)
+      expect((await trades.getTradeView(me.userId, tradeId)).give.lines).toHaveLength(0)
+      await trades.addDeckLines(me.userId, tradeId, deckId)
+      const groups = await trades.browseTradeable(me.userId, tradeId, { scope: 'decks' })
+      expect(groups).toEqual([
+        expect.objectContaining({
+          name: 'Burn',
+          selectedCount: 5,
+          lineId: expect.any(String),
+        }),
+      ])
+
+      view = await trades.getTradeView(me.userId, tradeId)
+      expect(await trades.completeInPerson(me.userId, tradeId, view.revision)).toEqual({
+        undoToken: null,
+      })
+      expect(await holdingsOf(me.rootId)).toEqual([])
+      const { rows: deck } = await pool.query<{ deck_state: string }>(
+        'SELECT deck_state FROM containers WHERE id = $1',
+        [deckId],
+      )
+      expect(deck[0]!.deck_state).toBe('dismantled')
+    })
+
+    it('refuses a deck that changed since it was offered', async () => {
+      const me = await createAccount('alice')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      await addHolding(
+        me.userId,
+        {
+          containerId: me.rootId,
+          cardId: bolt,
+          finish: 'nonfoil',
+          condition: 'nm',
+          language: 'en',
+        },
+        4,
+      )
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO containers (collection_id, kind, name, deck_state) VALUES ($1, 'deck', 'Burn', 'built') RETURNING id`,
+        [me.collectionId],
+      )
+      await pool.query(
+        `INSERT INTO holdings (container_id, card_id, qty) VALUES ($1, $2, 4)`,
+        [rows[0]!.id, bolt],
+      )
+      const { tradeId } = await trades.createTrade(me.userId, {})
+      await trades.addDeckLines(me.userId, tradeId, rows[0]!.id)
+      await pool.query(`UPDATE holdings SET qty = 3 WHERE container_id = $1`, [
+        rows[0]!.id,
+      ])
+
+      const { revision } = await trades.getTradeView(me.userId, tradeId)
+      await expectTradeError(
+        trades.completeInPerson(me.userId, tradeId, revision),
+        'unavailable',
+      )
+      expect(await holdingsOf(me.rootId)).toEqual([expect.objectContaining({ qty: 4 })])
+    })
   })
 
   describe('between two accounts', () => {
+    it('hands the real copies of a whole deck to the other account', async () => {
+      const alice = await createAccount('alice')
+      const bob = await createAccount('bob')
+      const bolt = await insertCard('Lightning Bolt', { eur: 2 })
+      // Exemplaires réels foil/LP derrière une ligne de besoin nonfoil/NM.
+      await addHolding(
+        alice.userId,
+        {
+          containerId: alice.rootId,
+          cardId: bolt,
+          finish: 'foil',
+          condition: 'lp',
+          language: 'en',
+        },
+        2,
+      )
+      const { rows } = await pool.query<{ id: string }>(
+        `INSERT INTO containers (collection_id, kind, name, deck_state) VALUES ($1, 'deck', 'Burn', 'built') RETURNING id`,
+        [alice.collectionId],
+      )
+      await pool.query(
+        `INSERT INTO holdings (container_id, card_id, qty) VALUES ($1, $2, 2)`,
+        [rows[0]!.id, bolt],
+      )
+
+      const { tradeId } = await trades.createTrade(alice.userId, {
+        counterpartyId: bob.userId,
+      })
+      await trades.addDeckLines(alice.userId, tradeId, rows[0]!.id)
+      await trades.joinTrade(bob.userId, tradeId)
+      const { revision } = await trades.getTradeView(alice.userId, tradeId)
+      await trades.acceptTrade(alice.userId, tradeId, revision)
+      expect(await trades.acceptTrade(bob.userId, tradeId, revision)).toEqual({
+        completed: true,
+      })
+
+      expect(await holdingsOf(alice.rootId)).toEqual([])
+      expect(await holdingsOf(bob.rootId)).toEqual([
+        expect.objectContaining({ card_id: bolt, qty: 2, finish: 'foil' }),
+      ])
+    })
+
     it('applies the swap once both accepted the same revision', async () => {
       const alice = await createAccount('alice')
       const bob = await createAccount('bob', { priceSource: 'tcgplayer_usd' })

@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 
 import {
   addContainerLinesAction,
+  addDeckLinesAction,
   addHoldingLineAction,
   browseTradeableAction,
   removeLineAction,
@@ -158,7 +159,9 @@ export function CardsStep({
                   <span className="block text-meta-search text-text-2">
                     {group.tradeable
                       ? `${formatCount(group.cardCount)} cards${group.selectedCount > 0 ? ` · ${group.selectedCount} selected` : ''}`
-                      : 'Built deck · dismantle it first to trade its cards'}
+                      : group.selectedCount > 0
+                        ? `Whole deck in the trade · ${formatCount(group.cardCount)} cards`
+                        : 'Built deck · trade it whole, or dismantle it to pick cards'}
                   </span>
                 </span>
                 {group.tradeable && query === '' && (
@@ -171,6 +174,30 @@ export function CardsStep({
                   </span>
                 )}
               </button>
+              {group.kind === 'deck' && group.cardCount > 0 && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  aria-pressed={group.lineId !== null}
+                  onClick={() =>
+                    void run(() =>
+                      group.lineId
+                        ? removeLineAction({ tradeId: trade.id, lineId: group.lineId })
+                        : addDeckLinesAction({
+                            tradeId: trade.id,
+                            deckId: group.containerId,
+                          }),
+                    ).then(after)
+                  }
+                  className={`flex-shrink-0 rounded-pill border px-11 py-6 text-chip-toggle font-bold ${
+                    group.lineId
+                      ? 'border-border-accent bg-accent-bg text-accent-text'
+                      : 'border-border text-text'
+                  }`}
+                >
+                  {group.lineId ? 'Remove deck' : 'Trade whole deck'}
+                </button>
+              )}
               {group.tradeable && group.cardCount > 0 && (
                 <button
                   type="button"

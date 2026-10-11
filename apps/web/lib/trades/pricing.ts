@@ -6,7 +6,7 @@ import type { Currency } from '@/lib/format/money'
 
 // Bornes de l'ajustement par côté : au-delà, ce n'est plus une décote mais
 // un autre échange.
-export const RATE_MIN_PCT = 50
+export const RATE_MIN_PCT = 1
 export const RATE_MAX_PCT = 150
 export const RATE_PRESETS_PCT = [80, 90, 100, 110] as const
 
@@ -77,13 +77,18 @@ export interface PricedSide {
   // Argent donné par ce côté, à sa valeur faciale : l'ajustement ne
   // s'applique qu'aux cartes.
   cashMinor?: number
+  // Valeur fixe des cartes de ce côté, à la place du pourcentage.
+  fixedMinor?: number | null
 }
 
 export function sideTotalMinor(side: PricedSide): {
   valueMinor: number
   missing: number
 } {
-  const cards = sideValueMinor(side.lines, side.ratePct)
+  const cards =
+    side.fixedMinor !== undefined && side.fixedMinor !== null
+      ? { valueMinor: side.fixedMinor, missing: 0 }
+      : sideValueMinor(side.lines, side.ratePct)
   return { valueMinor: cards.valueMinor + (side.cashMinor ?? 0), missing: cards.missing }
 }
 

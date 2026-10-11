@@ -521,6 +521,11 @@ export const trades = pgTable(
     // en pourcent (« je prends tes cartes à 90 % »).
     initiatorRatePct: integer('initiator_rate_pct').notNull().default(100),
     counterpartyRatePct: integer('counterparty_rate_pct').notNull().default(100),
+    // Valeur fixe des cartes données par chaque partie, en centimes, à la
+    // place du pourcentage (« tes cartes valent 20 € pour moi ») ; `null` =
+    // le pourcentage s'applique.
+    initiatorValueMinor: integer('initiator_value_minor'),
+    counterpartyValueMinor: integer('counterparty_value_minor'),
     // Argent donné par chaque partie, en centimes de la devise de l'échange,
     // compté à sa valeur faciale (l'ajustement ne s'y applique pas). Rien
     // n'est encaissé : c'est un fait de l'échange, consigné.

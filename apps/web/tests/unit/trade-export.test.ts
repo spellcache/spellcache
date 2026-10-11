@@ -24,6 +24,7 @@ function line(overrides: Partial<TradeLineView>): TradeLineView {
     sourceName: null,
     maxQty: null,
     fromCatalog: false,
+    wholeDeck: false,
     ...overrides,
   }
 }
@@ -42,6 +43,7 @@ const trade: TradeView = {
   give: {
     giver: 'initiator',
     ratePct: 100,
+    fixedMinor: null,
     canEdit: false,
     cashMinor: 0,
     notes: 'Counterspell has a dent.',
@@ -60,6 +62,7 @@ const trade: TradeView = {
   get: {
     giver: 'counterparty',
     ratePct: 100,
+    fixedMinor: null,
     canEdit: false,
     cashMinor: 500,
     notes: null,

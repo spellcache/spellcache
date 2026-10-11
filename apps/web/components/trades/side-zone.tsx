@@ -147,6 +147,8 @@ export function SideZone({
         <span className="text-meta text-text-2">Value at</span>
         <RateChips
           value={side.ratePct}
+          fixedMinor={side.fixedMinor}
+          currency={currency}
           disabled={!canRate || pending}
           onChange={onRate}
           onCustom={onCustomRate}

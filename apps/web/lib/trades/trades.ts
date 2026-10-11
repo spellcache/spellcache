@@ -37,6 +37,7 @@ import {
 } from '@/lib/collections/authorize'
 import { getActiveCollectionId } from '@/lib/collections/active'
 import { recomputeContainerStats } from '@/lib/containers/stats'
+import { dismantleDeckInTransaction } from '@/lib/decks/assemble'
 import { parseList } from '@/lib/lists/parse-list'
 import { resolveList } from '@/lib/lists/resolve-list'
 import { currencyOf } from '@/lib/price-source'
@@ -68,12 +69,15 @@ export class TradeError extends Error {
 
 export type { TradeMode }
 
-// Seuls ces containers portent des cartes possédées : une liste est une
-// envie, un deck se défait d'abord (`plan`/`assemble` ne sont pas physiques,
-// et les lignes d'un deck `built` sont des réservations adossées au stock de
-// la collection, que seul `dismantleDeck` sait défaire) — même périmètre que
-// `lib/decks/availability.ts`.
+// Seuls ces containers portent des cartes possédées carte par carte : une
+// liste est une envie, et un deck n'est pas physique tant qu'il n'est pas
+// `built`. Les lignes d'un deck `built` sont des réservations adossées au
+// stock de la collection, que seul `dismantleDeck` sait défaire : un tel deck
+// s'échange donc entier (`addDeckLines`), jamais carte par carte.
 const TRADEABLE_KINDS = ['collection', 'binder'] as const
+
+// Sentinelle de `dismantleDeck` en mode `discard` : aucun container cible.
+const NO_TARGET = '00000000-0000-0000-0000-000000000000'
 
 // Bornes des saisies libres : un montant au-delà est une faute de frappe,
 // une note plus longue n'est plus une note.
@@ -119,6 +123,10 @@ function acceptedRevisionOf(trade: Trade, party: TradeParty): number | null {
 
 function rateOf(trade: Trade, giver: TradeParty): number {
   return giver === 'initiator' ? trade.initiatorRatePct : trade.counterpartyRatePct
+}
+
+function fixedOf(trade: Trade, giver: TradeParty): number | null {
+  return giver === 'initiator' ? trade.initiatorValueMinor : trade.counterpartyValueMinor
 }
 
 function cashOf(trade: Trade, giver: TradeParty): number {
@@ -407,6 +415,61 @@ export async function addHoldingLine(
   })
 }
 
+// Lignes de l'échange qui viennent d'un deck entier : celles dont le holding
+// vit dans un deck. Une seule requête pour tout un échange.
+async function deckLineIds(
+  executor: Executor,
+  tradeId: string,
+): Promise<Map<string, string>> {
+  const rows = await executor
+    .select({ lineId: tradeLines.id, deckId: containers.id })
+    .from(tradeLines)
+    .innerJoin(holdings, eq(holdings.id, tradeLines.holdingId))
+    .innerJoin(containers, eq(containers.id, holdings.containerId))
+    .where(and(eq(tradeLines.tradeId, tradeId), eq(containers.kind, 'deck')))
+  return new Map(rows.map((row) => [row.lineId, row.deckId]))
+}
+
+// Un deck `built` entre dans l'échange entier : une ligne par carte du deck,
+// à sa quantité. Les cartes réellement cédées se décident à l'application,
+// par le démontage du deck (voir `applyTrade`).
+export async function addDeckLines(
+  userId: string,
+  tradeId: string,
+  deckId: string,
+): Promise<{ added: number }> {
+  return db.transaction(async (tx) => {
+    const { trade, party, collectionId } = await lockWritable(tx, userId, tradeId)
+    const [deck] = await tx
+      .select({
+        collectionId: containers.collectionId,
+        kind: containers.kind,
+        deckState: containers.deckState,
+      })
+      .from(containers)
+      .where(eq(containers.id, deckId))
+      .limit(1)
+    if (
+      !deck ||
+      deck.collectionId !== collectionId ||
+      deck.kind !== 'deck' ||
+      deck.deckState !== 'built'
+    )
+      throw new TradeError('unavailable')
+
+    const rows = await tx
+      .select()
+      .from(holdings)
+      .where(eq(holdings.containerId, deckId))
+      .orderBy(asc(holdings.id))
+    if (rows.length === 0) throw new TradeError('empty')
+    for (const holding of rows)
+      await putHoldingLine(tx, trade, party, holding, holding.qty, true)
+    await bumpRevision(tx, trade.id)
+    return { added: rows.reduce((sum, row) => sum + row.qty, 0) }
+  })
+}
+
 // « Select all » d'un binder (ou de la racine) : chaque holding du container
 // entre dans l'échange avec tous ses exemplaires.
 export async function addContainerLines(
@@ -599,6 +662,8 @@ export async function updateLine(
 
     if (patch.qty !== undefined) {
       if (!canEditSide(trade, party, line.giver)) throw new TradeError('forbidden')
+      if ((await deckLineIds(tx, trade.id)).has(line.id))
+        throw new TradeError('forbidden')
       if (!Number.isInteger(patch.qty) || patch.qty < 1) throw new TradeError('invalid')
       if (line.holdingId) {
         const [holding] = await tx
@@ -646,7 +711,13 @@ export async function removeLine(
     const { trade, party } = await lockWritable(tx, userId, tradeId)
     const line = await lockLine(tx, trade.id, lineId)
     if (!canEditSide(trade, party, line.giver)) throw new TradeError('forbidden')
-    await tx.delete(tradeLines).where(eq(tradeLines.id, line.id))
+    // Retirer une carte d'un deck entier retire tout le deck.
+    const decks = await deckLineIds(tx, trade.id)
+    const deckId = decks.get(line.id)
+    const ids = deckId
+      ? [...decks].filter(([, id]) => id === deckId).map(([lineId]) => lineId)
+      : [line.id]
+    await tx.delete(tradeLines).where(inArray(tradeLines.id, ids))
     await bumpRevision(tx, trade.id)
   })
 }
@@ -669,8 +740,8 @@ export async function setRate(
       .update(trades)
       .set(
         giver === 'initiator'
-          ? { initiatorRatePct: rate }
-          : { counterpartyRatePct: rate },
+          ? { initiatorRatePct: rate, initiatorValueMinor: null }
+          : { counterpartyRatePct: rate, counterpartyValueMinor: null },
       )
       .where(eq(trades.id, trade.id))
     await bumpRevision(tx, trade.id)
@@ -741,6 +812,36 @@ export async function joinTrade(userId: string, tradeId: string): Promise<void> 
       .set({ counterpartyJoinedAt: new Date() })
       .where(eq(trades.id, trade.id))
     await touch(tx, trade.id)
+  })
+}
+
+// Valeur fixe des cartes données par `giver`, à la place du pourcentage
+// (« tes cartes valent 20 € pour moi »). Négociable comme le pourcentage ;
+// `null` revient au pourcentage.
+export async function setSideValue(
+  userId: string,
+  tradeId: string,
+  giver: TradeParty,
+  amountMinor: number | null,
+): Promise<void> {
+  if (
+    amountMinor !== null &&
+    (!Number.isInteger(amountMinor) || amountMinor < 0 || amountMinor > MAX_CASH_MINOR)
+  )
+    throw new TradeError('invalid')
+  await db.transaction(async (tx) => {
+    const { trade } = await lockWritable(tx, userId, tradeId)
+    if (modeOf(trade) === 'in_person' && partyOf(trade, userId) !== 'initiator')
+      throw new TradeError('forbidden')
+    await tx
+      .update(trades)
+      .set(
+        giver === 'initiator'
+          ? { initiatorValueMinor: amountMinor }
+          : { counterpartyValueMinor: amountMinor },
+      )
+      .where(eq(trades.id, trade.id))
+    await bumpRevision(tx, trade.id)
   })
 }
 
@@ -864,10 +965,31 @@ async function applyTrade(tx: Tx, trade: Trade): Promise<ApplyEffects> {
   const effects: ApplyEffects = { given: [], received: [], lineHoldings: [] }
   const touched = new Set<string>()
 
+  // Decks cédés entiers : démontés (`discard`) dans cette transaction ; ce
+  // qui en sort vraiment est remis à l'autre partie. Une ligne qui n'est
+  // adossée à aucun exemplaire (carte jamais acquise) ne part pas.
+  const decks = await deckLineIds(tx, trade.id)
+  const deckGroups = new Map<string, { party: TradeParty; lines: TradeLine[] }>()
+  for (const line of lines) {
+    const deckId = decks.get(line.id)
+    if (!deckId) continue
+    const group = deckGroups.get(deckId) ?? { party: line.giver, lines: [] }
+    group.lines.push(line)
+    deckGroups.set(deckId, group)
+  }
+  const deckReceipts: Array<{
+    giver: TradeParty
+    cardId: string
+    finish: Finish
+    condition: Condition
+    language: string
+    qty: number
+  }> = []
+
   // Retraits : une ligne par holding source, quantités cumulées.
   const outgoing = new Map<string, { party: TradeParty; qty: number; line: TradeLine }>()
   for (const line of lines) {
-    if (!parties.has(line.giver)) continue
+    if (!parties.has(line.giver) || decks.has(line.id)) continue
     if (!line.holdingId) throw new TradeError('unavailable')
     effects.lineHoldings.push({ lineId: line.id, holdingId: line.holdingId })
     const current = outgoing.get(line.holdingId)
@@ -924,8 +1046,48 @@ async function applyTrade(tx: Tx, trade: Trade): Promise<ApplyEffects> {
     touched.add(row.holding.containerId)
   }
 
-  // Ajouts : chez l'autre partie, si elle a une collection ici.
-  for (const line of lines) {
+  for (const [deckId, group] of deckGroups) {
+    const owner = parties.get(group.party)!
+    const [deck] = await tx
+      .select({ collectionId: containers.collectionId, deckState: containers.deckState })
+      .from(containers)
+      .where(eq(containers.id, deckId))
+      .for('update')
+      .limit(1)
+    if (!deck || deck.collectionId !== owner.collectionId || deck.deckState !== 'built')
+      throw new TradeError('unavailable')
+    // Le deck doit être resté celui qui a été proposé (un deck `built` est
+    // verrouillé, mais il a pu être remis en chantier puis remonté).
+    const current = await tx
+      .select()
+      .from(holdings)
+      .where(eq(holdings.containerId, deckId))
+    const byId = new Map(current.map((row) => [row.id, row]))
+    const unchanged =
+      current.length === group.lines.length &&
+      group.lines.every(
+        (line) => line.holdingId !== null && byId.get(line.holdingId)?.qty === line.qty,
+      )
+    if (!unchanged) throw new TradeError('unavailable')
+
+    const { consumed } = await dismantleDeckInTransaction(
+      tx,
+      owner.userId,
+      deckId,
+      NO_TARGET,
+      'discard',
+    )
+    for (const piece of consumed) deckReceipts.push({ giver: group.party, ...piece })
+  }
+
+  // Ajouts : chez l'autre partie, si elle a une collection ici. Un deck cédé
+  // entier remet les exemplaires réellement sortis de la collection, pas ses
+  // lignes de besoin.
+  const receipts = [
+    ...lines.filter((line) => !decks.has(line.id)),
+    ...deckReceipts.map((piece) => ({ ...piece, giver: piece.giver })),
+  ]
+  for (const line of receipts) {
     const receiver = parties.get(otherParty(line.giver))
     if (!receiver) continue
     const match = and(
@@ -1000,14 +1162,18 @@ export async function completeInPerson(
   userId: string,
   tradeId: string,
   revision: number,
-): Promise<{ undoToken: string }> {
-  const effects = await db.transaction(async (tx) => {
+): Promise<{ undoToken: string | null }> {
+  const { effects, withDeck } = await db.transaction(async (tx) => {
     const { trade, party } = await lockWritable(tx, userId, tradeId)
     if (modeOf(trade) !== 'in_person' || party !== 'initiator')
       throw new TradeError('forbidden')
     if (trade.revision !== revision) throw new TradeError('stale')
-    return applyTrade(tx, trade)
+    const withDeck = (await deckLineIds(tx, trade.id)).size > 0
+    return { effects: await applyTrade(tx, trade), withDeck }
   })
+  // Remonter un deck démonté n'est pas une simple écriture inverse : un
+  // échange qui en cède un ne s'annule pas.
+  if (withDeck) return { undoToken: null }
 
   const undoToken = randomUUID()
   undoStore().set(undoToken, {
@@ -1213,11 +1379,15 @@ export interface TradeLineView {
   // Carte reçue en personne, choisie au catalogue : sa finition et son état
   // se règlent dans l'échange.
   fromCatalog: boolean
+  // Ligne d'un deck cédé entier : ni quantité ni retrait carte par carte.
+  wholeDeck: boolean
 }
 
 export interface TradeSideView {
   giver: TradeParty
   ratePct: number
+  // Valeur fixe des cartes de ce côté, à la place du pourcentage.
+  fixedMinor: number | null
   // Ajouter, retirer, changer les quantités et l'argent de ce côté.
   canEdit: boolean
   cashMinor: number
@@ -1263,6 +1433,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
       holdingQty: holdings.qty,
       sourceName: containers.name,
       sourceKind: containers.kind,
+      sourceState: containers.deckState,
     })
     .from(tradeLines)
     .innerJoin(cards, eq(cards.id, tradeLines.cardId))
@@ -1310,6 +1481,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
         : null,
       maxQty: mine ? row.holdingQty : null,
       fromCatalog: mode === 'in_person' && row.line.giver === 'counterparty',
+      wholeDeck: row.sourceKind === 'deck',
     }
   }
 
@@ -1354,6 +1526,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
     give: {
       giver: party,
       ratePct: rateOf(trade, party),
+      fixedMinor: fixedOf(trade, party),
       canEdit: open && canEditSide(trade, party, party),
       cashMinor: cashOf(trade, party),
       notes: notesOf(trade, party),
@@ -1363,6 +1536,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
     get: {
       giver: other,
       ratePct: rateOf(trade, other),
+      fixedMinor: fixedOf(trade, other),
       canEdit: open && canEditSide(trade, party, other),
       cashMinor: cashOf(trade, other),
       notes: notesOf(trade, other),
@@ -1459,11 +1633,13 @@ export async function listTrades(userId: string): Promise<TradeSummary[]> {
         lines: give,
         ratePct: rateOf(trade, party),
         cashMinor: cashOf(trade, party),
+        fixedMinor: fixedOf(trade, party),
       }).valueMinor,
       getMinor: sideTotalMinor({
         lines: get,
         ratePct: rateOf(trade, other),
         cashMinor: cashOf(trade, other),
+        fixedMinor: fixedOf(trade, other),
       }).valueMinor,
       awaitingMe:
         trade.status === 'open' &&
@@ -1505,8 +1681,11 @@ export interface BrowseGroup {
   kind: 'collection' | 'binder' | 'deck'
   cardCount: number
   selectedCount: number
-  // Un deck s'affiche pour qu'on le retrouve, mais se défait d'abord.
+  // Carte par carte : faux pour un deck, qui s'échange entier.
   tradeable: boolean
+  // Une ligne de l'échange venue de ce container (pour retirer un deck
+  // entier d'un geste), `null` s'il n'y en a aucune.
+  lineId: string | null
   // Chargés seulement pour une recherche ou un container ouvert.
   holdings: TradeableHolding[] | null
 }
@@ -1570,12 +1749,15 @@ export async function browseTradeable(
     .innerJoin(holdings, eq(holdings.id, tradeLines.holdingId))
     .where(and(eq(tradeLines.tradeId, trade.id), eq(tradeLines.giver, party)))
   const selectedByContainer = new Map<string, number>()
+  const lineByContainer = new Map<string, string>()
   const lineByHolding = new Map<string, { lineId: string; qty: number }>()
   for (const line of mine) {
     selectedByContainer.set(
       line.containerId,
       (selectedByContainer.get(line.containerId) ?? 0) + line.qty,
     )
+    if (!lineByContainer.has(line.containerId))
+      lineByContainer.set(line.containerId, line.lineId)
     if (line.holdingId)
       lineByHolding.set(line.holdingId, { lineId: line.lineId, qty: line.qty })
   }
@@ -1590,6 +1772,7 @@ export async function browseTradeable(
       cardCount: Number(row.cardCount),
       selectedCount: selectedByContainer.get(row.id) ?? 0,
       tradeable: (TRADEABLE_KINDS as readonly string[]).includes(row.kind),
+      lineId: lineByContainer.get(row.id) ?? null,
       holdings: null as TradeableHolding[] | null,
     }))
     .sort((a, b) => rank[a.kind] - rank[b.kind])

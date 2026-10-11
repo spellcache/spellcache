@@ -13,6 +13,7 @@ import {
   addCatalogLine,
   addCatalogLines,
   addContainerLines,
+  addDeckLines,
   addHoldingLine,
   browseTradeable,
   cancelTrade,
@@ -30,6 +31,7 @@ import {
   setDestination,
   setNotes,
   setRate,
+  setSideValue,
   TradeError,
   undoInPerson,
   updateLine,
@@ -132,6 +134,17 @@ export async function browseTradeableAction(
 }
 
 const containerLinesSchema = tradeIdSchema.extend({ containerId: z.uuid() })
+const deckLinesSchema = tradeIdSchema.extend({ deckId: z.uuid() })
+
+export async function addDeckLinesAction(
+  input: unknown,
+): Promise<TradeActionResult<{ added: number }>> {
+  return run(deckLinesSchema, input, async (session, data) => {
+    const result = await addDeckLines(session.id, data.tradeId, data.deckId)
+    revalidateTrades(data.tradeId)
+    return result
+  })
+}
 
 export async function addContainerLinesAction(
   input: unknown,
@@ -272,7 +285,7 @@ function revalidateCollection(): void {
 
 export async function completeInPersonAction(
   input: unknown,
-): Promise<TradeActionResult<{ undoToken: string }>> {
+): Promise<TradeActionResult<{ undoToken: string | null }>> {
   return run(revisionSchema, input, async (session, data) => {
     const result = await completeInPerson(session.id, data.tradeId, data.revision)
     revalidateTrades(data.tradeId)
@@ -316,6 +329,19 @@ export async function withdrawAcceptanceAction(
 export async function cancelTradeAction(input: unknown): Promise<TradeActionResult> {
   return run(tradeIdSchema, input, async (session, data) => {
     await cancelTrade(session.id, data.tradeId)
+    revalidateTrades(data.tradeId)
+    return {}
+  })
+}
+
+const sideValueSchema = tradeIdSchema.extend({
+  giver: partySchema,
+  amountMinor: z.int().min(0).max(MAX_CASH_MINOR).nullable(),
+})
+
+export async function setSideValueAction(input: unknown): Promise<TradeActionResult> {
+  return run(sideValueSchema, input, async (session, data) => {
+    await setSideValue(session.id, data.tradeId, data.giver, data.amountMinor)
     revalidateTrades(data.tradeId)
     return {}
   })

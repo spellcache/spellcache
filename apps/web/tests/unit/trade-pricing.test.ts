@@ -82,7 +82,7 @@ describe('trade values', () => {
   })
 
   it('clamps a rate to its bounds', () => {
-    expect(clampRate(10)).toBe(50)
+    expect(clampRate(0)).toBe(1)
     expect(clampRate(400)).toBe(150)
     expect(clampRate(92.6)).toBe(93)
   })

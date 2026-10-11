@@ -73,11 +73,12 @@ restore_main() {
   # Même contrat qu'à la sauvegarde : on refuse de restaurer une archive dont
   # le jeu de tables n'est pas exactement celui attendu.
   assert_dump_tables "${dump}"
+  assert_dump_statements "${dump}"
   echo "[restore] archive holds the ${#USER_TABLES[@]} user tables, no catalogue table"
 
   # 1. Le schéma doit être là. Il vient des migrations, jamais de l'archive.
   local probe
-  probe="$(psql "${database_url}" -tAc "select to_regclass('public.holdings') is not null")"
+  probe="$(psql -X "${database_url}" -tAc "select to_regclass('public.holdings') is not null")"
   if [ "${probe}" != "t" ]; then
     cat >&2 <<'EOF'
 [restore] the target database has no schema yet.
@@ -92,14 +93,14 @@ EOF
   # 2. Base vierge, sinon on s'arrête : empiler une archive sur des données
   #    existantes produirait des doublons impossibles à démêler.
   local populated
-  populated="$(psql "${database_url}" -tAc "$(non_empty_tables_query)" | tr -d ' ' | tr '\n' ' ')"
+  populated="$(psql -X "${database_url}" -tAc "$(non_empty_tables_query)" | tr -d ' ' | tr '\n' ' ')"
   populated="${populated% }"
   if [ -n "${populated}" ]; then
     if [ "${RESTORE_TRUNCATE:-}" = "1" ]; then
       echo "[restore] RESTORE_TRUNCATE=1 — emptying: ${populated}"
       local joined
       joined="$(printf ', public.%s' "${USER_TABLES[@]}")"
-      psql "${database_url}" -v ON_ERROR_STOP=1 -q -c "truncate ${joined#, } cascade"
+      psql -X "${database_url}" -v ON_ERROR_STOP=1 -q -c "truncate ${joined#, } cascade"
     else
       echo "[restore] refusing to restore: these tables already hold rows: ${populated}" >&2
       echo "[restore] restore onto an empty database, or set RESTORE_TRUNCATE=1 to replace them." >&2
@@ -117,11 +118,11 @@ EOF
     echo "SET session_replication_role = 'replica';"
     cat "${dump}"
     echo 'COMMIT;'
-  } | psql "${database_url}" -v ON_ERROR_STOP=1 -q
+  } | psql -X "${database_url}" -v ON_ERROR_STOP=1 -q
 
   local table count
   for table in "${USER_TABLES[@]}"; do
-    count="$(psql "${database_url}" -tAc "select count(*) from public.${table}")"
+    count="$(psql -X "${database_url}" -tAc "select count(*) from public.${table}")"
     printf '[restore] %-20s %s rows\n' "${table}" "${count}"
   done
 

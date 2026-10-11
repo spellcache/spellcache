@@ -100,6 +100,34 @@ list_dump_tables() {
   ' | LC_ALL=C sort -u
 }
 
+# Lignes d'un dump hors des blocs de données qui ne sont pas de celles que
+# `pg_dump --data-only` écrit : la restauration passe le dump à `psql` en
+# superutilisateur, une archive altérée y ferait sinon exécuter n'importe quel
+# ordre SQL ou méta-commande (`\!` lance une commande sur l'hôte). Le contenu
+# des blocs `COPY` n'est jamais lu : `psql` le traite comme des données.
+unexpected_dump_lines() {
+  awk '
+    inside == 1 { if ($0 == "\\.") inside = 0; next }
+    /^COPY public\.[a-z_]+ \([a-z0-9_, "]+\) FROM stdin;$/ { inside = 1; next }
+    /^$/ || /^--/ { next }
+    /^SET [a-z_]+ = [^;]*;$/ { next }
+    /^SELECT pg_catalog\.(set_config|setval)\([^;]*\);$/ { next }
+    /^\\(restrict|unrestrict) [A-Za-z0-9]+$/ { next }
+    { print NR ": " $0 }
+  '
+}
+
+assert_dump_statements() {
+  local dump_path="$1"
+  local unexpected
+  unexpected="$(unexpected_dump_lines <"${dump_path}" | head -n 5)"
+  if [ -n "${unexpected}" ]; then
+    echo "[backup] the dump holds statements pg_dump --data-only never writes:" >&2
+    echo "${unexpected}" >&2
+    return 1
+  fi
+}
+
 # Échoue si le dump ne contient pas EXACTEMENT les tables utilisateur. Une table
 # manquante, c'est une perte de données silencieuse
 # découverte au moment de la restauration ; une table de catalogue en trop,
@@ -143,7 +171,7 @@ rotate_remote() {
   local host="$1"
   local dir="$2"
   local days="$3"
-  ssh "${host}" "find '${dir}' -maxdepth 1 -type f -name '*${ARCHIVE_SUFFIX}' -mtime '+${days}' -print -delete"
+  ssh -- "${host}" "find '${dir}' -maxdepth 1 -type f -name '*${ARCHIVE_SUFFIX}' -mtime '+${days}' -print -delete"
 }
 
 # --- Destination -------------------------------------------------------------
@@ -169,11 +197,16 @@ ship_archive() {
       local rest="${dest#ssh://}"
       local host="${rest%%:*}"
       local dir="${rest#*:}"
-      if [ -z "${host}" ] || [ -z "${dir}" ] || [ "${host}" = "${rest}" ]; then
+      # Hôte et chemin passent par la ligne de commande de ssh et par un shell
+      # distant : un hôte commençant par `-` serait lu comme une option, une
+      # apostrophe dans le chemin sortirait des guillemets de `rotate_remote`.
+      if [ -z "${host}" ] || [ -z "${dir}" ] || [ "${host}" = "${rest}" ] ||
+        ! [[ "${host}" =~ ^[A-Za-z0-9_][A-Za-z0-9._@-]*$ ]] ||
+        ! [[ "${dir}" =~ ^/[A-Za-z0-9._/-]*$ ]]; then
         echo "[backup] malformed ssh destination: ${dest} (expected ssh://user@host:/path)" >&2
         return 2
       fi
-      scp -q "${archive}" "${host}:${dir}/"
+      scp -q -- "${archive}" "${host}:${dir}/"
       echo "[backup] stored ${host}:${dir}/$(basename "${archive}")"
       rotate_remote "${host}" "${dir}" "${days}"
       ;;
@@ -223,6 +256,7 @@ main() {
 
   # Vérification AVANT chiffrement : une archive fausse ne doit jamais partir.
   assert_dump_tables "${dump}"
+  assert_dump_statements "${dump}"
 
   local archive="${workdir}/${name}"
   gzip -9 -c "${dump}" | encrypt_stream >"${archive}"

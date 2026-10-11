@@ -9,6 +9,9 @@ import { DEFAULT_SET_TYPE_GROUPS, type SetTypeGroup } from '@/lib/search/set-typ
 
 export const DEFAULT_LIMIT = 50
 export const MAX_LIMIT = 100
+// Une requête devient une condition `ILIKE` par mot : bornée pour qu'un
+// texte géant ne produise pas une requête SQL démesurée.
+export const MAX_QUERY_LENGTH = 200
 // Bumped to `v4` : `colorSpread` a rejoint `NormalizedSearchFilters`, et le
 // classement par nom (sémantique `unique=cards, order=name` — un résultat
 // par nom, cf. `search-cards.ts`) change la forme des résultats pour des paramètres par ailleurs identiques.

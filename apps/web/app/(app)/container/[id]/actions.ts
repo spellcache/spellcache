@@ -35,6 +35,8 @@ import {
   type ContainerSetOption,
   type HoldingPage,
 } from './holdings-data'
+import { MAX_HOLDING_QTY } from '@/lib/containers/holdings'
+import { MAX_QUERY_LENGTH } from '@/lib/search/normalize'
 
 export type { ContainerSetOption } from './holdings-data'
 
@@ -46,15 +48,15 @@ const conditionSchema = z.enum(['nm', 'lp', 'mp', 'hp', 'dmg'])
 // castés. `binderId` restreint la liste à un binder, ou au vrac de la racine,
 // sur le périmètre élargi de la racine (`buildWhereConditions`).
 const holdingFiltersSchema: z.ZodType<HoldingFilters> = z.object({
-  colors: z.array(z.enum(['W', 'U', 'B', 'R', 'G', 'C'])),
+  colors: z.array(z.enum(['W', 'U', 'B', 'R', 'G', 'C'])).max(6),
   colorMatch: z.enum(['including', 'exactly', 'atMost']),
   multicolourOnly: z.boolean(),
   monoOnly: z.boolean(),
-  types: z.array(z.string()),
-  rarities: z.array(z.string()),
-  finishes: z.array(finishSchema),
-  conditions: z.array(conditionSchema),
-  setCode: z.string().nullable(),
+  types: z.array(z.string().max(64)).max(32),
+  rarities: z.array(z.string().max(16)).max(8),
+  finishes: z.array(finishSchema).max(3),
+  conditions: z.array(conditionSchema).max(5),
+  setCode: z.string().max(16).nullable(),
   binderId: z.uuid().nullable(),
   priceMinMinor: z.number().int().nullable(),
   priceMaxMinor: z.number().int().nullable(),
@@ -71,9 +73,9 @@ const sortSchema = z.object({
 // exception opaque.
 const listHoldingsSchema = z.object({
   containerId: z.uuid(),
-  cursor: z.string().nullish(),
+  cursor: z.string().max(512).nullish(),
   limit: z.number().int().positive().max(200).optional(),
-  query: z.string().optional(),
+  query: z.string().max(MAX_QUERY_LENGTH).optional(),
   filters: holdingFiltersSchema.optional(),
   sort: sortSchema.optional(),
   groupBy: z.enum(['set', 'type', 'colour', 'rarity', 'binder', 'none']).nullish(),
@@ -111,7 +113,7 @@ export async function listHoldingsAction(
 // appliqué tant que l'utilisateur n'a pas validé.
 const countHoldingsSchema = z.object({
   containerId: z.uuid(),
-  query: z.string().optional(),
+  query: z.string().max(MAX_QUERY_LENGTH).optional(),
   filters: holdingFiltersSchema.optional(),
 })
 
@@ -145,7 +147,7 @@ export async function getContainerHeaderAction(containerId: unknown): Promise<Co
 
 const setQuantitySchema = z.object({
   holdingId: z.uuid(),
-  qty: z.number().int(),
+  qty: z.number().int().max(MAX_HOLDING_QTY),
 })
 
 export async function setQuantityAction(input: unknown): Promise<
@@ -202,7 +204,7 @@ const addCardSchema = z.object({
   cardId: z.uuid(),
   finish: finishSchema,
   condition: conditionSchema,
-  qty: z.number().int().positive(),
+  qty: z.number().int().positive().max(MAX_HOLDING_QTY),
   language: z.string().trim().min(1).max(8).optional(),
 })
 

@@ -149,19 +149,30 @@ function canEditSide(trade: Trade, party: TradeParty, giver: TradeParty): boolea
   return modeOf(trade) === 'in_person' ? party === 'initiator' : party === giver
 }
 
+// Entre deux comptes, les cartes quittent la collection pour un autre
+// compte : réservé à son `owner`, un `editor` ne vide pas la collection d'un
+// autre. En personne, le droit d'écriture suffit, comme pour retirer une carte.
+function needFor(mode: TradeMode): 'write' | 'owner' {
+  return mode === 'account' ? 'owner' : 'write'
+}
+
 async function assertCollectionWrite(
   userId: string,
   collectionId: string | null,
   executor: Executor = db,
+  need: 'write' | 'owner' = 'write',
 ): Promise<void> {
   if (!collectionId) throw new TradeError('forbidden', 'Collection no longer exists.')
+  let access: Awaited<ReturnType<typeof requireCollectionAccess>>
   try {
-    await requireCollectionAccess(userId, collectionId, 'write', executor)
+    access = await requireCollectionAccess(userId, collectionId, 'write', executor)
   } catch (error) {
     if (error instanceof ContainerAccessError)
       throw new TradeError('forbidden', error.message)
     throw error
   }
+  if (need === 'owner' && access.role !== 'owner')
+    throw new TradeError('forbidden', 'Only the owner trades with another account.')
 }
 
 // Un échange inconnu et un échange dont on n'est pas partie répondent tous
@@ -211,7 +222,7 @@ async function lockWritable(
       trade.counterpartyCollectionId = collectionId
     }
   }
-  await assertCollectionWrite(userId, collectionId, tx)
+  await assertCollectionWrite(userId, collectionId, tx, needFor(modeOf(trade)))
   return { trade, party, collectionId: collectionId! }
 }
 
@@ -260,7 +271,12 @@ export async function createTrade(
   input: CreateTradeInput,
 ): Promise<{ tradeId: string }> {
   const collectionId = await getActiveCollectionId(userId)
-  await assertCollectionWrite(userId, collectionId)
+  await assertCollectionWrite(
+    userId,
+    collectionId,
+    db,
+    needFor(input.counterpartyId ? 'account' : 'in_person'),
+  )
 
   const [me] = await db
     .select({ username: users.username, priceSource: users.priceSource })
@@ -788,7 +804,7 @@ export async function setNotes(
     if (trade.status === 'cancelled') throw new TradeError('not_open')
     if (party === 'counterparty' && awaitsJoin(trade)) throw new TradeError('forbidden')
     if (!canEditSide(trade, party, giver)) throw new TradeError('forbidden')
-    await assertCollectionWrite(userId, collectionOf(trade, party), tx)
+    await assertCollectionWrite(userId, collectionOf(trade, party), tx, needFor(modeOf(trade)))
     await tx
       .update(trades)
       .set(
@@ -952,7 +968,7 @@ async function applyTrade(tx: Tx, trade: Trade): Promise<ApplyEffects> {
     const userId = party === 'initiator' ? trade.initiatorId : trade.counterpartyId
     const collectionId = collectionOf(trade, party)
     if (!userId || !collectionId) throw new TradeError('forbidden')
-    await assertCollectionWrite(userId, collectionId, tx)
+    await assertCollectionWrite(userId, collectionId, tx, needFor(mode))
     const chosen = destinationOf(trade, party)
     if (chosen) await assertTradeableContainer(tx, chosen, collectionId)
     parties.set(party, {
@@ -1506,7 +1522,7 @@ export async function getTradeView(userId: string, tradeId: string): Promise<Tra
     collectionOf(trade, party) ??
     (party === 'counterparty' ? await getActiveCollectionId(userId) : null)
   try {
-    await assertCollectionWrite(userId, collectionId)
+    await assertCollectionWrite(userId, collectionId, db, needFor(modeOf(trade)))
     canWrite = true
   } catch (error) {
     if (!(error instanceof TradeError)) throw error

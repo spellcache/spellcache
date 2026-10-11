@@ -763,6 +763,31 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Trades', () => {
   })
 
   describe('between two accounts', () => {
+    it("keeps an editor from trading a collection they don't own to another account", async () => {
+      const alice = await createAccount('alice')
+      const eve = await createAccount('eve')
+      const mule = await createAccount('mule')
+      await pool.query(
+        `INSERT INTO collection_members (collection_id, user_id, role) VALUES ($1, $2, 'editor')`,
+        [alice.collectionId, eve.userId],
+      )
+      const { setActiveCollection } = await import('@/lib/collections/active')
+      expect(await setActiveCollection(eve.userId, alice.collectionId)).toBe(true)
+
+      await expectTradeError(
+        trades.createTrade(eve.userId, { counterpartyId: mule.userId }),
+        'forbidden',
+      )
+      // En personne, le droit d'écriture suffit toujours.
+      await expect(trades.createTrade(eve.userId, {})).resolves.toMatchObject({
+        tradeId: expect.any(String),
+      })
+
+      // Invitée par un autre compte, elle ne peut pas y engager la collection d'Alice.
+      const { tradeId } = await trades.createTrade(mule.userId, { counterpartyId: eve.userId })
+      await expectTradeError(trades.joinTrade(eve.userId, tradeId), 'forbidden')
+    })
+
     it('hands the real copies of a whole deck to the other account', async () => {
       const alice = await createAccount('alice')
       const bob = await createAccount('bob')

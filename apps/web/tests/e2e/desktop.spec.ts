@@ -266,18 +266,16 @@ test('the pane moves the current card to a binder through the bulk edit sheet', 
 
   await pane.getByRole('button', { name: 'Move to binder' }).click()
 
-  // La feuille d'édition groupée, visant la seule ligne du panneau — d'où « 1 card »,
-  // et non le compteur d'une sélection.
-  const sheet = page.getByRole('dialog', { name: 'Edit 1 card' })
+  // Mode déplacement de la feuille groupée, visant la seule ligne du panneau —
+  // d'où « 1 card », et non le compteur d'une sélection : la liste des binders
+  // et `Move 1 card`, sans le formulaire d'édition.
+  const sheet = page.getByRole('dialog', { name: 'Move 1 card to a binder' })
   await expect(sheet).toBeVisible()
-  // `destinationKind = 'binder'` : la ligne de destination s'appelle
-  // `Binder`, pas `Destination`. Elle ouvre la `PickerSheet` partagée.
-  await sheet.getByRole('button', { name: 'Binder No binder' }).click()
-  const picker = page.getByRole('dialog', { name: 'Move 1 card' })
-  await picker.getByRole('button', { name: /^Desktop Trade Binder/ }).click()
-  await expect(sheet.getByRole('button', { name: 'Binder Desktop Trade Binder' })).toBeVisible()
-
-  await sheet.getByRole('button', { name: 'Apply to 1 card' }).click()
+  await expect(sheet.getByText('Condition')).toHaveCount(0)
+  const move = sheet.getByRole('button', { name: 'Move 1 card', exact: true })
+  await expect(move).toBeDisabled()
+  await sheet.getByRole('button', { name: /^Desktop Trade Binder/ }).click()
+  await move.click()
 
   await expect(page.getByText('1 card updated')).toBeVisible()
 

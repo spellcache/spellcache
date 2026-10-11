@@ -12,6 +12,7 @@ import type { Condition, Finish } from '@spellcache/db/schema'
 import type { BulkTarget } from '@/lib/containers/bulk'
 
 import { applyBulkDeleteOptimistic, applyBulkEditOptimistic, applyPatchOptimistic, applyQuantityOptimistic } from './optimistic'
+import type { PrintingPatch } from './optimistic'
 import type { BulkActionResult } from './bulk-actions'
 import type { HoldingPage, HoldingRow } from './holdings-data'
 
@@ -22,6 +23,13 @@ export type SetQuantityResult =
 export type UpdateHoldingResult = { ok: true; holdingId: string } | { ok: false; error: string }
 
 export type UndoResult = { ok: true } | { ok: false; error: 'expired' }
+
+export interface PatchVars {
+  holdingId: string
+  condition?: Condition
+  finish?: Finish
+  printing?: PrintingPatch
+}
 
 type HoldingsData = InfiniteData<HoldingPage | { error: 'invalid_cursor' }>
 
@@ -110,30 +118,33 @@ export function createPatchMutationOptions(deps: {
     holdingId: string
     condition?: Condition
     finish?: Finish
+    cardId?: string
   }) => Promise<UpdateHoldingResult>
   onFailure: (message: string) => void
   onMerged: (fromHoldingId: string, toHoldingId: string) => void
 }) {
   return {
-    mutationFn: (vars: { holdingId: string; condition?: Condition; finish?: Finish }) =>
-      deps.updateHoldingAction(vars),
-    onMutate: async (vars: {
-      holdingId: string
-      condition?: Condition
-      finish?: Finish
-    }): Promise<MutationContext> => {
+    // Seul l'identifiant de l'impression part au serveur : le reste de
+    // `printing` ne sert qu'à l'affichage optimiste.
+    mutationFn: ({ printing, ...vars }: PatchVars) =>
+      deps.updateHoldingAction(printing ? { ...vars, cardId: printing.cardId } : vars),
+    onMutate: async (vars: PatchVars): Promise<MutationContext> => {
       await deps.queryClient.cancelQueries({ queryKey: deps.holdingsKey })
       const previous = deps.queryClient.getQueryData<HoldingsData>(deps.holdingsKey)
 
       deps.queryClient.setQueryData(deps.holdingsKey, (old: HoldingsData | undefined) =>
-        applyPatchOptimistic(old, vars.holdingId, { condition: vars.condition, finish: vars.finish }),
+        applyPatchOptimistic(old, vars.holdingId, {
+          condition: vars.condition,
+          finish: vars.finish,
+          printing: vars.printing,
+        }),
       )
 
       return { previous }
     },
     onSuccess: (
       result: UpdateHoldingResult,
-      vars: { holdingId: string; condition?: Condition; finish?: Finish },
+      vars: PatchVars,
       context: MutationContext | undefined,
     ) => {
       if (!result.ok) {
@@ -147,11 +158,7 @@ export function createPatchMutationOptions(deps: {
         deps.onMerged(vars.holdingId, result.holdingId)
       }
     },
-    onError: (
-      _error: unknown,
-      _vars: { holdingId: string; condition?: Condition; finish?: Finish },
-      context: MutationContext | undefined,
-    ) => {
+    onError: (_error: unknown, _vars: PatchVars, context: MutationContext | undefined) => {
       rollback(deps.queryClient, deps.holdingsKey, context?.previous)
       deps.onFailure('Could not update the card. Try again.')
     },

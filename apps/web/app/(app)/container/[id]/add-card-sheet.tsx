@@ -6,13 +6,20 @@
 // `presetCard` : un résultat déjà choisi (clic sur une ligne de l'onglet
 // Search ou de l'écran d'un set) saute directement à la troisième étape, sans passer par la recherche ni
 // par le choix d'impression — la ligne cliquée EST déjà une impression
-// précise. `containerId: null` ajoute au container racine de la collection
+// précise ; sa zone `Edition` ouvre `PrintingPickerSheet` pour en choisir une
+// autre, qui remplace image, set et prix (c'est elle qu'ajoute le bouton).
+// `containerId: null` ajoute au container racine de la collection
 // (résolu côté serveur, `container/[id]/actions.ts`) — bouton « Add to
 // collection » ; tout autre container — bouton « Add to binder ».
 import { ChevronLeft } from 'lucide-react'
 import { useState } from 'react'
 
 import { printingsAction, searchCatalogAction } from '@/app/(app)/search/actions'
+import {
+  EditionButton,
+  PrintingPickerSheet,
+  toCardSearchItem,
+} from '@/components/cards/printing-picker-sheet'
 import { SearchRow } from '@/components/search/search-row'
 import { CardImage } from '@/components/ui/card-image'
 import { SearchField } from '@/components/ui/search-field'
@@ -21,8 +28,7 @@ import { useSwipe } from '@/components/ui/use-swipe'
 import { PrimaryButton, SectionLabel } from '@/components/ui/sheet-controls'
 import type { Condition } from '@spellcache/db/schema'
 import { useCanEdit } from '@/lib/collections/access-context'
-import type { Currency } from '@/lib/format/money'
-import { thumbUrl } from '@spellcache/core/images'
+import { formatMoney, type Currency } from '@/lib/format/money'
 import type { CardSearchItem } from '@/lib/search/search-cards'
 
 import { addCardAction } from './actions'
@@ -39,29 +45,6 @@ const CONDITION_LABEL: Record<Condition, string> = {
 // La recherche texte ne part qu'à partir de 2 caractères, comme l'onglet
 // Search.
 const MIN_QUERY_LENGTH = 2
-
-// L'impression choisie — ce que la troisième étape montre et ajoute. Un
-// `presetCard` (déjà une impression précise) et une ligne de la liste de
-// printings (étape 2) convergent tous deux vers cette même forme.
-interface ChosenPrinting {
-  id: string
-  name: string
-  setCode: string
-  setName: string
-  collectorNumber: string
-  imageUrl: string | null
-}
-
-function fromCardSearchItem(item: CardSearchItem): ChosenPrinting {
-  return {
-    id: item.id,
-    name: item.name,
-    setCode: item.setCode,
-    setName: item.setName,
-    collectorNumber: item.collectorNumber,
-    imageUrl: item.imageUrl,
-  }
-}
 
 // Devise par défaut avant toute réponse serveur — `cardmarket_eur` est le
 // défaut de compte (`lib/preferences.ts`, `DEFAULT_PREFERENCES.priceSource`),
@@ -94,7 +77,6 @@ export function AddCardSheet({
   onNext?: () => void
 }) {
   const isPreset = presetCard !== null
-  const swipe = useSwipe({ onPrevious, onNext, keyboard: open && isPreset })
   // Lecture seule (`viewer`) : ouverte depuis Search, la feuille ne montre
   // plus que la carte — ni formulaire d'ajout, ni bouton `Add to ...`.
   const canEdit = useCanEdit()
@@ -109,9 +91,13 @@ export function AddCardSheet({
   const [printingsLoading, setPrintingsLoading] = useState(false)
   const [printingsFailed, setPrintingsFailed] = useState(false)
 
-  const [selectedPrinting, setSelectedPrinting] = useState<ChosenPrinting | null>(
-    presetCard ? fromCardSearchItem(presetCard) : null,
-  )
+  // L'impression choisie — ce que la troisième étape montre et ajoute. Un
+  // `presetCard`, une ligne de la liste de printings (étape 2) et un choix
+  // de `PrintingPickerSheet` sont tous des `CardSearchItem`.
+  const [selectedPrinting, setSelectedPrinting] = useState<CardSearchItem | null>(presetCard)
+  const [editionsOpen, setEditionsOpen] = useState(false)
+  // Les flèches restent à la liste d'éditions tant qu'elle est ouverte.
+  const swipe = useSwipe({ onPrevious, onNext, keyboard: open && isPreset && !editionsOpen })
   const [currency, setCurrency] = useState<Currency>(presetCurrency ?? DEFAULT_CURRENCY)
 
   const [quantity, setQuantity] = useState(1)
@@ -130,7 +116,8 @@ export function AddCardSheet({
     setPrintings([])
     setPrintingsLoading(false)
     setPrintingsFailed(false)
-    setSelectedPrinting(presetCard ? fromCardSearchItem(presetCard) : null)
+    setSelectedPrinting(presetCard)
+    setEditionsOpen(false)
     setCurrency(presetCurrency ?? DEFAULT_CURRENCY)
     setQuantity(1)
     setFoil(false)
@@ -177,22 +164,7 @@ export function AddCardSheet({
       // `SearchRow` telle quelle (nom/coût de mana/type communs à toutes
       // les impressions d'un même nom) plutôt qu'une seconde
       // ligne dédiée.
-      setPrintings(
-        result.items.map((printing) => ({
-          id: printing.id,
-          name: card.name,
-          setCode: printing.setCode,
-          setName: printing.setName,
-          collectorNumber: printing.collectorNumber,
-          rarity: printing.rarity,
-          manaCost: card.manaCost,
-          typeLine: card.typeLine,
-          thumbUrl: thumbUrl(printing.id, 'small'),
-          imageUrl: printing.imageUrl,
-          price: printing.price,
-          colorIdentity: card.colorIdentity,
-        })),
-      )
+      setPrintings(result.items.map((printing) => toCardSearchItem(printing, card)))
     } catch {
       setPrintingsFailed(true)
     } finally {
@@ -289,16 +261,7 @@ export function AddCardSheet({
                 key={printing.id}
                 item={printing}
                 currency={currency}
-                onClick={() =>
-                  setSelectedPrinting({
-                    id: printing.id,
-                    name: printing.name,
-                    setCode: printing.setCode,
-                    setName: printing.setName,
-                    collectorNumber: printing.collectorNumber,
-                    imageUrl: printing.imageUrl,
-                  })
-                }
+                onClick={() => setSelectedPrinting(printing)}
               />
             ))}
           </div>
@@ -325,13 +288,23 @@ export function AddCardSheet({
             onNext={isPreset ? onNext : undefined}
           />
 
-          <div>
-            <div className="text-row-value font-bold text-text">{selectedPrinting.name}</div>
-            <div className="mt-2 text-meta text-text-2">
-              {selectedPrinting.setName} ({selectedPrinting.setCode.toUpperCase()}) #
-              {selectedPrinting.collectorNumber}
+          <div className="flex items-baseline justify-between gap-12">
+            <div className="min-w-0 truncate text-row-value font-bold text-text">
+              {selectedPrinting.name}
+            </div>
+            <div className="whitespace-nowrap font-mono text-price-detail font-extrabold text-accent-text">
+              {selectedPrinting.price === null
+                ? '—'
+                : formatMoney(Math.round(selectedPrinting.price * 100), currency)}
             </div>
           </div>
+
+          <EditionButton
+            setName={selectedPrinting.setName}
+            setCode={selectedPrinting.setCode}
+            collectorNumber={selectedPrinting.collectorNumber}
+            onClick={() => setEditionsOpen(true)}
+          />
 
           {canEdit && (
           <>
@@ -434,6 +407,19 @@ export function AddCardSheet({
           </>
           )}
         </div>
+      )}
+
+      {selectedPrinting && (
+        <PrintingPickerSheet
+          open={editionsOpen}
+          onClose={() => setEditionsOpen(false)}
+          card={selectedPrinting}
+          currentCardId={selectedPrinting.id}
+          onPick={(printing, nextCurrency) => {
+            setSelectedPrinting(printing)
+            setCurrency(nextCurrency)
+          }}
+        />
       )}
     </Sheet>
   )

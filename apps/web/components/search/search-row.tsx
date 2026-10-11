@@ -6,8 +6,8 @@
 //   - `onClick` optionnel rend la ligne cliquable (bouton) plutôt qu'un
 //     simple conteneur — un résultat de recherche ouvre `AddCardSheet`
 //     préchargée.
-//   - sous-titre `icône Set name · #num`, sans la rareté : le nom du set
-//     distingue déjà les sets qui partagent une icône.
+//   - sous-titre `icône CODE #num`, sans la rareté — même forme que les
+//     lignes compactes de la collection.
 //   - le prix passe par `formatMoney`/`currency`, jamais `$` en dur.
 //   - les symboles de mana passent par le composant partagé `ManaCost`,
 //     qui couvre les 75 symboles + repli lettré.
@@ -47,9 +47,9 @@ export function SearchRow({
         </div>
         <div className="mt-2 flex min-w-0 items-center gap-5 text-meta-search text-text-2">
           <SetIcon uri={item.setIconUri} />
-          {/* Seul le nom du set se tronque : le numéro reste lisible. */}
-          <span className="min-w-0 truncate">{item.setName}</span>
-          <span className="flex-shrink-0">· #{item.collectorNumber}</span>
+          <span className="min-w-0 truncate">
+            {item.setCode.toUpperCase()} #{item.collectorNumber}
+          </span>
         </div>
       </div>
       <div className="flex flex-col items-end gap-4">

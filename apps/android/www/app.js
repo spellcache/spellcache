@@ -8,8 +8,6 @@
   const input = document.getElementById('server')
   const error = document.getElementById('error')
   const button = document.getElementById('connect')
-  const opening = document.getElementById('opening')
-  const openingHost = document.getElementById('opening-host')
 
   // Marqueur de session : posé avant d'ouvrir l'instance, il distingue un
   // lancement de l'app d'un retour arrière vers cet écran.
@@ -22,16 +20,18 @@
   let allowLocalhost = false
 
   function showForm(origin) {
-    opening.hidden = true
+    document.body.classList.remove('opening')
     form.hidden = false
     if (origin && !input.value) input.value = origin
+    Server.hideSplash()
   }
 
+  // Le logo de lancement natif couvre le chargement ; s'il expire avant
+  // l'instance, l'écran local n'affiche que le logo.
   function open(origin) {
     sessionStorage.setItem(OPENED_KEY, '1')
-    openingHost.textContent = new URL(origin).host
     form.hidden = true
-    opening.hidden = false
+    document.body.classList.add('opening')
     window.location.assign(`${origin}/`)
   }
 

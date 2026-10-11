@@ -19,6 +19,7 @@ import { Check } from 'lucide-react'
 import { QtyStepper } from '@/components/cards/qty-stepper'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
+import { SetIcon } from '@/components/cards/set-icon'
 
 // `selectable`/`selected` : même case ronde 18px et mêmes tokens de
 // fond/bordure que `CompactRow` — la seule densité dessinée pour la
@@ -36,6 +37,7 @@ export function CardRow({
   manaCost,
   setCode,
   setName,
+  setIconUri,
   collectorNumber,
   condition,
   isFoil,
@@ -59,6 +61,7 @@ export function CardRow({
   // Nom complet du set — `null`/absent replie sur le seul code, jamais une
   // chaîne vide qui laisserait un « · » orphelin.
   setName?: string | null
+  setIconUri?: string | null
   collectorNumber: string
   condition: Condition
   isFoil: boolean
@@ -82,7 +85,6 @@ export function CardRow({
 }) {
   const highlighted = selected || current
   const reserved = available !== undefined && available < qty
-  const setLine = `${setCode.toUpperCase()}${setName ? ` · ${setName}` : ''} #${collectorNumber}`
 
   return (
     <button
@@ -115,7 +117,13 @@ export function CardRow({
           <div className="min-w-0 truncate text-card-name-row font-bold text-text">{name}</div>
           <ManaCost cost={manaCost} size={14} />
         </div>
-        <div className="mt-2 text-setline-row text-text-2">{setLine}</div>
+        <div className="mt-2 flex min-w-0 items-center gap-5 text-setline-row text-text-2">
+          <SetIcon uri={setIconUri} />
+          {/* Le nom du set suffit à côté de son icône, le code ne sert que de
+              repli ; seul lui se tronque, le numéro reste lisible. */}
+          <span className="min-w-0 truncate">{setName || setCode.toUpperCase()}</span>
+          <span className="flex-shrink-0">#{collectorNumber}</span>
+        </div>
         <div className="mt-6 flex gap-6">
           <span className="rounded-pill bg-surface-2 px-7 py-2 text-pill-badge font-bold tracking-pill-badge text-text-2">
             {condition.toUpperCase()}

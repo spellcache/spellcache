@@ -16,7 +16,8 @@ export const MAX_LIMIT = 100
 // du même nom ou ignorerait silencieusement `colorSpread` pendant la fenêtre
 // de TTL de 10 minutes qui suit — même raison que le bump `v2` → `v3`
 // ci-dessous, jamais compter sur le TTL pour s'auto-corriger.
-const CACHE_KEY_VERSION = 'v8'
+// `v9` : les résultats portent désormais `setIconUri`.
+const CACHE_KEY_VERSION = 'v9'
 
 export interface NormalizedSearchFilters {
   colors: string[]

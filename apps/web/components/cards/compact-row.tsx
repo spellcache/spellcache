@@ -24,6 +24,7 @@ import { Check } from 'lucide-react'
 import { QtyStepper } from '@/components/cards/qty-stepper'
 import { ManaCost } from '@/components/cards/mana-cost'
 import type { Condition } from '@spellcache/db/schema'
+import { SetIcon } from '@/components/cards/set-icon'
 
 export function CompactRow({
   holdingId,
@@ -31,6 +32,7 @@ export function CompactRow({
   name,
   manaCost,
   setCode,
+  setIconUri,
   collectorNumber,
   condition,
   isFoil,
@@ -48,6 +50,7 @@ export function CompactRow({
   name: string
   manaCost: string | null
   setCode: string
+  setIconUri?: string | null
   collectorNumber: string
   condition: Condition
   isFoil: boolean
@@ -122,7 +125,10 @@ export function CompactRow({
             ligne virtualisée (docs/development.md, anti-pattern) — mesuré à 358px de
             large, `PLST #DMR-34 · NM · 3 available` rendait 70.25px. Même
             garde que le nom de carte juste au-dessus, qui la porte déjà. */}
-        <div className="mt-1 truncate whitespace-nowrap text-subline-compact text-text-2">{setLine}</div>
+        <div className="mt-1 flex min-w-0 items-center gap-5 text-subline-compact text-text-2">
+          <SetIcon uri={setIconUri} />
+          <span className="min-w-0 truncate whitespace-nowrap">{setLine}</span>
+        </div>
       </div>
       <div className="flex flex-shrink-0 items-center gap-7" onClick={(event) => event.stopPropagation()}>
         {onQtyChange ? (

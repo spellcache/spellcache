@@ -611,6 +611,7 @@ export function ContainerView({
           name={item.name}
           manaCost={item.manaCost}
           setCode={item.setCode}
+          setIconUri={item.setIconUri}
           collectorNumber={item.collectorNumber}
           condition={item.condition}
           isFoil={isFoil}
@@ -661,6 +662,7 @@ export function ContainerView({
         manaCost={item.manaCost}
         setCode={item.setCode}
         setName={item.setName}
+        setIconUri={item.setIconUri}
         collectorNumber={item.collectorNumber}
         condition={item.condition}
         isFoil={isFoil}

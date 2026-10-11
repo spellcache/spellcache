@@ -74,6 +74,8 @@ export interface CardSearchItem {
   // sur `sets` plutôt que recopié depuis `sets.card_count`/`SetSummary`
   // (deux lectures indépendantes du même nom pourraient diverger).
   setName: string
+  // Icône du set (`sets.icon_svg_uri`), `null` si le catalogue n'en a pas.
+  setIconUri: string | null
   collectorNumber: string
   rarity: string
   manaCost: string | null
@@ -113,6 +115,7 @@ interface SearchRow extends Record<string, unknown> {
   card_name: string
   set_code: string
   set_name: string
+  set_icon_uri: string | null
   collector_number: string
   rarity: string
   mana_cost: string | null
@@ -306,6 +309,7 @@ function scoredSelect(normalized: NormalizedSearchParams): SQL {
       cards.name as card_name,
       cards.set_code,
       sets.name as set_name,
+      sets.icon_svg_uri as set_icon_uri,
       sets.released_at as released_at,
       cards.collector_number,
       cards.rarity,
@@ -405,6 +409,7 @@ function toItem(row: SearchRow): CardSearchItem {
     name: row.card_name,
     setCode: row.set_code,
     setName: row.set_name,
+    setIconUri: row.set_icon_uri,
     collectorNumber: row.collector_number,
     rarity: row.rarity,
     manaCost: row.mana_cost,
@@ -468,6 +473,7 @@ export interface PrintingItem {
   id: string
   setCode: string
   setName: string
+  setIconUri: string | null
   collectorNumber: string
   rarity: string
   releasedAt: string | null
@@ -483,6 +489,7 @@ export async function getPrintingsByName(
     id: string
     set_code: string
     set_name: string
+  set_icon_uri: string | null
     collector_number: string
     rarity: string
     released_at: string | null
@@ -493,6 +500,7 @@ export async function getPrintingsByName(
       cards.id,
       cards.set_code,
       sets.name as set_name,
+      sets.icon_svg_uri as set_icon_uri,
       cards.collector_number,
       cards.rarity,
       sets.released_at as released_at,
@@ -514,6 +522,7 @@ export async function getPrintingsByName(
     id: row.id,
     setCode: row.set_code,
     setName: row.set_name,
+    setIconUri: row.set_icon_uri,
     collectorNumber: row.collector_number,
     rarity: row.rarity,
     releasedAt: row.released_at,

@@ -17,6 +17,8 @@ import type { Currency } from '@/lib/format/money'
 import type { CardSearchItem, PrintingItem } from '@/lib/search/search-cards'
 import { thumbUrl } from '@spellcache/core/images'
 
+import { SetIcon } from './set-icon'
+
 // Ce qu'une impression partage avec toutes les autres du même nom — porté
 // par l'appelant, `printingsAction` ne renvoie que ce qui varie d'une
 // impression à l'autre.
@@ -33,6 +35,7 @@ export function toCardSearchItem(printing: PrintingItem, card: PrintingCard): Ca
     name: card.name,
     setCode: printing.setCode,
     setName: printing.setName,
+    setIconUri: printing.setIconUri,
     collectorNumber: printing.collectorNumber,
     rarity: printing.rarity,
     manaCost: card.manaCost,
@@ -49,11 +52,13 @@ export function toCardSearchItem(printing: PrintingItem, card: PrintingCard): Ca
 export function EditionButton({
   setName,
   setCode,
+  setIconUri,
   collectorNumber,
   onClick,
 }: {
   setName: string | null
   setCode: string
+  setIconUri: string | null
   collectorNumber: string
   onClick: () => void
 }) {
@@ -65,11 +70,10 @@ export function EditionButton({
       className="flex w-full items-center gap-10 rounded-control border border-border bg-surface-2 px-14 py-12 text-left"
     >
       <span className="flex-shrink-0 text-body font-semibold text-text-2">Edition</span>
-      <span className="min-w-0 flex-1 truncate text-right text-body font-semibold text-text">
-        {setName ?? setCode.toUpperCase()}
-        <span className="ml-6 font-mono text-meta text-text-3">
-          {setCode.toUpperCase()} #{collectorNumber}
-        </span>
+      <span className="flex min-w-0 flex-1 items-center justify-end gap-6 text-body font-semibold text-text">
+        <SetIcon uri={setIconUri} />
+        <span className="min-w-0 truncate">{setName ?? setCode.toUpperCase()}</span>
+        <span className="flex-shrink-0 font-mono text-meta text-text-3">#{collectorNumber}</span>
       </span>
       <ChevronRight width={16} height={16} strokeWidth={1.75} className="flex-shrink-0 text-text-3" />
     </button>

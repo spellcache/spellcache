@@ -302,6 +302,7 @@ export function AddCardSheet({
           <EditionButton
             setName={selectedPrinting.setName}
             setCode={selectedPrinting.setCode}
+            setIconUri={selectedPrinting.setIconUri}
             collectorNumber={selectedPrinting.collectorNumber}
             onClick={() => setEditionsOpen(true)}
           />

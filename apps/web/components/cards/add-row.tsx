@@ -18,6 +18,7 @@ import { Plus } from 'lucide-react'
 
 import { ManaCost } from '@/components/cards/mana-cost'
 import { formatMoney, type Currency } from '@/lib/format/money'
+import { SetIcon } from '@/components/cards/set-icon'
 
 function formatPrice(price: number | null, currency: Currency): string {
   // Devise du compte, jamais `$` en dur (même règle que `SearchRow`).
@@ -29,6 +30,8 @@ export function AddRow({
   name,
   manaCost,
   setLine,
+  setIconUri,
+  setSuffix,
   price,
   currency,
   ownedElsewhere,
@@ -40,6 +43,9 @@ export function AddRow({
   name: string
   manaCost: string | null
   setLine: string
+  setIconUri?: string | null
+  // Toujours lisible derrière `setLine`, qui seul se tronque (ex. `#34`).
+  setSuffix?: string
   price: number | null
   currency: Currency
   ownedElsewhere: number
@@ -61,8 +67,10 @@ export function AddRow({
           <ManaCost cost={manaCost} size={12} gap={1} />
         </div>
         <div className="mt-2 flex items-center gap-7">
-          <span className="min-w-0 truncate text-subline-compact text-text-2">
-            {setLine}
+          <span className="flex min-w-0 items-center gap-5 text-subline-compact text-text-2">
+            <SetIcon uri={setIconUri} />
+            <span className="min-w-0 truncate">{setLine}</span>
+            {setSuffix && <span className="flex-shrink-0">{setSuffix}</span>}
           </span>
           {ownedElsewhere > 0 && (
             <span className="flex-shrink-0 text-status-badge font-bold tracking-status-badge text-success">

@@ -127,8 +127,8 @@ function formatPriceMinor(minor: number | null, currency: 'usd' | 'eur'): string
 // client, `deck-data.ts` tire `@spellcache/db`. Une ligne
 // insérée de façon optimiste (`handleCardAdded`/`applyOptimisticDelta`
 // ci-dessous) doit porter le format `DeckSlot.setLine` (« DMR #34 · owned
-// ×1 ») dès le premier rendu, pas celui du tiroir (`AddDrawerCard.setLine`,
-// « DMR · Dominaria Remastered #34 »).
+// ×1 ») dès le premier rendu, pas celui du tiroir (`AddRow` du tiroir,
+// « Dominaria Remastered #34 »).
 function deckSlotSetLine(setCode: string, collectorNumber: string, ownedElsewhere: number): string {
   const base = `${setCode.toUpperCase()} #${collectorNumber}`
   return ownedElsewhere > 0 ? `${base} · owned ×${ownedElsewhere}` : `${base} · not owned`
@@ -501,6 +501,7 @@ export function DeckView({
         name: card.name,
         manaCost: card.manaCost,
         setLine: deckSlotSetLine(card.setCode, card.collectorNumber, card.ownedElsewhere),
+        setIconUri: card.setIconUri,
         need: result.qtyInDeck,
         ownedElsewhere: card.ownedElsewhere,
         state: card.ownedElsewhere >= result.qtyInDeck ? 'owned' : 'missing',
@@ -562,6 +563,7 @@ export function DeckView({
         name: card.name,
         manaCost: card.manaCost,
         setLine: deckSlotSetLine(card.setCode, card.collectorNumber, ownedElsewhere),
+        setIconUri: card.setIconUri,
         need: nextNeed,
         ownedElsewhere,
         state: ownedElsewhere >= nextNeed ? 'owned' : 'missing',
@@ -1094,6 +1096,7 @@ export function DeckView({
                   name={deck.commander.name}
                   manaCost={deck.commander.manaCost}
                   setLine={deck.commander.setLine}
+                  setIconUri={deck.commander.setIconUri}
                   qty={deck.commander.need}
                   zone="commander"
                   onQtyChange={(next) => void handleSlotQty(deck.commander!, next)}
@@ -1132,6 +1135,7 @@ export function DeckView({
                   name={slot.name}
                   manaCost={slot.manaCost}
                   setLine={slot.setLine}
+                  setIconUri={slot.setIconUri}
                   qty={slot.need}
                   zone={slot.zone}
                   onQtyChange={(next) => void handleSlotQty(slot, next)}
@@ -1158,6 +1162,7 @@ export function DeckView({
                     name={slot.name}
                     manaCost={slot.manaCost}
                     setLine={slot.setLine}
+                    setIconUri={slot.setIconUri}
                     qty={slot.need}
                     zone={slot.zone}
                     onQtyChange={(next) => void handleSlotQty(slot, next)}
@@ -1193,6 +1198,7 @@ export function DeckView({
                     name={slot.name}
                     manaCost={slot.manaCost}
                     setLine={slot.setLine}
+                    setIconUri={slot.setIconUri}
                     need={slot.need}
                     state={slot.state}
                     priceLabel={formatPriceMinor(slot.priceMinor, header.currency)}

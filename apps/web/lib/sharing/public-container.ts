@@ -47,6 +47,7 @@ export interface PublicCard {
   qty: number
   manaCost: string | null
   setCode: string
+  setIconUri: string | null
   collectorNumber: string
   thumbUrl: string
   priceMinor: number | null
@@ -88,6 +89,7 @@ interface CardRow extends Record<string, unknown> {
   qty: number
   mana_cost: string | null
   set_code: string
+  set_icon_uri: string | null
   collector_number: string
   price_minor: string | number | null
   // Lues pour `evaluateDeck` uniquement — jamais projetées.
@@ -158,6 +160,7 @@ export async function getPublicContainer(containerId: string): Promise<PublicCon
       h.qty as qty,
       cd.mana_cost as mana_cost,
       cd.set_code as set_code,
+      (select s.icon_svg_uri from sets s where s.code = cd.set_code) as set_icon_uri,
       cd.collector_number as collector_number,
       h.zone as zone,
       h.is_commander as is_commander,
@@ -217,6 +220,7 @@ export async function getPublicContainer(containerId: string): Promise<PublicCon
       qty: row.qty,
       manaCost: row.mana_cost,
       setCode: row.set_code,
+      setIconUri: row.set_icon_uri,
       collectorNumber: row.collector_number,
       thumbUrl: thumbUrl(row.card_id, 'small'),
       priceMinor: row.price_minor === null ? null : Number(row.price_minor),

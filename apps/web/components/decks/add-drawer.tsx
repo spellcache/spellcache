@@ -340,7 +340,9 @@ export function AddDrawer({
             thumbUrl={card.thumbUrl}
             name={card.name}
             manaCost={card.manaCost}
-            setLine={card.setLine}
+            setLine={card.setName}
+            setSuffix={`#${card.collectorNumber}`}
+            setIconUri={card.setIconUri}
             price={card.price}
             currency={card.currency}
             ownedElsewhere={card.ownedElsewhere}

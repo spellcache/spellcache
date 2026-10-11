@@ -43,6 +43,7 @@ export interface DeckSlot {
   name: string
   manaCost: string | null
   setLine: string // "CMR #6 · owned ×1" | "DMR #34 · not owned"
+  setIconUri: string | null
   need: number // exemplaires voulus
   ownedElsewhere: number // exemplaires disponibles hors de ce deck
   state: 'owned' | 'missing'
@@ -109,6 +110,7 @@ interface DeckSlotSqlRow {
   name: string
   manaCost: string | null
   setCode: string
+  setIconUri: string | null
   collectorNumber: string
   qty: number
   zone: DeckZone
@@ -160,6 +162,7 @@ function toSlot(row: DeckSlotSqlRow, currency: Currency): DeckSlot {
     name: row.name,
     manaCost: row.manaCost,
     setLine: setLine(row),
+    setIconUri: row.setIconUri,
     need: row.qty,
     ownedElsewhere: row.ownedElsewhere,
     // Une carte est `owned` quand la collection en tient au moins autant
@@ -326,6 +329,7 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
           'name', cd.name,
           'manaCost', cd.mana_cost,
           'setCode', cd.set_code,
+          'setIconUri', (select s.icon_svg_uri from sets s where s.code = cd.set_code),
           'collectorNumber', cd.collector_number,
           'qty', h.qty,
           'zone', h.zone,
@@ -461,9 +465,11 @@ export interface AddDrawerCard {
   cardId: string
   name: string
   manaCost: string | null
-  setLine: string // "DMR · Dominaria Remastered #34"
-  // Champs bruts derrière `setLine` ci-dessus : le
-  // format `AddRow` du tiroir (« DMR · Dominaria Remastered #34 ») diffère
+  // Ligne `AddRow` du tiroir : icône, nom du set, `#numéro`.
+  setName: string
+  setIconUri: string | null
+  // Champs bruts : le
+  // format `AddRow` du tiroir (« Dominaria Remastered #34 ») diffère
   // de celui de `DeckSlot.setLine` (« DMR #34 · owned ×1 »), et l'insertion
   // optimiste d'un `DeckSlot` (`deck-view.tsx`, `handleCardAdded`/
   // `applyOptimisticDelta`) doit produire ce second format dès le premier
@@ -512,6 +518,7 @@ interface AddDrawerSqlRow extends Record<string, unknown> {
   mana_cost: string | null
   set_code: string
   set_name: string
+  set_icon_uri: string | null
   collector_number: string
   price: string | null
   owned_elsewhere: string
@@ -597,6 +604,7 @@ export async function searchDeckCards(
         cards.mana_cost,
         cards.set_code,
         sets.name as set_name,
+        sets.icon_svg_uri as set_icon_uri,
         cards.collector_number,
         cards.finishes,
         (case when ${sql.raw(drawerCurrency === 'usd' ? 'true' : 'false')} then latest_price.usd else latest_price.eur end) as price,
@@ -635,7 +643,8 @@ export async function searchDeckCards(
     cardId: row.id,
     name: row.name,
     manaCost: row.mana_cost,
-    setLine: `${row.set_code.toUpperCase()} · ${row.set_name} #${row.collector_number}`,
+    setName: row.set_name,
+    setIconUri: row.set_icon_uri,
     setCode: row.set_code,
     collectorNumber: row.collector_number,
     price: formatPrice(row.price),

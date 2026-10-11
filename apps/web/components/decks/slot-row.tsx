@@ -10,12 +10,14 @@
 import { Check } from 'lucide-react'
 
 import { ManaCost } from '@/components/cards/mana-cost'
+import { SetIcon } from '@/components/cards/set-icon'
 
 export function SlotRow({
   thumbUrl,
   name,
   manaCost,
   setLine,
+  setIconUri,
   need,
   state,
   priceLabel,
@@ -27,6 +29,7 @@ export function SlotRow({
   name: string
   manaCost: string | null
   setLine: string
+  setIconUri?: string | null
   need: number
   // `'unknown'` : la ligne ne dit rien de la possession — ni puce
   // `Owned`/`Missing`, ni traitement d'alerte. C'est le seul état admissible
@@ -84,7 +87,10 @@ export function SlotRow({
           <ManaCost cost={manaCost} size={12} gap={1} />
         </div>
         <div className="mt-1 flex items-center gap-7">
-          <span className="min-w-0 truncate text-subline-compact text-text-2">{setLine}</span>
+          <span className="flex min-w-0 items-center gap-5 text-subline-compact text-text-2">
+            <SetIcon uri={setIconUri} />
+            <span className="min-w-0 truncate">{setLine}</span>
+          </span>
           {state !== 'unknown' && (
             <span
               className={`flex-shrink-0 text-status-badge font-bold uppercase tracking-status-badge ${

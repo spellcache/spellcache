@@ -8,7 +8,28 @@ import type { InfiniteData } from '@tanstack/react-query'
 
 import type { Condition, Finish } from '@spellcache/db/schema'
 
-import type { HoldingPage } from './holdings-data'
+import type { CardSearchItem } from '@/lib/search/search-cards'
+
+import type { HoldingPage, HoldingRow } from './holdings-data'
+
+// Champs d'une ligne qui suivent l'impression choisie — de quoi redessiner la
+// ligne avant la relecture serveur.
+export type PrintingPatch = Pick<
+  HoldingRow,
+  'cardId' | 'setCode' | 'setName' | 'collectorNumber' | 'rarity' | 'priceMinor' | 'thumbUrl'
+>
+
+export function toPrintingPatch(printing: CardSearchItem): PrintingPatch {
+  return {
+    cardId: printing.id,
+    setCode: printing.setCode,
+    setName: printing.setName,
+    collectorNumber: printing.collectorNumber,
+    rarity: printing.rarity,
+    priceMinor: printing.price === null ? null : Math.round(printing.price * 100),
+    thumbUrl: printing.thumbUrl,
+  }
+}
 
 type HoldingsData = InfiniteData<HoldingPage | { error: 'invalid_cursor' }>
 
@@ -113,7 +134,7 @@ export function applyBulkEditOptimistic(
 export function applyPatchOptimistic(
   data: HoldingsData | undefined,
   holdingId: string,
-  patch: { condition?: Condition; finish?: Finish },
+  patch: { condition?: Condition; finish?: Finish; printing?: PrintingPatch },
 ): HoldingsData | undefined {
   if (!data) return data
   return {
@@ -127,6 +148,7 @@ export function applyPatchOptimistic(
               item.holdingId === holdingId
                 ? {
                     ...item,
+                    ...patch.printing,
                     condition: patch.condition ?? item.condition,
                     finish: patch.finish ?? item.finish,
                   }

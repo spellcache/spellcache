@@ -86,6 +86,7 @@ import {
   createQuantityMutationOptions,
   createUndoHandler,
 } from './mutations'
+import { toPrintingPatch } from './optimistic'
 import type { ContainerHeader, HoldingPage, HoldingRow } from './holdings-data'
 
 function priceLabel(priceMinor: number | null, currency: 'usd' | 'eur'): string {
@@ -1049,6 +1050,13 @@ export function ContainerView({
               finish: isFoil ? 'foil' : 'nonfoil',
             })
           }}
+          onPrintingChange={(printing) => {
+            if (!editingHolding) return
+            patchMutation.mutate({
+              holdingId: editingHolding.holdingId,
+              printing: toPrintingPatch(printing),
+            })
+          }}
           onRemove={() => {
             if (!editingHolding) return
             qtyMutation.mutate({ holdingId: editingHolding.holdingId, qty: 0 })
@@ -1083,6 +1091,13 @@ export function ContainerView({
             patchMutation.mutate({
               holdingId: editingHolding.holdingId,
               finish: isFoil ? 'foil' : 'nonfoil',
+            })
+          }}
+          onPrintingChange={(printing) => {
+            if (!editingHolding) return
+            patchMutation.mutate({
+              holdingId: editingHolding.holdingId,
+              printing: toPrintingPatch(printing),
             })
           }}
           onDelete={() => {

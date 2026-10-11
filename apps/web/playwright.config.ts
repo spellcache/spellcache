@@ -94,14 +94,15 @@ export default defineConfig({
       // `desktop.spec.ts` et `responsive.spec.ts` créent chacun leur compte,
       // leurs cartes, leur binder et leur dossier de decks, et surchargent la
       // fenêtre épinglée plus haut — même besoin d'un compte neuf isolé.
-      // `collection-import.spec.ts` et `collection-flows.spec.ts` aussi. Un
+      // `collection-import.spec.ts`, `collection-flows.spec.ts` et
+      // `card-editions.spec.ts` aussi. Un
       // fichier de spec absent des regex `setup`, `unauthenticated` et
       // `authenticated` (`android` ne fait que rejouer) n'est collecté par
       // aucun projet et ne s'exécute jamais, silencieusement (piège vérifié
       // via `npx playwright test --list`).
       name: 'unauthenticated',
       testMatch:
-        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|desktop|responsive|collection-import|collection-flows)\.spec\.ts$/,
+        /(login|collection-home|container-list|command-bar|multi-select|shelves|binder-look|settings|decks|deck-builder|deck-lifecycle|deck-folders|public-share|life-tracker|playtest|desktop|responsive|collection-import|collection-flows|card-editions)\.spec\.ts$/,
     },
     {
       // Les parcours de collection rejoués une seconde fois sous Chrome

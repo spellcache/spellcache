@@ -11,9 +11,9 @@
 //   - le prix passe par `formatMoney`/`currency`, jamais `$` en dur.
 //   - les symboles de mana passent par le composant partagé `ManaCost`,
 //     qui couvre les 75 symboles + repli lettré.
-//   - `showSetName` ajoute le nom complet du set sur sa propre ligne, entre
-//     le nom de la carte et `icône CODE #num` — listes d'impressions, où
-//     c'est le set qui distingue les lignes.
+//   - `showSetName` ajoute le nom complet du set sur sa propre ligne, sous
+//     `icône CODE #num` — listes d'impressions, où c'est le set qui
+//     distingue les lignes.
 //   - `current` marque l'impression déjà choisie dans une liste
 //     d'impressions (`PrintingPickerSheet`).
 import { ManaCost } from '@/components/cards/mana-cost'
@@ -50,15 +50,15 @@ export function SearchRow({
           <div className="truncate text-card-name-search font-bold text-text">{item.name}</div>
           <ManaCost cost={item.manaCost} size={14} />
         </div>
-        {showSetName && (
-          <div className="mt-2 truncate text-meta-search text-text">{item.setName}</div>
-        )}
         <div className="mt-2 flex min-w-0 items-center gap-5 text-meta-search text-text-2">
           <SetIcon uri={item.setIconUri} />
           <span className="min-w-0 truncate">
             {item.setCode.toUpperCase()} #{item.collectorNumber}
           </span>
         </div>
+        {showSetName && (
+          <div className="mt-2 truncate text-meta-search text-text">{item.setName}</div>
+        )}
       </div>
       <div className="flex flex-col items-end gap-4">
         <div className="whitespace-nowrap font-mono text-card-name-search font-bold text-accent-text">

@@ -36,6 +36,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
 import type { MemberRole } from '@spellcache/db/schema'
 import type { MemberCandidate, MemberRow } from '@/lib/collections/members'
+import { MEMBER_SEARCH_MIN_LENGTH } from '@/lib/username'
 import { ROLE_LABELS, roleLabel } from '@/lib/collections/roles'
 
 function memberRoleLabel(role: MemberRole): string {
@@ -119,7 +120,7 @@ export function MembersGroup({
   const isEmail = username.includes('@')
 
   const [candidates, setCandidates] = useState<MemberCandidate[]>([])
-  const [candidatesLoading, setCandidatesLoading] = useState(isOwner)
+  const [candidatesLoading, setCandidatesLoading] = useState(false)
 
   // Membre dont la feuille d'actions est ouverte (owner seulement).
   const [selected, setSelected] = useState<MemberRow | null>(null)
@@ -131,23 +132,30 @@ export function MembersGroup({
   const [confirmPending, setConfirmPending] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
-  // Un seul aller-retour serveur pour la liste des candidats (réf.
-  // `useMemberCandidates`) : le filtrage à la frappe reste ensuite entièrement
-  // côté client, dans `MemberCombobox` ci-dessous — jamais une requête par
-  // caractère tapé.
+  // Le serveur ne livre que les comptes dont le username commence par la
+  // saisie (jamais la liste de l'instance) : une requête par pause de frappe,
+  // à partir de `MEMBER_SEARCH_MIN_LENGTH` caractères.
+  const searchQuery = username.trim().toLowerCase()
   useEffect(() => {
-    if (!isOwner) return
+    if (!isOwner || isEmail || searchQuery.length < MEMBER_SEARCH_MIN_LENGTH) {
+      setCandidates([])
+      setCandidatesLoading(false)
+      return
+    }
     let cancelled = false
     setCandidatesLoading(true)
-    void memberCandidatesAction({ collectionId }).then((result) => {
-      if (cancelled) return
-      setCandidatesLoading(false)
-      if (result.ok) setCandidates(result.candidates)
-    })
+    const timer = setTimeout(() => {
+      void memberCandidatesAction({ collectionId, query: searchQuery }).then((result) => {
+        if (cancelled) return
+        setCandidatesLoading(false)
+        setCandidates(result.ok ? result.candidates : [])
+      })
+    }, 250)
     return () => {
       cancelled = true
+      clearTimeout(timer)
     }
-  }, [collectionId, isOwner])
+  }, [collectionId, isOwner, isEmail, searchQuery])
 
   async function handleAddMember(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

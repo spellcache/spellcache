@@ -100,7 +100,7 @@ export function SideZone({
       key="details"
       onClick={onDetails}
       icon={<List width={15} height={15} strokeWidth={1.75} />}
-      label="View details"
+      label="Details"
     />,
   ].filter(Boolean)
 

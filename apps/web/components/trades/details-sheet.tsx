@@ -1,6 +1,6 @@
 'use client'
 
-// Feuille « View details » d'un côté : chaque carte avec sa vignette, sa
+// Feuille « Details » d'un côté : chaque carte avec sa vignette, sa
 // quantité, son prix (corrigible) et sa suppression. Une carte reçue en
 // personne, venue du catalogue, se règle aussi en finition et en état.
 import { CollectionAccessProvider } from '@/lib/collections/access-context'

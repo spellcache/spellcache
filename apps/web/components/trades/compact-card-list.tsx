@@ -1,6 +1,6 @@
 // Liste compacte d'un côté d'un échange : une ligne de texte par carte
 // (quantité, nom, set et état, valeur de la ligne), et l'argent en dernière
-// ligne. La vue détaillée (feuille « View details ») porte le reste.
+// ligne. La vue détaillée (feuille « Details ») porte le reste.
 import { formatMoney, type Currency } from '@/lib/format/money'
 import { unitPriceMinor } from '@/lib/trades/pricing'
 import type { TradeLineView } from '@/lib/trades/trades'

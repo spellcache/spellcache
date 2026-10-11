@@ -634,6 +634,14 @@ export async function bulkUndo(
   if (entry.userId !== userId) {
     throw new Error(`Undo token ${undoToken} does not belong to user ${userId}.`)
   }
+  // Consommé avant la moindre attente : deux annulations simultanées du même
+  // jeton retireraient sinon deux fois les quantités fusionnées.
+  undoStore().delete(undoToken)
+
+  // Le droit d'écriture a pu être retiré depuis l'action d'origine.
+  for (const containerId of entry.touchedContainerIds) {
+    await requireContainerAccess(userId, containerId, 'write')
+  }
 
   // Verrou `built` (même vérification que les trois autres voies d'écriture :
   // `bulkEdit`, `bulkDelete`, `restoreHoldings`). Un deck peut devenir `built`
@@ -670,6 +678,5 @@ export async function bulkUndo(
     }
   })
 
-  undoStore().delete(undoToken)
   return { restored: entry.operations.length, expired: false }
 }

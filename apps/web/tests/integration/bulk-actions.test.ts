@@ -153,6 +153,31 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Actions groupées', () => {
     expect(survivorRow?.qty).toBe(4)
   })
 
+  it('replays an undo token once when two undos race', async () => {
+    const { userId, containerId } = await createContainerFor('bulk-undo-race')
+    const cardId = randomUUID()
+    await insertCard({ id: cardId, name: 'Brainstorm', setCode: 'ice' })
+    const id = await addHoldingRow({
+      containerId,
+      cardId,
+      qty: 3,
+      condition: 'nm',
+      finish: 'nonfoil',
+    })
+
+    const result = await bulkDelete(userId, { containerId, holdingIds: [id] })
+    const outcomes = await Promise.allSettled([
+      bulkUndo(userId, result.undoToken),
+      bulkUndo(userId, result.undoToken),
+    ])
+
+    const restored = outcomes.filter(
+      (outcome) => outcome.status === 'fulfilled' && outcome.value.restored === 1,
+    )
+    expect(restored).toHaveLength(1)
+    expect((await readHolding(id))?.qty).toBe(3)
+  })
+
   it('restores identical rows within the undo window, then refuses an expired token', async () => {
     vi.useFakeTimers()
     const { userId, containerId } = await createContainerFor('bulk-undo')

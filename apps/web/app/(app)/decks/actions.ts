@@ -115,7 +115,7 @@ export async function deleteDeckAction(
 
   const user = await requireSession()
   try {
-    await deleteContainer(user.id, parsed.data.deckId)
+    await deleteContainer(user.id, parsed.data.deckId, 'deck')
   } catch {
     return { ok: false, error: 'failed' }
   }

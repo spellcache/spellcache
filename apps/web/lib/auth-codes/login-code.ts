@@ -13,9 +13,14 @@ import { and, eq, gt, sql } from 'drizzle-orm'
 
 import { verificationTokens } from '@spellcache/db/schema'
 import { db } from '@spellcache/db'
+import { rateLimit } from '@/lib/redis'
 
 export const LOGIN_CODE_TTL_SECONDS = 10 * 60
 export const MAX_LOGIN_ATTEMPTS = 5
+// Plafond par email et par heure, indépendant des codes en base : la
+// révocation remet le compteur des codes à zéro, et redemander des codes en
+// boucle rendrait sinon des essais neufs sans fin.
+export const MAX_LOGIN_ATTEMPTS_PER_HOUR = 15
 
 export function generateLoginCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0')
@@ -28,6 +33,10 @@ export function generateLoginCode(): string {
 // Renvoie `false` si l'essai doit être refusé.
 export async function registerLoginAttempt(email: string): Promise<boolean> {
   const identifier = email.trim().toLowerCase()
+  if (!(await rateLimit(`ratelimit:login-attempt:${identifier}`, MAX_LOGIN_ATTEMPTS_PER_HOUR, 3600))) {
+    await db.delete(verificationTokens).where(eq(verificationTokens.identifier, identifier))
+    return false
+  }
   const rows = await db
     .update(verificationTokens)
     .set({ attempts: sql`${verificationTokens.attempts} + 1` })

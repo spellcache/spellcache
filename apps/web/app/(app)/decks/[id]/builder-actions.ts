@@ -25,6 +25,7 @@ import {
   type AddDrawerCard,
   type DeckDetail,
 } from './deck-data'
+import { MAX_QUERY_LENGTH } from '@/lib/search/normalize'
 
 const zoneSchema = z.enum(['main', 'side', 'commander'])
 
@@ -205,8 +206,8 @@ export async function setZoneAction(
 
 const searchDeckCardsSchema = z.object({
   deckId: z.uuid(),
-  query: z.string(),
-  colorIdentity: z.array(z.enum(['W', 'U', 'B', 'R', 'G'])),
+  query: z.string().max(MAX_QUERY_LENGTH),
+  colorIdentity: z.array(z.enum(['W', 'U', 'B', 'R', 'G'])).max(5),
   legalInColours: z.boolean(),
   ownedOnly: z.boolean(),
   limit: z.number().int().positive().max(100).optional(),

@@ -96,6 +96,15 @@ export async function generateMetadata({
 }
 
 async function requestOrigin(): Promise<URL | undefined> {
+  // `AUTH_URL` (obligatoire en production) fait foi : les en-têtes
+  // `X-Forwarded-*` viennent du client tant qu'un proxy ne les réécrit pas.
+  if (process.env.AUTH_URL) {
+    try {
+      return new URL(new URL(process.env.AUTH_URL).origin)
+    } catch {
+      // Valeur invalide : repli sur la requête.
+    }
+  }
   const list = await headers()
   const host = list.get('x-forwarded-host') ?? list.get('host')
   if (!host) return undefined

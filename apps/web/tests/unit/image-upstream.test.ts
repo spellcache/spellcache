@@ -7,6 +7,8 @@ import {
   fetchScryfallImage,
   isScryfallImageUrl,
   MAX_CONCURRENT_DOWNLOADS,
+  MAX_IMAGE_BYTES,
+  MAX_WAITING_DOWNLOADS,
   UpstreamImageError,
 } from '@/lib/images/upstream'
 
@@ -80,6 +82,49 @@ describe('lib/images/upstream', () => {
 
     await expect(fetchScryfallImage(url('missing'))).rejects.toMatchObject({ status: 404 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses an image larger than the cap, declared or streamed', async () => {
+    const huge = new Uint8Array(MAX_IMAGE_BYTES + 1)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(huge, { headers: { 'Content-Length': String(huge.length) } })),
+    )
+    await expect(fetchScryfallImage(url('declared'))).rejects.toMatchObject({ status: 413 })
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob([huge]).stream())))
+    await expect(fetchScryfallImage(url('streamed'))).rejects.toMatchObject({ status: 413 })
+  })
+
+  it('never follows redirects and always sets a timeout', async () => {
+    const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response(BYTES),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchScryfallImage(url('options'))
+
+    const init = fetchMock.mock.calls[0]![1]
+    expect(init.redirect).toBe('error')
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('refuses new downloads once the waiting queue is full', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        await gate
+        return new Response(BYTES)
+      }),
+    )
+
+    const total = MAX_CONCURRENT_DOWNLOADS + MAX_WAITING_DOWNLOADS + 1
+    const results = Array.from({ length: total }, (_, i) => fetchScryfallImage(url(`queue-${i}`)))
+    await expect(results[total - 1]).rejects.toMatchObject({ status: 503 })
+    release()
+    await Promise.all(results.slice(0, total - 1))
   })
 
   it('only accepts https URLs on the Scryfall CDN', () => {

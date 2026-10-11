@@ -22,8 +22,11 @@ export async function requestMagicLinkAction(
   // Plafonds par email et par IP (anti-bombardement de boîte, quota Resend).
   // Au-delà, même réponse qu'un envoi réussi, sans rien envoyer — un refus
   // visible permettrait de distinguer un compte existant d'un email inconnu.
-  // L'IP vient de `X-Forwarded-For`, posé par le reverse proxy de l'hébergeur.
-  const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  // L'IP vient de `X-Forwarded-For` : chaque proxy ajoute l'adresse de son
+  // client à droite, la première entrée est donc celle que le client a écrite
+  // lui-même. Seule la dernière, posée par le reverse proxy de l'hébergeur,
+  // est fiable.
+  const ip = (await headers()).get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'unknown'
   // Le plafond par IP protège le quota Resend et les boîtes de réception :
   // sans objet avec le transport de test, où rien ne part et où la suite
   // e2e crée plus de 30 comptes depuis la même adresse.

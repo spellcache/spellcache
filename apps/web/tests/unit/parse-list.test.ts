@@ -10,7 +10,7 @@ import {
   frontFaceOf,
   normalizeCardName,
 } from '@/lib/lists/normalize-name'
-import { parseList } from '@/lib/lists/parse-list'
+import { MAX_LINE_LENGTH, parseList } from '@/lib/lists/parse-list'
 
 describe('parseList — les quatre formats', () => {
   it('lit `4 Lightning Bolt`', () => {
@@ -165,5 +165,26 @@ describe('normalizeCardName', () => {
     expect(NAME_TRANSLATE_TO.length).toBeLessThanOrEqual(NAME_TRANSLATE_FROM.length)
     expect(NAME_TRANSLATE_FROM.length - NAME_TRANSLATE_TO.length).toBe(5)
     expect(new Set(NAME_TRANSLATE_FROM).size).toBe(NAME_TRANSLATE_FROM.length)
+  })
+})
+
+describe('parseList — oversized lines', () => {
+  it('ignores a line longer than any card name instead of parsing it', () => {
+    const giant = `1 a${' '.repeat(200_000)}b`
+    const started = performance.now()
+    const result = parseList(`${giant}
+4 Lightning Bolt (2X2) 117`)
+
+    expect(performance.now() - started).toBeLessThan(500)
+    expect(result.lines).toHaveLength(1)
+    expect(result.lines[0]!.name).toBe('Lightning Bolt')
+    expect(result.ignored).toHaveLength(1)
+    expect(result.ignored[0]!.length).toBeLessThanOrEqual(MAX_LINE_LENGTH + 1)
+  })
+
+  it('keeps the longest real card names', () => {
+    const name =
+      'Our Market Research Shows That Players Like Really Long Card Names So We Made this Card to Have the Absolute Longest Card Name Ever Elemental'
+    expect(parseList(`1 ${name} (UNH) 61`).lines[0]!.name).toBe(name)
   })
 })

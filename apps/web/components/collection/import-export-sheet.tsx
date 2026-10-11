@@ -194,7 +194,9 @@ function ImportTab({
       setError(
         preview.error === 'invalid'
           ? 'That list is too large to import at once. Split the file and try again.'
-          : 'Could not read that list. Try again.',
+          : preview.error === 'rate_limited'
+            ? 'Too many imports in a short time. Wait a few minutes and try again.'
+            : 'Could not read that list. Try again.',
       )
       setBusy(false)
       return
@@ -245,7 +247,9 @@ function ImportTab({
       setError(
         imported.error === 'nothing_to_import'
           ? 'Nothing in that list could be matched to the catalogue.'
-          : 'Import failed. Check the destination and try again.',
+          : imported.error === 'rate_limited'
+            ? 'Too many imports in a short time. Wait a few minutes and try again.'
+            : 'Import failed. Check the destination and try again.',
       )
       return
     }

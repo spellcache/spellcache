@@ -37,6 +37,7 @@ const nextConfig: NextConfig = {
   // `app/api/card-image`) : couper l'optimiseur ferme `/_next/image`, une
   // surface exposée par défaut sans aucun usage ici.
   images: { unoptimized: true },
+  poweredByHeader: false,
   // Aucune page ne doit être affichable dans une iframe tierce : sans ces
   // en-têtes, un site pourrait superposer l'app et faire cliquer à l'aveugle
   // Delete collection ou Transfer ownership (clickjacking). Posés par Next
@@ -47,12 +48,31 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          // Pas de `script-src` : Next injecte des scripts en ligne qui
+          // demanderaient un nonce par requête. Ces directives-là ne cassent
+          // rien et ferment plugins, `<base>` détourné et formulaires vers
+          // un autre site.
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          },
           // L'app porte elle-même ces en-têtes, quel que
           // soit le reverse proxy de l'hébergeur. HSTS revient à celui qui
           // termine le HTTPS.
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      {
+        // Symboles de mana téléchargés au build (scripts/fetch-mana.mjs) et
+        // servis tels quels : un SVG ouvert directement s'exécute sur
+        // l'origine de l'app, aucun script ne doit pouvoir y tourner.
+        source: '/mana/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; sandbox",
+          },
         ],
       },
     ]

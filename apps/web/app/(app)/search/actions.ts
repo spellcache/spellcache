@@ -19,14 +19,21 @@ import {
   type CardSearchResult,
   type PrintingItem,
 } from '@/lib/search/search-cards'
+import { MAX_QUERY_LENGTH } from '@/lib/search/normalize'
 
 const cardSearchFiltersSchema = z.object({
-  colors: z.array(z.enum(['W', 'U', 'B', 'R', 'G', 'C'])).optional(),
+  colors: z
+    .array(z.enum(['W', 'U', 'B', 'R', 'G', 'C']))
+    .max(6)
+    .optional(),
   colorMatch: z.enum(['including', 'exactly', 'atMost']).optional(),
   colorSpread: z.enum(['multi', 'mono']).nullable().optional(),
-  types: z.array(z.string()).optional(),
-  rarities: z.array(z.enum(['common', 'uncommon', 'rare', 'mythic'])).optional(),
-  setCode: z.string().optional(),
+  types: z.array(z.string().max(64)).max(32).optional(),
+  rarities: z
+    .array(z.enum(['common', 'uncommon', 'rare', 'mythic']))
+    .max(4)
+    .optional(),
+  setCode: z.string().max(16).optional(),
   priceMin: z.number().nullable().optional(),
   priceMax: z.number().nullable().optional(),
   foilOnly: z.boolean().optional(),
@@ -38,10 +45,10 @@ const cardSearchFiltersSchema = z.object({
 })
 
 const cardSearchParamsSchema = z.object({
-  query: z.string(),
+  query: z.string().max(MAX_QUERY_LENGTH),
   filters: cardSearchFiltersSchema.optional(),
   limit: z.number().int().positive().max(100).optional(),
-  cursor: z.string().nullish(),
+  cursor: z.string().max(512).nullish(),
   // Régime de tri/dédoublonnage (`lib/search/search-cards.ts`) : `'set'`
   // seulement depuis l'écran `SetDetail` — tout le reste de
   // l'app (onglet `Search`, feuille `Add a card`) reste au défaut `'search'`

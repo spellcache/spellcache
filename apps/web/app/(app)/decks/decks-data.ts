@@ -16,6 +16,7 @@ import { deckColorIdentity } from '@/lib/decks/identity'
 import {
   evaluateDeck,
   isDeckFormat,
+  type DeckCommander,
   type DeckFormat,
   type DeckStatus,
 } from '@/lib/decks/legality'
@@ -85,13 +86,13 @@ interface DeckSqlRow extends Record<string, unknown> {
   // `db.execute` brut, elles échappent au mapping `mode: 'number'` de
   // Drizzle (qui ne s'applique qu'aux requêtes construites par le query
   // builder) — `node-postgres` renvoie un int8 en `string` par défaut, faute
-  // de `setTypeParser` dans `packages/db/src/client.ts`. Contrairement à `commander`/`cards`
+  // de `setTypeParser` dans `packages/db/src/client.ts`. Contrairement à `commanders`/`cards`
   // ci-dessous (agrégés en JSON via `json_build_object`/`json_agg`, où le
   // pilote reçoit déjà un nombre JS après `JSON.parse`), ces deux colonnes
   // reviennent en chaîne — converties explicitement plus bas, jamais castées.
   valueUsdMinor: string
   valueEurMinor: string
-  commander: { cardId: string; colorIdentity: string[] } | null
+  commanders: Array<DeckCommander & { cardId: string }>
   coverCardId: string | null
   coverGradient: string | null
   cards: DeckCardRow[]
@@ -162,13 +163,20 @@ export async function listDecks(
       cs.card_count as "cardCount",
       cs.value_usd_minor as "valueUsdMinor",
       cs.value_eur_minor as "valueEurMinor",
-      (
-        select json_build_object('cardId', h.card_id, 'colorIdentity', cd.color_identity)
+      -- Créature d'abord (même ordre que getDeck) : c'est elle qui prête
+      -- son illustration au fond quand l'autre commandant est un Background.
+      coalesce((
+        select json_agg(json_build_object(
+          'cardId', h.card_id,
+          'name', cd.name,
+          'typeLine', cd.type_line,
+          'oracleText', cd.oracle_text,
+          'colorIdentity', cd.color_identity
+        ) order by cd.type_line not like '%Creature%', cd.name)
         from holdings h
         join cards cd on cd.id = h.card_id
         where h.container_id = c.id and h.is_commander = true
-        limit 1
-      ) as commander,
+      ), '[]'::json) as commanders,
       coalesce((
         select json_agg(json_build_object(
           'cardId', h.card_id,
@@ -208,7 +216,7 @@ export async function listDecks(
 
   for (const row of rows) {
     const format = row.format && isDeckFormat(row.format) ? row.format : null
-    const commander = row.commander
+    const commanders = row.commanders ?? []
     // `containers.deck_state` reste `text | null` au niveau du schéma
     // (colonne partagée avec les autres `kind`, qui la laissent à `null`) —
     // tout container `kind = 'deck'` la reçoit à la création
@@ -219,11 +227,11 @@ export async function listDecks(
       format,
       deckState,
       cards: row.cards,
-      commander: commander ? { colorIdentity: commander.colorIdentity } : null,
+      commanders,
     })
 
     const colorIdentity = deckColorIdentity({
-      commanderColorIdentity: commander?.colorIdentity ?? null,
+      commanderColorIdentities: commanders.map((commander) => commander.colorIdentity),
       cardColorIdentities: row.cards.map((card) => card.colorIdentity),
     })
 
@@ -244,7 +252,7 @@ export async function listDecks(
       ...resolveDeckLook({
         coverCardId: row.coverCardId,
         coverGradient: row.coverGradient,
-        commanderCardId: commander?.cardId ?? null,
+        commanderCardId: commanders[0]?.cardId ?? null,
       }),
       status,
     })

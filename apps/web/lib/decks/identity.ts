@@ -12,30 +12,29 @@ function normalizeColors(colors: string[]): string[] {
   return COLOR_ORDER.filter((color) => present.has(color))
 }
 
-// L'identité colorée d'un deck Commander est celle du commandant, jamais
-// l'union des cartes (les inverser rendrait le contrôle d'identité
-// inopérant — cette même règle s'applique à l'identité affichée, pas seulement
-// au contrôle de légalité de `evaluateDeck`). Sans commandant, l'identité
-// retombe sur l'union des cartes détenues — le seul signal disponible pour un
-// deck qui n'a pas (encore) de commandant choisi. `?? []` sur le commandant et
-// sur chaque identité de carte : un `CardSearchItem` du picker de commandant
-// (`app/(app)/decks/decks-view.tsx`) issu d'une entrée Redis figée avant
-// l'ajout de `colorIdentity` porte `colorIdentity: undefined` malgré son type
-// déclaré — `for (const color of identity)` levait un `TypeError` sur
-// `undefined` avant que `normalizeColors` ne soit même atteint.
-// `lib/search/normalize.ts` bumpe désormais la version de clé de cache pour que
-// ce cas ne se reproduise plus ; cette garde reste une seconde ligne de
-// défense.
+// L'identité colorée d'un deck Commander est celle de ses commandants
+// (l'union des deux pour une paire), jamais l'union des cartes (les inverser
+// rendrait le contrôle d'identité inopérant — cette même règle s'applique à
+// l'identité affichée, pas seulement au contrôle de légalité de
+// `evaluateDeck`). Sans commandant, l'identité retombe sur l'union des cartes
+// détenues — le seul signal disponible pour un deck qui n'a pas (encore) de
+// commandant choisi. `?? []` sur chaque identité : un `CardSearchItem` du
+// picker de commandant (`app/(app)/decks/decks-view.tsx`) issu d'une entrée
+// Redis figée avant l'ajout de `colorIdentity` porte `colorIdentity:
+// undefined` malgré son type déclaré — `for (const color of identity)` levait
+// un `TypeError` sur `undefined` avant que `normalizeColors` ne soit même
+// atteint. `lib/search/normalize.ts` bumpe désormais la version de clé de
+// cache pour que ce cas ne se reproduise plus ; cette garde reste une seconde
+// ligne de défense.
 export function deckColorIdentity(input: {
-  commanderColorIdentity: string[] | null | undefined
+  commanderColorIdentities: Array<string[] | undefined>
   cardColorIdentities: Array<string[] | undefined>
 }): string[] {
-  if (input.commanderColorIdentity) {
-    return normalizeColors(input.commanderColorIdentity)
-  }
+  const sources =
+    input.commanderColorIdentities.length > 0 ? input.commanderColorIdentities : input.cardColorIdentities
 
   const union = new Set<string>()
-  for (const identity of input.cardColorIdentities) {
+  for (const identity of sources) {
     for (const color of identity ?? []) union.add(color)
   }
   return normalizeColors([...union])

@@ -7,6 +7,7 @@ import {
   evaluateDeck,
   FORMAT_RULES,
   isDeckFormat,
+  type DeckCommander,
   type DeckEvaluationCard,
 } from '@/lib/decks/legality'
 import type { Legality } from '@spellcache/db/schema'
@@ -27,6 +28,16 @@ function card(overrides: Partial<DeckEvaluationCard> & { cardId: string; name: s
     legalities: LEGAL_EVERYWHERE,
     colorIdentity: [],
     typeLine: 'Creature — Human',
+    ...overrides,
+  }
+}
+
+function commander(colorIdentity: string[], overrides: Partial<DeckCommander> = {}): DeckCommander {
+  return {
+    name: 'Commander',
+    typeLine: 'Legendary Creature — Human',
+    oracleText: null,
+    colorIdentity,
     ...overrides,
   }
 }
@@ -93,7 +104,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'plan',
       cards,
-      commander: { colorIdentity: ['W', 'U', 'B', 'G'] },
+      commanders: [commander(['W', 'U', 'B', 'G'])],
     })
 
     expect(status.kind).toBe('needsWork')
@@ -114,7 +125,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       basicLand('Mountain', 52),
     ]
 
-    const status = evaluateDeck({ format: 'modern', deckState: 'assemble', cards, commander: null })
+    const status = evaluateDeck({ format: 'modern', deckState: 'assemble', cards, commanders: [] })
 
     expect(status).toEqual({ kind: 'noRules', label: 'Modern', issues: [] })
   })
@@ -132,7 +143,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'plan',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status.issues).toContainEqual({
@@ -154,7 +165,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'plan',
       cards: commanderCards,
-      commander: { colorIdentity: ['R', 'G'] },
+      commanders: [commander(['R', 'G'])],
     })
     expect(commanderStatus.issues.find((issue) => issue.kind === 'duplicates')).toBeUndefined()
 
@@ -164,7 +175,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       card({ cardId: 'a', name: 'Lightning Bolt', qty: 4 }),
       basicLand('Mountain', 56),
     ]
-    const modernStatus = evaluateDeck({ format: 'modern', deckState: 'assemble', cards: modernCards, commander: null })
+    const modernStatus = evaluateDeck({ format: 'modern', deckState: 'assemble', cards: modernCards, commanders: [] })
     expect(modernStatus.issues).toEqual([])
   })
 
@@ -175,7 +186,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       card({ cardId: 'a', name: 'Banned Card', qty: 99, legalities: { commander: 'banned' } }),
     ]
 
-    const status = evaluateDeck({ format: null, deckState: 'plan', cards: messyCards, commander: null })
+    const status = evaluateDeck({ format: null, deckState: 'plan', cards: messyCards, commanders: [] })
 
     expect(status).toEqual({ kind: 'noFormat', label: 'No format set', issues: [] })
   })
@@ -193,7 +204,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'built',
       cards,
-      commander: { colorIdentity: ['W', 'U', 'B', 'R', 'G'] },
+      commanders: [commander(['W', 'U', 'B', 'R', 'G'])],
     })
 
     expect(status.kind).toBe('needsWork')
@@ -210,7 +221,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'built',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status).toEqual({ kind: 'built', label: 'Legal for Commander', issues: [] })
@@ -222,7 +233,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       basicLand('Mountain', 56),
     ]
 
-    const status = evaluateDeck({ format: 'modern', deckState: 'built', cards, commander: null })
+    const status = evaluateDeck({ format: 'modern', deckState: 'built', cards, commanders: [] })
 
     expect(status).toEqual({ kind: 'noRules', label: 'Modern', issues: [] })
   })
@@ -230,7 +241,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
   it('flags a missing commander in Commander format', () => {
     const cards: DeckEvaluationCard[] = [basicLand('Plains', 99)]
 
-    const status = evaluateDeck({ format: 'commander', deckState: 'plan', cards, commander: null })
+    const status = evaluateDeck({ format: 'commander', deckState: 'plan', cards, commanders: [] })
 
     expect(status.issues).toContainEqual({ kind: 'no_commander', count: 1 })
   })
@@ -252,7 +263,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'assemble',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status.issues).toContainEqual({ kind: 'banned', count: 1, cardNames: ['Balance'] })
@@ -264,7 +275,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       basicLand('Island', 55),
     ]
 
-    const status = evaluateDeck({ format: 'legacy', deckState: 'plan', cards, commander: null })
+    const status = evaluateDeck({ format: 'legacy', deckState: 'plan', cards, commanders: [] })
 
     expect(status).toEqual({ kind: 'noRules', label: 'Legacy', issues: [] })
   })
@@ -281,7 +292,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'plan',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status.issues).toContainEqual({ kind: 'duplicates', count: 1, cardNames: ['Sol Ring'] })
@@ -296,7 +307,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       basicLand('Mountain', 53),
     ]
 
-    const status = evaluateDeck({ format: 'modern', deckState: 'assemble', cards, commander: null })
+    const status = evaluateDeck({ format: 'modern', deckState: 'assemble', cards, commanders: [] })
 
     expect(status).toEqual({ kind: 'noRules', label: 'Modern', issues: [] })
   })
@@ -313,7 +324,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'plan',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status.issues).toContainEqual({ kind: 'over', count: 1 })
@@ -336,9 +347,71 @@ describe('lib/decks/legality — evaluateDeck', () => {
       format: 'commander',
       deckState: 'assemble',
       cards,
-      commander: { colorIdentity: ['R'] },
+      commanders: [commander(['R'])],
     })
 
     expect(status.issues).toContainEqual({ kind: 'not_legal', count: 1, cardNames: ['Channel'] })
+  })
+
+  describe('two commanders', () => {
+    const PARTNER = 'Partner (You can have two commanders if both have partner.)'
+    const thrasios = commander(['G', 'U'], { name: 'Thrasios, Triton Hero', oracleText: PARTNER })
+    const tymna = commander(['W', 'B'], { name: 'Tymna the Weaver', oracleText: PARTNER })
+    const krenko = commander(['R'], { name: 'Krenko, Mob Boss' })
+
+    function partnerDeck(extra: DeckEvaluationCard[]): DeckEvaluationCard[] {
+      return [
+        card({ cardId: 'thrasios', name: 'Thrasios, Triton Hero', colorIdentity: ['G', 'U'] }),
+        card({ cardId: 'tymna', name: 'Tymna the Weaver', colorIdentity: ['W', 'B'] }),
+        ...extra,
+      ]
+    }
+
+    it('accepts cards from either partner and counts both commanders in the 100', () => {
+      const status = evaluateDeck({
+        format: 'commander',
+        deckState: 'plan',
+        cards: partnerDeck([
+          card({ cardId: 'swords', name: 'Swords to Plowshares', colorIdentity: ['W'] }),
+          card({ cardId: 'growth', name: 'Sylvan Library', colorIdentity: ['G'] }),
+          basicLand('Plains', 96),
+        ]),
+        commanders: [thrasios, tymna],
+      })
+
+      expect(status.kind).toBe('legal')
+    })
+
+    it('still flags a card outside both identities', () => {
+      const status = evaluateDeck({
+        format: 'commander',
+        deckState: 'plan',
+        cards: partnerDeck([card({ cardId: 'bolt', name: 'Lightning Bolt', colorIdentity: ['R'] }), basicLand('Plains', 97)]),
+        commanders: [thrasios, tymna],
+      })
+
+      expect(status.issues).toEqual([{ kind: 'colour_identity', count: 1, cardNames: ['Lightning Bolt'] }])
+    })
+
+    it('reports an illegal pair as a legality issue', () => {
+      const status = evaluateDeck({
+        format: 'commander',
+        deckState: 'plan',
+        cards: [
+          card({ cardId: 'thrasios', name: 'Thrasios, Triton Hero', colorIdentity: ['G', 'U'] }),
+          card({ cardId: 'krenko', name: 'Krenko, Mob Boss', colorIdentity: ['R'] }),
+          basicLand('Island', 98),
+        ],
+        commanders: [thrasios, krenko],
+      })
+
+      expect(status.kind).toBe('needsWork')
+      expect(status.issues).toContainEqual({
+        kind: 'commander_pair',
+        count: 2,
+        cardNames: ['Thrasios, Triton Hero', 'Krenko, Mob Boss'],
+      })
+      expect(status.label).toBe('Invalid commander pair')
+    })
   })
 })

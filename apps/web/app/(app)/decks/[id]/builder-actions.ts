@@ -13,10 +13,11 @@
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { holdings } from '@spellcache/db/schema'
+import { cards, holdings } from '@spellcache/db/schema'
 import { requireSession } from '@/lib/auth-guards'
 import { requireContainerAccess } from '@/lib/collections/authorize'
 import { addHolding, updateHolding } from '@/lib/containers/holdings'
+import { canPairCommanders } from '@/lib/decks/partners'
 import { db } from '@spellcache/db'
 
 import {
@@ -29,30 +30,37 @@ import { MAX_QUERY_LENGTH } from '@/lib/search/normalize'
 
 const zoneSchema = z.enum(['main', 'side', 'commander'])
 
-// La zone `commander` n'accepte qu'une seule carte à la fois (le segmenté ne
-// doit pas pouvoir ajouter un commandant de trop) — `getDeck`/
-// `DeckDetail.commander` et `decks-data.ts` (`limit 1`) ne représentent tous
-// deux qu'un seul commandant, jamais une paire en partenariat : ce plafond est
-// donc fixé à 1, pas 2, pour rester représentable par le contrat livré plutôt
-// que d'inventer un mode partenaire qu'aucun type ni écran ne porte.
-// Lit `is_commander`, pas `zone` : `getDeck`
-// (`deck-data.ts`, `slotsNormalized`) traite déjà `is_commander` comme
-// l'unique source de vérité pour distinguer un commandant, `zone` n'étant
-// qu'une projection tenue en phase à chaque point d'écriture
+// La zone `commander` accepte un commandant, ou deux s'ils forment une paire
+// légale (Partner, Partner with, Friends forever, Choose a Background,
+// Doctor's companion — `lib/decks/partners.ts`) : jamais un troisième, ni un
+// second qui ne s'associe pas au premier. Lit `is_commander`, pas `zone` :
+// `getDeck` (`deck-data.ts`, `slotsNormalized`) traite déjà `is_commander`
+// comme l'unique source de vérité pour distinguer un commandant, `zone`
+// n'étant qu'une projection tenue en phase à chaque point d'écriture
 // (`addToDeckAction`, `setZoneAction`) et rattrapée pour l'historique par la
 // migration 0009 — jamais l'inverse. Sur une ligne que cette migration n'a
 // pas encore atteinte (fenêtre de déploiement, écriture directe en base),
 // `zone` peut valoir autre chose que `'commander'` alors que
-// `is_commander = true` : lire `zone` ici laisserait passer un second
-// commandant que `getDeck` ne rendrait ensuite qu'une seule fois, rendant
-// l'autre invisible mais toujours compté dans `coverage`/`evaluateDeck`.
-async function hasCommanderHolding(deckId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: holdings.id })
+// `is_commander = true` : lire `zone` ici laisserait passer un commandant de
+// trop, compté dans `coverage`/`evaluateDeck`.
+async function commanderSlotAvailable(deckId: string, cardId: string): Promise<boolean> {
+  const current = await db
+    .select({ cardId: cards.id, name: cards.name, typeLine: cards.typeLine, oracleText: cards.oracleText })
     .from(holdings)
+    .innerJoin(cards, eq(cards.id, holdings.cardId))
     .where(and(eq(holdings.containerId, deckId), eq(holdings.isCommander, true)))
+    .limit(2)
+  if (current.length === 0) return true
+  if (current.length > 1) return false
+  // Un second exemplaire du même commandant n'est jamais une paire.
+  if (current[0]!.cardId === cardId) return false
+
+  const [candidate] = await db
+    .select({ name: cards.name, typeLine: cards.typeLine, oracleText: cards.oracleText })
+    .from(cards)
+    .where(eq(cards.id, cardId))
     .limit(1)
-  return row !== undefined
+  return candidate !== undefined && canPairCommanders(current[0]!, candidate)
 }
 
 const finishSchema = z.enum(['nonfoil', 'foil', 'etched'])
@@ -83,7 +91,7 @@ export async function addToDeckAction(
   try {
     // Autorisation d'abord, toute autre lecture ensuite (docs/development.md, « une
     // seule voie d'autorisation ») : appelé sur un `deckId` brut avant tout
-    // contrôle d'accès, `hasCommanderHolding` deviendrait un oracle de
+    // contrôle d'accès, `commanderSlotAvailable` deviendrait un oracle de
     // présence de commandant sur n'importe quel deck pour n'importe quel
     // compte connecté, autorisé ou non. `addHolding`
     // ci-dessous vérifie de nouveau cet accès (même patron que
@@ -91,7 +99,7 @@ export async function addToDeckAction(
     // chemin de lecture qui la précède.
     await requireContainerAccess(user.id, deckId, 'write')
 
-    if (zone === 'commander' && (await hasCommanderHolding(deckId))) {
+    if (zone === 'commander' && !(await commanderSlotAvailable(deckId, cardId))) {
       return { ok: false, error: 'commander_full' }
     }
 
@@ -106,7 +114,7 @@ export async function addToDeckAction(
     // `app/(app)/decks/actions.ts`) : un second appel à `updateHolding` après
     // coup laisserait une fenêtre où un échec entre les deux écritures
     // produirait `zone = 'commander'` avec `is_commander = false`, un état que
-    // ni `getDeck` (`slots.find(s => s.isCommander)`) ni `hasCommanderHolding`
+    // ni `getDeck` (`slots.filter(s => s.isCommander)`) ni `commanderSlotAvailable`
     // ne savent démêler — le deck deviendrait irrécupérable depuis l'interface.
     await addHolding(
       user.id,
@@ -163,7 +171,7 @@ export async function setZoneAction(
 
   try {
     const [row] = await db
-      .select({ containerId: holdings.containerId, isCommander: holdings.isCommander })
+      .select({ containerId: holdings.containerId, cardId: holdings.cardId, isCommander: holdings.isCommander })
       .from(holdings)
       .where(eq(holdings.id, parsed.data.holdingId))
       .limit(1)
@@ -177,14 +185,14 @@ export async function setZoneAction(
     await requireContainerAccess(user.id, row.containerId, 'write')
 
     // `row.isCommander`, pas `row.zone` (même lecture que
-    // `hasCommanderHolding` ci-dessus) : ce garde ne fait que dispenser
-    // du plafond la ligne qui EST déjà le commandant (mise à jour sans
+    // `commanderSlotAvailable` ci-dessus) : ce garde ne fait que dispenser
+    // du plafond la ligne qui EST déjà un commandant (mise à jour sans
     // changement réel) ; le lire sur `zone` le rendrait divergent de
-    // `hasCommanderHolding` sur exactement la même ligne non migrée.
+    // `commanderSlotAvailable` sur exactement la même ligne non migrée.
     if (
       parsed.data.zone === 'commander' &&
       !row.isCommander &&
-      (await hasCommanderHolding(row.containerId))
+      !(await commanderSlotAvailable(row.containerId, row.cardId))
     ) {
       return { ok: false, error: 'commander_full' }
     }

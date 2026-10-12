@@ -21,7 +21,7 @@ import {
   type Legality,
 } from '@spellcache/db/schema'
 import { deckColorIdentity } from '@/lib/decks/identity'
-import { evaluateDeck, isDeckFormat, type DeckStatus } from '@/lib/decks/legality'
+import { evaluateDeck, isDeckFormat, type DeckCommander, type DeckStatus } from '@/lib/decks/legality'
 import type { Currency } from '@/lib/format/money'
 import type { GradientKey } from '@/lib/binders/gradients'
 import { resolveDeckLook } from '@/lib/decks/deck-look'
@@ -87,7 +87,7 @@ interface DeckCardSqlRow {
   // `decks-data.ts`. `Number()` reste appliqué en sortie, jamais un cast.
   valueUsdMinor: number
   valueEurMinor: number
-  commander: { cardId: string; colorIdentity: string[] } | null
+  commanders: Array<DeckCommander & { cardId: string }>
   coverCardId: string | null
   coverGradient: string | null
   cards: Array<{
@@ -181,13 +181,18 @@ export async function getFolderShelves(userId: string): Promise<FolderShelvesRes
             'coverGradient', picked.cover_gradient,
             'valueUsdMinor', picked.value_usd_minor,
             'valueEurMinor', picked.value_eur_minor,
-            'commander', (
-              select json_build_object('cardId', h.card_id, 'colorIdentity', cd.color_identity)
+            'commanders', coalesce((
+              select json_agg(json_build_object(
+                'cardId', h.card_id,
+                'name', cd.name,
+                'typeLine', cd.type_line,
+                'oracleText', cd.oracle_text,
+                'colorIdentity', cd.color_identity
+              ) order by cd.type_line not like '%Creature%', cd.name)
               from holdings h
               join cards cd on cd.id = h.card_id
               where h.container_id = picked.id and h.is_commander = true
-              limit 1
-            ),
+            ), '[]'::json),
             'cards', coalesce((
               select json_agg(json_build_object(
                 'cardId', h.card_id,
@@ -235,7 +240,7 @@ export async function getFolderShelves(userId: string): Promise<FolderShelvesRes
 
 function toDeckCard(row: DeckCardSqlRow, currency: Currency): DeckCardData {
   const format = row.format && isDeckFormat(row.format) ? row.format : null
-  const commander = row.commander
+  const commanders = row.commanders ?? []
   // Même repli défensif que `decks-data.ts` : `deck_state` reste
   // `text | null` au niveau du schéma, même si tout deck créé aujourd'hui la
   // porte.
@@ -248,10 +253,10 @@ function toDeckCard(row: DeckCardSqlRow, currency: Currency): DeckCardData {
     ...resolveDeckLook({
       coverCardId: row.coverCardId,
       coverGradient: row.coverGradient,
-      commanderCardId: commander?.cardId ?? null,
+      commanderCardId: commanders[0]?.cardId ?? null,
     }),
     colorIdentity: deckColorIdentity({
-      commanderColorIdentity: commander?.colorIdentity ?? null,
+      commanderColorIdentities: commanders.map((commander) => commander.colorIdentity),
       cardColorIdentities: cards.map((card) => card.colorIdentity),
     }),
     priceMinor: Number(currency === 'usd' ? row.valueUsdMinor : row.valueEurMinor),
@@ -259,7 +264,7 @@ function toDeckCard(row: DeckCardSqlRow, currency: Currency): DeckCardData {
       format,
       deckState,
       cards,
-      commander: commander ? { colorIdentity: commander.colorIdentity } : null,
+      commanders,
     }),
     formatRaw: row.format,
     cardCount: cards.reduce((sum, card) => sum + card.qty, 0),

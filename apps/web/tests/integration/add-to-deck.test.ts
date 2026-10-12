@@ -32,6 +32,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('addToDeckAction / getDeck', () 
   let bootstrapCollection: typeof import('@/lib/collections/bootstrap').bootstrapCollection
   let createContainer: typeof import('@/lib/containers/containers').createContainer
   let addToDeckAction: typeof import('@/app/(app)/decks/[id]/builder-actions').addToDeckAction
+  let setZoneAction: typeof import('@/app/(app)/decks/[id]/builder-actions').setZoneAction
   let getDeck: typeof import('@/app/(app)/decks/[id]/deck-data').getDeck
 
   beforeAll(async () => {
@@ -40,7 +41,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('addToDeckAction / getDeck', () 
     ;({ users, holdings } = await import('@spellcache/db/schema'))
     ;({ bootstrapCollection } = await import('@/lib/collections/bootstrap'))
     ;({ createContainer } = await import('@/lib/containers/containers'))
-    ;({ addToDeckAction } = await import('@/app/(app)/decks/[id]/builder-actions'))
+    ;({ addToDeckAction, setZoneAction } = await import('@/app/(app)/decks/[id]/builder-actions'))
     ;({ getDeck } = await import('@/app/(app)/decks/[id]/deck-data'))
   })
 
@@ -74,15 +75,15 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('addToDeckAction / getDeck', () 
   async function insertCard(
     id: string,
     name: string,
-    options: { colorIdentity?: string[]; typeLine?: string } = {},
+    options: { colorIdentity?: string[]; typeLine?: string; oracleText?: string } = {},
   ): Promise<void> {
     await pool.query(
       `INSERT INTO sets (code, name, card_count) VALUES ('e2e', 'E2E set', 0) ON CONFLICT (code) DO NOTHING`,
     )
     await pool.query(
-      `INSERT INTO cards (id, oracle_id, name, set_code, collector_number, rarity, cmc, type_line, colors, color_identity, finishes, legalities)
-       VALUES ($1::uuid, $2, $3, 'e2e', $1::text, 'common', 1, $4, '{}', $5::text[], '{nonfoil}', '{}'::jsonb)`,
-      [id, randomUUID(), name, options.typeLine ?? 'Creature — Human', options.colorIdentity ?? []],
+      `INSERT INTO cards (id, oracle_id, name, set_code, collector_number, rarity, cmc, type_line, oracle_text, colors, color_identity, finishes, legalities)
+       VALUES ($1::uuid, $2, $3, 'e2e', $1::text, 'common', 1, $4, $6, '{}', $5::text[], '{nonfoil}', '{}'::jsonb)`,
+      [id, randomUUID(), name, options.typeLine ?? 'Creature — Human', options.colorIdentity ?? [], options.oracleText ?? null],
     )
   }
 
@@ -141,7 +142,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('addToDeckAction / getDeck', () 
     }
   })
 
-  it('caps the commander zone at one card, refusing a second commander', async () => {
+  it('refuses a second commander that cannot partner with the first', async () => {
     const userId = await createUser('twocommanders')
     const { collectionId } = await bootstrapCollection(userId, { username: 'twocommanders', displayName: null })
     const deck = await createContainer(userId, collectionId, {
@@ -163,7 +164,91 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('addToDeckAction / getDeck', () 
     expect(second).toEqual({ ok: false, error: 'commander_full' })
 
     const deckDetail = await getDeck(userId, deck.id)
-    expect(deckDetail.commander?.cardId).toBe(firstCommanderId)
+    expect(deckDetail.commanders.map((slot) => slot.cardId)).toEqual([firstCommanderId])
+  })
+
+  it('accepts two partner commanders and takes the union of their colour identities', async () => {
+    const userId = await createUser('partners')
+    const { collectionId } = await bootstrapCollection(userId, { username: 'partners', displayName: null })
+    const deck = await createContainer(userId, collectionId, {
+      kind: 'deck',
+      name: 'Thrasios Tymna',
+      format: 'commander',
+      deckState: 'plan',
+    })
+
+    const legendary = 'Legendary Creature — Human'
+    const partner = 'Partner (You can have two commanders if both have partner.)'
+    const thrasiosId = randomUUID()
+    await insertCard(thrasiosId, 'Thrasios, Triton Hero', {
+      colorIdentity: ['G', 'U'],
+      typeLine: 'Legendary Creature — Merfolk Wizard',
+      oracleText: ['{4}: Scry 1, then reveal the top card of your library.', partner].join('\n'),
+    })
+    const tymnaId = randomUUID()
+    await insertCard(tymnaId, 'Tymna the Weaver', {
+      colorIdentity: ['W', 'B'],
+      typeLine: legendary,
+      oracleText: ['Lifelink', partner].join('\n'),
+    })
+    const thirdId = randomUUID()
+    await insertCard(thirdId, 'Kraum, Ludevic’s Opus', {
+      colorIdentity: ['U', 'R'],
+      typeLine: legendary,
+      oracleText: ['Flying, haste', partner].join('\n'),
+    })
+    const swordsId = randomUUID()
+    await insertCard(swordsId, 'Swords to Plowshares', { colorIdentity: ['W'], typeLine: 'Instant' })
+
+    expect((await addToDeckAction({ deckId: deck.id, cardId: thrasiosId, zone: 'commander' })).ok).toBe(true)
+    expect((await addToDeckAction({ deckId: deck.id, cardId: tymnaId, zone: 'commander' })).ok).toBe(true)
+    expect(await addToDeckAction({ deckId: deck.id, cardId: thirdId, zone: 'commander' })).toEqual({
+      ok: false,
+      error: 'commander_full',
+    })
+    await addToDeckAction({ deckId: deck.id, cardId: swordsId, zone: 'main' })
+
+    const deckDetail = await getDeck(userId, deck.id)
+    expect(deckDetail.commanders.map((slot) => slot.cardId).sort()).toEqual([thrasiosId, tymnaId].sort())
+    expect(deckDetail.colorIdentity).toEqual(['W', 'U', 'B', 'G'])
+    expect(deckDetail.coverage.total).toBe(3)
+    expect(deckDetail.status.issues.map((issue) => issue.kind)).not.toContain('colour_identity')
+    expect(deckDetail.status.issues.map((issue) => issue.kind)).not.toContain('commander_pair')
+  })
+
+  it('moves a matching Background into the commander zone, but not a second copy of the commander', async () => {
+    const userId = await createUser('background')
+    const { collectionId } = await bootstrapCollection(userId, { username: 'background', displayName: null })
+    const deck = await createContainer(userId, collectionId, {
+      kind: 'deck',
+      name: 'Background test',
+      format: 'commander',
+      deckState: 'plan',
+    })
+
+    const commanderId = randomUUID()
+    await insertCard(commanderId, 'Wilson, Refined Grizzly', {
+      colorIdentity: ['G'],
+      typeLine: 'Legendary Creature — Bear Warrior',
+      oracleText: ['Choose a Background (You can have a Background as a second commander.)', 'Reach, trample'].join('\n'),
+    })
+    const backgroundId = randomUUID()
+    await insertCard(backgroundId, 'Raised by Giants', {
+      colorIdentity: ['G'],
+      typeLine: 'Legendary Enchantment — Background',
+      oracleText: 'Commander creatures you own have base power and toughness 10/10 and are Giants in addition to their other types.',
+    })
+
+    await addToDeckAction({ deckId: deck.id, cardId: commanderId, zone: 'commander' })
+    expect((await addToDeckAction({ deckId: deck.id, cardId: commanderId, zone: 'commander' })).ok).toBe(false)
+    await addToDeckAction({ deckId: deck.id, cardId: backgroundId, zone: 'main' })
+
+    const before = await getDeck(userId, deck.id)
+    const background = before.slots.find((slot) => slot.cardId === backgroundId)!
+    expect(await setZoneAction({ holdingId: background.holdingId, zone: 'commander' })).toEqual({ ok: true })
+
+    const after = await getDeck(userId, deck.id)
+    expect(after.commanders.map((slot) => slot.cardId)).toEqual([commanderId, backgroundId])
   })
 
   it('excludes exemplaires reserved by a built deck from ownedElsewhere', async () => {

@@ -7,6 +7,8 @@
 // Commander de 40 cartes.
 import type { DeckState, Legality } from '@spellcache/db/schema'
 
+import { isLegalCommanderSet, type CommanderCard } from './partners'
+
 export type DeckFormat =
   | 'commander'
   | 'modern'
@@ -70,6 +72,7 @@ export type LegalityIssueKind =
   | 'not_legal'
   | 'colour_identity'
   | 'no_commander'
+  | 'commander_pair'
 
 export interface LegalityIssue {
   kind: LegalityIssueKind
@@ -97,11 +100,16 @@ export interface DeckEvaluationCard {
   typeLine: string
 }
 
+export interface DeckCommander extends CommanderCard {
+  colorIdentity: string[]
+}
+
 export interface EvaluateDeckInput {
   format: DeckFormat | null
   deckState: DeckState
   cards: DeckEvaluationCard[]
-  commander?: { colorIdentity: string[] } | null
+  // Un commandant, ou deux en partenariat (Partner, Background…).
+  commanders: DeckCommander[]
 }
 
 // Terrain de base : échappe à la règle singleton et à la limite
@@ -153,6 +161,8 @@ function issueLabel(issue: LegalityIssue, built: boolean): string {
       return `${issue.count} off-colour`
     case 'no_commander':
       return 'No commander'
+    case 'commander_pair':
+      return 'Invalid commander pair'
   }
 }
 
@@ -258,13 +268,22 @@ export function evaluateDeck(input: EvaluateDeckInput): DeckStatus {
   }
 
   // Commandant et identité colorée : l'identité colorée d'un deck Commander
-  // est celle du commandant, pas l'union des cartes — les inverser rendrait
-  // ce contrôle inopérant.
+  // est celle de ses commandants (l'union des deux pour une paire), pas
+  // l'union des cartes — les inverser rendrait ce contrôle inopérant. Une
+  // paire illégale est signalée, jamais ignorée : l'identité reste l'union
+  // pour ne pas doubler le problème d'une liste de cartes hors couleur.
   if (rule.needsCommander) {
-    if (!input.commander) {
+    if (input.commanders.length === 0) {
       issues.push({ kind: 'no_commander', count: 1 })
     } else {
-      const commanderIdentity = input.commander.colorIdentity
+      if (!isLegalCommanderSet(input.commanders)) {
+        issues.push({
+          kind: 'commander_pair',
+          count: input.commanders.length,
+          cardNames: input.commanders.map((commander) => commander.name),
+        })
+      }
+      const commanderIdentity = [...new Set(input.commanders.flatMap((commander) => commander.colorIdentity ?? []))]
       const offColour: string[] = []
       for (const card of totals.values()) {
         if (!colorIdentitySubset(card.colorIdentity, commanderIdentity)) offColour.push(card.name)

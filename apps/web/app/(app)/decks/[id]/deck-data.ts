@@ -66,9 +66,12 @@ export interface DeckDetail {
   formatRaw: string | null
   deckState: DeckState
   colorIdentity: string[]
-  commander: DeckSlot | null
-  // Artiste du commandant, crédité sous le titre quand son `art_crop` sert
-  // de fond (l'illustration recadrée ne porte pas la ligne d'artiste).
+  // Un commandant, ou deux en partenariat. Le premier prête son `art_crop`
+  // au fond de l'écran.
+  commanders: DeckSlot[]
+  // Artiste du premier commandant, crédité sous le titre quand son
+  // `art_crop` sert de fond (l'illustration recadrée ne porte pas la ligne
+  // d'artiste).
   commanderArtist: string | null
   slots: DeckSlot[]
   coverage: { owned: number; total: number; missing: number; toBuyMinor: number }
@@ -120,6 +123,8 @@ interface DeckSlotSqlRow {
   cmc: string
   colorIdentity: string[]
   legalities: Record<string, Legality>
+  // Lu pour les seuls commandants (contrôle de paire) : `null` ailleurs.
+  oracleText: string | null
   usd: string | null
   usdFoil: string | null
   eur: string | null
@@ -339,6 +344,7 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
           'cmc', cd.cmc,
           'colorIdentity', cd.color_identity,
           'legalities', cd.legalities,
+          'oracleText', case when h.is_commander then cd.oracle_text end,
           'usd', p.usd,
           'usdFoil', p.usd_foil,
           'eur', p.eur,
@@ -389,8 +395,12 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
     slot.isCommander && slot.zone !== 'commander' ? { ...slot, zone: 'commander' as DeckZone } : slot,
   )
 
-  const commanderRow = slotsNormalized.find((slot) => slot.isCommander) ?? null
-  const commander = commanderRow ? toSlot(commanderRow, currency) : null
+  // Créature d'abord : avec un Background (enchantement, trié avant par
+  // `type_line`), c'est la créature qui doit prêter son illustration au fond.
+  const commanderRows = slotsNormalized
+    .filter((slot) => slot.isCommander)
+    .sort((a, b) => Number(!a.typeLine.includes('Creature')) - Number(!b.typeLine.includes('Creature')))
+  const commanders = commanderRows.map((slot) => toSlot(slot, currency))
 
   // Le côté n'entre jamais dans la légalité de deck (règle du jeu : un
   // sideboard n'est pas soumis à la taille/singleton du deck construit) —
@@ -409,7 +419,12 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
     format,
     deckState,
     cards: evalCards,
-    commander: commanderRow ? { colorIdentity: commanderRow.colorIdentity } : null,
+    commanders: commanderRows.map((slot) => ({
+      name: slot.name,
+      typeLine: slot.typeLine,
+      oracleText: slot.oracleText,
+      colorIdentity: slot.colorIdentity,
+    })),
   })
 
   // Identité d'en-tête : l'union des commandants SEULS, vide sans commandant
@@ -426,7 +441,7 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
   }
   const colorIdentity = WUBRG_ORDER.filter((color) => commanderIdentityUnion.has(color))
   const builderColorIdentity = deckColorIdentity({
-    commanderColorIdentity: commanderRow?.colorIdentity ?? null,
+    commanderColorIdentities: commanderRows.map((slot) => slot.colorIdentity),
     cardColorIdentities: evalCards.map((card) => card.colorIdentity),
   })
 
@@ -438,7 +453,7 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
   const colorPips = computeColorPips(slotsNormalized)
   const coverage = computeCoverage(legalityRows, currency)
 
-  const commanderArtist = await getCardArtist(commanderRow?.cardId ?? null)
+  const commanderArtist = await getCardArtist(commanderRows[0]?.cardId ?? null)
 
   return {
     id: row.id,
@@ -448,7 +463,7 @@ export async function getDeck(userId: string, deckId: string): Promise<DeckDetai
     deckState,
     colorIdentity,
     builderColorIdentity,
-    commander,
+    commanders,
     commanderArtist,
     slots,
     coverage,

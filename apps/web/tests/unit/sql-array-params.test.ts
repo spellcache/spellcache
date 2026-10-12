@@ -104,7 +104,7 @@ const EMPTY_DECK: DeckDetail = {
   deckState: 'plan',
   colorIdentity: ['W', 'U'],
   builderColorIdentity: ['W', 'U'],
-  commander: null,
+  commanders: [],
   commanderArtist: null,
   slots: [],
   coverage: { owned: 0, total: 0, missing: 0, toBuyMinor: 0 },

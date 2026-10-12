@@ -63,7 +63,7 @@ export async function createDeckAction(
     // `counts.main`, `manaCurve` et `colorPips` ; un échec entre deux
     // écritures séparées pourrait laisser
     // `zone = 'commander'` avec `is_commander = false`, irrécupérable depuis
-    // l'interface (`hasCommanderHolding` n'interroge que `zone`). `zone:
+    // l'interface (`commanderSlotAvailable` n'interroge que `zone`). `zone:
     // 'commander'` fait aussi partie de la clé d'unicité du holding
     // (`lib/containers/holdings.ts`) : le commandant ne fusionne jamais avec
     // un exemplaire déjà présent au mainboard.

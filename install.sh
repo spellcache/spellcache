@@ -226,8 +226,9 @@ main() {
   resolve_version
 
   dir=${SPELLCACHE_DIR:-/srv/spellcache}
-  mkdir -p "$dir" 2>/dev/null && [ -w "$dir" ] ||
+  if ! mkdir -p "$dir" 2>/dev/null || [ ! -w "$dir" ]; then
     fail "cannot write to $dir. Run as root (curl ... | sudo sh) or set SPELLCACHE_DIR."
+  fi
   cd "$dir"
 
   if [ -f .env ]; then

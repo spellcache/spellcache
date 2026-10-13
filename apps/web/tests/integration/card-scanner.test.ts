@@ -234,11 +234,23 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('card scanner', () => {
           exact: true,
           language: 'ja',
         },
+        confirmed: true,
         outsideSets: false,
       })
 
       const none = await lookupRoute(request('set=M10&number=999'))
-      expect(await none.json()).toEqual({ match: null, outsideSets: false })
+      expect(await none.json()).toEqual({ match: null, confirmed: false, outsideSets: false })
+    })
+
+    it('confirms a printing only when its name is read too', async () => {
+      await setup('scannerconfirm')
+      await insertCard(pool, { name: 'Lightning Bolt', setCode: 'm10', collectorNumber: '146' })
+
+      const confirmed = async (query: string) => (await (await lookupRoute(request(query))).json()).confirmed
+      expect(await confirmed('set=M10&number=146&name=Lightning%20Bolt&name=Instant')).toBe(true)
+      expect(await confirmed('set=M10&number=146&name=Foudre')).toBe(false)
+      expect(await confirmed('set=M10&number=146')).toBe(false)
+      expect(await confirmed('name=Lightning%20Bolt')).toBe(false)
     })
   })
 
@@ -271,7 +283,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('card scanner', () => {
       await insertCard(pool, { name: 'Lightning Bolt', setCode: 'm10', collectorNumber: '146' })
       await put({ sets: ['fin'] })
       const response = await lookupRoute(new Request('http://localhost/api/scanner/lookup?set=M10&number=146'))
-      expect(await response.json()).toEqual({ match: null, outsideSets: true })
+      expect(await response.json()).toEqual({ match: null, confirmed: false, outsideSets: true })
     })
 
     it('refuses invalid settings, other content types and a disabled tool', async () => {

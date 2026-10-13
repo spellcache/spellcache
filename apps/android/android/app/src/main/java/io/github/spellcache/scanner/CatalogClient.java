@@ -44,11 +44,14 @@ final class CatalogClient {
     static final class Lookup {
         /** `null` : aucune carte retenue. */
         final ScanSession.Match match;
+        /** Nom lu confirmé par l'impression trouvée : comptée sans attendre. */
+        final boolean confirmed;
         /** Carte trouvée hors des sets choisis dans les réglages de scan. */
         final boolean outsideSets;
 
-        Lookup(ScanSession.Match match, boolean outsideSets) {
+        Lookup(ScanSession.Match match, boolean confirmed, boolean outsideSets) {
             this.match = match;
+            this.confirmed = confirmed;
             this.outsideSets = outsideSets;
         }
     }
@@ -76,8 +79,8 @@ final class CatalogClient {
 
             JSONObject body = new JSONObject(read(connection.getInputStream()));
             JSONObject match = body.optJSONObject("match");
-            if (match == null) return new Lookup(null, body.optBoolean("outsideSets", false));
-            return new Lookup(matchOf(match), false);
+            if (match == null) return new Lookup(null, false, body.optBoolean("outsideSets", false));
+            return new Lookup(matchOf(match), body.optBoolean("confirmed", false), false);
         } catch (org.json.JSONException e) {
             throw new IOException(e);
         } finally {

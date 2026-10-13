@@ -1049,7 +1049,7 @@ public final class ScannerActivity extends AppCompatActivity {
                 // Icône du set chargée avec la lecture, avant l'affichage.
                 if (match != null && match.exact) setIcons.load(match.setIconUri);
                 runOnUiThread(() -> {
-                    ScanSession.Entry counted = session.onLookup(key, match, SystemClock.elapsedRealtime());
+                    ScanSession.Entry counted = session.onLookup(key, match, result.confirmed, SystemClock.elapsedRealtime());
                     if (counted != null) onCounted(counted);
                     else if (result.outsideSets) showStatus(null, getString(R.string.scanner_outside_sets));
                     else if (match == null && reading.hasCollectorInfo()) showStatus(null, getString(R.string.scanner_no_match));

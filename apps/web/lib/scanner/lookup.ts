@@ -210,6 +210,13 @@ function sameName(cardName: string, read: string): boolean {
   return card === key || frontFaceOf(card) === key
 }
 
+// Impression exacte dont le nom est aussi lu sur la carte : deux lectures
+// indépendantes (bas de carte et titre) concordent, le scanner compte dès
+// la première image au lieu d'attendre la suivante.
+export function confirmedByName(match: ScanMatch, names: string[]): boolean {
+  return match.exact && cleanedNames({ names }).some((name) => sameName(match.name, name))
+}
+
 // Lecture restreinte aux sets choisis (`onlySets`, codes en minuscules) ;
 // sans filtre, `lookupScannedCard`.
 export async function lookupScannedCardIn(query: ScanQuery, onlySets: string[]): Promise<ScanLookup> {

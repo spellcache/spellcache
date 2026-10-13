@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import { auth } from '@/lib/auth'
 import { rateLimit } from '@/lib/redis'
-import { lookupScannedCardIn, MAX_SCANNED_NAMES } from '@/lib/scanner/lookup'
+import { confirmedByName, lookupScannedCardIn, MAX_SCANNED_NAMES } from '@/lib/scanner/lookup'
 import { getScannerSettings } from '@/lib/scanner/settings'
 import { holdingLanguageOf } from '@/lib/scanner/scan-text'
 import { getToolFlags } from '@/lib/tools/tool-flags'
@@ -63,7 +63,11 @@ export async function GET(request: Request): Promise<Response> {
   )
   // Langue du holding déduite du code imprimé, proposée par l'écran de revue.
   return Response.json(
-    { match: match && { ...match, language: holdingLanguageOf(parsed.data.lang) }, outsideSets },
+    {
+      match: match && { ...match, language: holdingLanguageOf(parsed.data.lang) },
+      confirmed: match !== null && confirmedByName(match, parsed.data.names),
+      outsideSets,
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }

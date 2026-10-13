@@ -158,16 +158,30 @@ public final class ScanSession {
             if (known != NO_MATCH) counted = accept(known, now);
             return null;
         }
-        if (streak < STABLE_FRAMES || pending.contains(key)) return null;
+        if (pending.contains(key)) return null;
+        // Bas de carte et titre lus : demandée dès la première image, le
+        // serveur dit si le nom confirme l'impression (`onLookup`).
+        boolean confirmable = reading.hasCollectorInfo() && !reading.names.isEmpty();
+        if (streak < STABLE_FRAMES && !confirmable) return null;
         pending.add(key);
         return key;
     }
 
-    /** Réponse du serveur pour `key` (`match` nul : aucune carte). */
+    /** Réponse du serveur pour `key` (`match` nul : aucune carte), non confirmée. */
     public Entry onLookup(String key, Match match, long now) {
+        return onLookup(key, match, false, now);
+    }
+
+    /**
+     * Réponse du serveur pour `key`. Confirmée par le nom lu, la carte compte
+     * tout de suite ; sinon après une deuxième image de la même lecture.
+     */
+    public Entry onLookup(String key, Match match, boolean confirmed, long now) {
         pending.remove(key);
         resolved.put(key, match == null ? NO_MATCH : match);
-        return match == null ? null : accept(match, now);
+        if (match == null) return null;
+        boolean stable = key.equals(lastKey) && streak >= STABLE_FRAMES;
+        return confirmed || stable ? accept(match, now) : null;
     }
 
     /** Échec réseau : la lecture pourra être redemandée. */

@@ -26,20 +26,36 @@ public class ScanSessionTest {
     private static final ScanSession.Match BOLT_OTHER = match("bolt-2x2", "Lightning Bolt", false);
     private static final ScanSession.Match ELF = match("elves-m19", "Llanowar Elves", true);
 
+    // Lecture lue deux fois de suite, clé demandée une seule fois.
+    private static String twoFrames(ScanSession session, ScanReading reading, long first, long second) {
+        String key = session.onReading(reading, first);
+        String again = session.onReading(reading, second);
+        return key != null ? key : again;
+    }
+
+    private static final ScanReading BOLT_BOTTOM =
+        new ScanReading("M10", "146", "EN", Collections.<String>emptyList());
+
     @Test
     public void looksUpOnlyAStableReadingAndOnlyOnce() {
         ScanSession session = new ScanSession();
-        assertNull(session.onReading(BOLT_M10, 0));
-        String key = session.onReading(BOLT_M10, 100);
-        assertEquals(BOLT_M10.key(), key);
-        assertNull(session.onReading(BOLT_M10, 200));
+        assertNull(session.onReading(BOLT_BOTTOM, 0));
+        String key = session.onReading(BOLT_BOTTOM, 100);
+        assertEquals(BOLT_BOTTOM.key(), key);
+        assertNull(session.onReading(BOLT_BOTTOM, 200));
+    }
+
+    @Test
+    public void looksUpAReadingWithItsTitleOnTheFirstFrameAndOnlyOnce() {
+        ScanSession session = new ScanSession();
+        assertEquals(BOLT_M10.key(), session.onReading(BOLT_M10, 0));
+        assertNull(session.onReading(BOLT_M10, 100));
     }
 
     @Test
     public void countsACardKeptInTheFrameOnce() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        String key = session.onReading(BOLT_M10, 100);
+        String key = twoFrames(session, BOLT_M10, 0, 100);
         assertNotNull(session.onLookup(key, BOLT, 300));
         for (long t = 400; t < 5_000; t += 100) {
             session.onReading(BOLT_M10, t);
@@ -54,8 +70,7 @@ public class ScanSessionTest {
     @Test
     public void countsTheSameCardAgainAfterItLeftTheFrame() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        session.onLookup(session.onReading(BOLT_M10, 100), BOLT, 200);
+        session.onLookup(twoFrames(session, BOLT_M10, 0, 100), BOLT, 200);
         session.onReading(NOTHING, 300);
         session.onReading(NOTHING, 400);
         session.onReading(BOLT_M10, 1_300);
@@ -66,10 +81,8 @@ public class ScanSessionTest {
     @Test
     public void countsAnotherCardRightAway() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        session.onLookup(session.onReading(BOLT_M10, 100), BOLT, 200);
-        session.onReading(ELVES, 300);
-        session.onLookup(session.onReading(ELVES, 400), ELF, 500);
+        session.onLookup(twoFrames(session, BOLT_M10, 0, 100), BOLT, 200);
+        session.onLookup(twoFrames(session, ELVES, 300, 400), ELF, 500);
         session.onReading(BOLT_M10, 600);
         assertNotNull(session.counted);
         assertEquals(3, session.total());
@@ -93,8 +106,7 @@ public class ScanSessionTest {
         String key = null;
         while (key == null) key = session.onReading(BOLT_NAME, t += 100);
         session.onLookup(key, BOLT_OTHER, t += 100);
-        session.onReading(BOLT_M10, t += 100);
-        String exactKey = session.onReading(BOLT_M10, t += 100);
+        String exactKey = twoFrames(session, BOLT_M10, t += 100, t += 100);
         assertNotNull(session.onLookup(exactKey, BOLT, t + 100));
         assertEquals(1, session.total());
         assertEquals(1, session.entries().size());
@@ -104,8 +116,7 @@ public class ScanSessionTest {
     @Test
     public void neverCountsAReadingWithoutCard() {
         ScanSession session = new ScanSession();
-        session.onReading(ELVES, 0);
-        assertNull(session.onLookup(session.onReading(ELVES, 100), null, 200));
+        assertNull(session.onLookup(twoFrames(session, ELVES, 0, 100), null, 200));
         assertNull(session.onReading(ELVES, 300));
         assertNull(session.counted);
         assertEquals(0, session.total());
@@ -116,8 +127,7 @@ public class ScanSessionTest {
     @Test
     public void neverRecountsACardStillInViewEvenWithSlowPartialFrames() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        session.onLookup(session.onReading(BOLT_M10, 1_000), BOLT, 1_100);
+        session.onLookup(twoFrames(session, BOLT_M10, 0, 1_000), BOLT, 1_100);
         long t = 2_000;
         for (int i = 0; i < 10; i++) {
             session.onReading(i % 2 == 0 ? BOLT_NAME : BOLT_M10, t += 1_000);
@@ -129,8 +139,7 @@ public class ScanSessionTest {
     @Test
     public void undoesTheLastCopyWithoutRecountingTheCardInTheFrame() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        session.onLookup(session.onReading(BOLT_M10, 100), BOLT, 200);
+        session.onLookup(twoFrames(session, BOLT_M10, 0, 100), BOLT, 200);
         assertNotNull(session.undo());
         assertEquals(0, session.total());
         assertEquals(0, session.entries().size());
@@ -142,8 +151,7 @@ public class ScanSessionTest {
     @Test
     public void adjustsTheCopiesOfACardWithTheStepper() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        ScanSession.Entry entry = session.onLookup(session.onReading(BOLT_M10, 100), BOLT, 200);
+        ScanSession.Entry entry = session.onLookup(twoFrames(session, BOLT_M10, 0, 100), BOLT, 200);
         session.increment(entry);
         session.increment(entry);
         assertEquals(3, entry.qty);
@@ -165,8 +173,7 @@ public class ScanSessionTest {
     @Test
     public void retriesALookupThatFailed() {
         ScanSession session = new ScanSession();
-        session.onReading(BOLT_M10, 0);
-        String key = session.onReading(BOLT_M10, 100);
+        String key = session.onReading(BOLT_M10, 0);
         session.onLookupFailed(key);
         assertEquals(key, session.onReading(BOLT_M10, 200));
     }
@@ -174,8 +181,7 @@ public class ScanSessionTest {
     // Premier exemplaire lu, puis la carte sortie du cadre et relue.
     private static ScanSession.Entry countBolt(ScanSession session, long t) {
         if (session.total() == 0) {
-            session.onReading(BOLT_M10, t);
-            return session.onLookup(session.onReading(BOLT_M10, t + 10), BOLT, t + 20);
+            return session.onLookup(twoFrames(session, BOLT_M10, t, t + 10), BOLT, t + 20);
         }
         session.onReading(NOTHING, t);
         session.onReading(NOTHING, t + 10);
@@ -209,8 +215,8 @@ public class ScanSessionTest {
     @Test
     public void treatsAnOReadForAZeroAsTheSameReading() {
         ScanSession session = new ScanSession();
-        assertNull(session.onReading(new ScanReading("FIN", "O173", "EN", Collections.singletonList("Balamb T-Rexaur")), 0));
-        assertNotNull(session.onReading(new ScanReading("FIN", "0173", "EN", Collections.singletonList("Balamb T-Rexaur")), 100));
+        assertNull(session.onReading(new ScanReading("FIN", "O173", "EN", Collections.<String>emptyList()), 0));
+        assertNotNull(session.onReading(new ScanReading("FIN", "0173", "EN", Collections.<String>emptyList()), 100));
     }
 
     @Test
@@ -218,17 +224,19 @@ public class ScanSessionTest {
         ScanSession session = new ScanSession();
         ScanReading cerberus = new ScanReading("FIN", "O162", "EN", Collections.singletonList("Summon: G.F. Cerberus"));
         ScanReading titleOnly = new ScanReading(null, null, null, Collections.singletonList("Summon: G.F. Cerberus"));
-        assertNull(session.onReading(cerberus, 0));
+        String key = session.onReading(cerberus, 0);
+        assertNull(session.onLookup(key, match("cerberus", "Summon: G.F. Cerberus", true), false, 50));
         assertNull(session.onReading(titleOnly, 100));
-        assertNotNull(session.onReading(cerberus, 200));
+        session.onReading(cerberus, 200);
+        assertNotNull(session.counted);
     }
 
     @Test
     public void restartsTheWaitWhenAnotherCardShowsUp() {
         ScanSession session = new ScanSession();
-        assertNull(session.onReading(BOLT_M10, 0));
+        assertNull(session.onReading(BOLT_BOTTOM, 0));
         assertNull(session.onReading(new ScanReading(null, null, null, Collections.singletonList("Llanowar Elves")), 100));
-        assertNull(session.onReading(BOLT_M10, 200));
+        assertNull(session.onReading(BOLT_BOTTOM, 200));
     }
 
     private static final ScanReading CIRCLE =
@@ -236,8 +244,7 @@ public class ScanSessionTest {
 
     private static ScanSession countedCircle() {
         ScanSession session = new ScanSession();
-        session.onReading(CIRCLE, 0);
-        session.onLookup(session.onReading(CIRCLE, 500), match("circle", "Circle of Power", true), 550);
+        session.onLookup(twoFrames(session, CIRCLE, 0, 500), match("circle", "Circle of Power", true), 550);
         return session;
     }
 
@@ -263,5 +270,35 @@ public class ScanSessionTest {
         session.onReading(CIRCLE, 2_200);
         assertNotNull(session.counted);
         assertEquals(2, session.total());
+    }
+
+    @Test
+    public void countsOnTheFirstFrameWhenTheNameConfirmsThePrinting() {
+        ScanSession session = new ScanSession();
+        String key = session.onReading(BOLT_M10, 0);
+        assertEquals(BOLT_M10.key(), key);
+        assertNotNull(session.onLookup(key, BOLT, true, 100));
+        assertEquals(1, session.total());
+    }
+
+    @Test
+    public void waitsForASecondFrameWhenTheNameDoesNotConfirmThePrinting() {
+        ScanSession session = new ScanSession();
+        String key = session.onReading(BOLT_M10, 0);
+        assertNull(session.onLookup(key, BOLT, false, 100));
+        assertEquals(0, session.total());
+        session.onReading(BOLT_M10, 600);
+        assertNotNull(session.counted);
+        assertEquals(1, session.total());
+    }
+
+    @Test
+    public void neverCountsAPrintingReadOnceWithoutConfirmation() {
+        ScanSession session = new ScanSession();
+        String key = session.onReading(BOLT_M10, 0);
+        session.onLookup(key, BOLT, false, 100);
+        session.onReading(ELVES, 600);
+        session.onReading(NOTHING, 1_200);
+        assertEquals(0, session.total());
     }
 }

@@ -3,4 +3,22 @@
     <!-- Fond de l'app (token color-bg sombre de globals.css), aussi celui du
          lancement : pas d'éclair blanc avant le premier rendu. -->
     <color name="app_background">#0A090E</color>
+
+    <!-- Scanner, toujours sombre : mêmes jetons que globals.css. -->
+    <color name="scanner_accent">#E8B44A</color>
+    <color name="scanner_on_accent">#16141F</color>
+    <color name="scanner_surface">#14121A</color>
+    <color name="scanner_surface_2">#17151E</color>
+    <!-- Feuilles du bas (`Sheet`) et textes, comme dans l'app. -->
+    <color name="scanner_sheet">#1B1923</color>
+    <color name="scanner_text">#F1EFF4</color>
+    <color name="scanner_text_3">#4E4B5A</color>
+    <color name="scanner_accent_text">#F0C060</color>
+    <color name="scanner_border">#33303D</color>
+    <color name="scanner_text_2">#858190</color>
+    <color name="scanner_panel">#E60A090E</color>
+    <color name="scanner_veil">#800A090E</color>
+    <color name="scanner_dim">#99000000</color>
+    <!-- Réglages par-dessus l'aperçu : la carte reste visible au travers. -->
+    <color name="scanner_overlay">#8C0A090E</color>
 </resources>

@@ -19,26 +19,38 @@ describe('tool flags', () => {
   })
 
   it('maps every preference column onto its tool flag', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: false, toolTradingMode: false })
-    expect(flags).toEqual({ life_tracker: true, playtest: false, trading_mode: false })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: false, toolTradingMode: false, toolCardScanner: false })
+    expect(flags).toEqual({ life_tracker: true, playtest: false, trading_mode: false, card_scanner: false })
     expect(anyToolEnabled(flags)).toBe(true)
     expect(isToolEnabled('life_tracker', flags)).toBe(true)
     expect(isToolEnabled('playtest', flags)).toBe(false)
   })
 
   it('enables the trading mode on its own flag', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: false, toolPlaytest: false, toolTradingMode: true })
+    const flags = toolFlagsOf({ toolLifeTracker: false, toolPlaytest: false, toolTradingMode: true, toolCardScanner: false })
     expect(anyToolEnabled(flags)).toBe(true)
     expect(isToolEnabled('trading_mode', flags)).toBe(true)
     expect(toolPreferenceOf('trading_mode')).toBe('toolTradingMode')
   })
 
+  it('enables the card scanner on its own flag', () => {
+    const flags = toolFlagsOf({
+      toolLifeTracker: false,
+      toolPlaytest: false,
+      toolTradingMode: false,
+      toolCardScanner: true,
+    })
+    expect(anyToolEnabled(flags)).toBe(true)
+    expect(isToolEnabled('card_scanner', flags)).toBe(true)
+    expect(toolPreferenceOf('card_scanner')).toBe('toolCardScanner')
+  })
+
   it('shows the Tools tab when any single tool is on', () => {
-    expect(anyToolEnabled(toolFlagsOf({ toolLifeTracker: false, toolPlaytest: true, toolTradingMode: false }))).toBe(true)
+    expect(anyToolEnabled(toolFlagsOf({ toolLifeTracker: false, toolPlaytest: true, toolTradingMode: false, toolCardScanner: false }))).toBe(true)
   })
 
   it('never enables a planned tool', () => {
-    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: true, toolTradingMode: true })
+    const flags = toolFlagsOf({ toolLifeTracker: true, toolPlaytest: true, toolTradingMode: true, toolCardScanner: true })
     for (const tool of TOOLS.filter((entry) => entry.state === 'planned')) {
       expect(isToolEnabled(tool.key, flags)).toBe(false)
       expect(toolPreferenceOf(tool.key)).toBeNull()

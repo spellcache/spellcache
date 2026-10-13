@@ -39,6 +39,7 @@ export function CompactRow({
   selectable = false,
   selected = false,
   current = false,
+  notice,
 }: {
   thumbUrl: string
   name: string
@@ -64,6 +65,9 @@ export function CompactRow({
   // `selected`, jamais sa coche : voir `components/selection/
   // row-visual-state.ts`, seul endroit où la règle est écrite.
   current?: boolean
+  // Mention à la suite de la ligne de set, en couleur d'alerte (« TO CHECK »
+  // des cartes scannées dont l'impression est à confirmer).
+  notice?: string
 }) {
   const highlighted = selected || current
   const reserved = available !== undefined && available < qty
@@ -123,6 +127,12 @@ export function CompactRow({
               </>
             )}
             {reservedSuffix}
+            {notice && (
+              <>
+                {' · '}
+                <span className="font-bold tracking-badge-foil text-warning">{notice}</span>
+              </>
+            )}
           </span>
         </div>
       </div>

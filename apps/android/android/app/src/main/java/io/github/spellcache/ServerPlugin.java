@@ -68,7 +68,11 @@ public class ServerPlugin extends Plugin {
     }
 
     private String savedOrigin() {
-        return prefs().getString(KEY_ORIGIN, null);
+        return savedOrigin(getContext());
+    }
+
+    static String savedOrigin(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_ORIGIN, null);
     }
 
     // Origine seule (schéma, hôte, port), telle que la produit `URL.origin`

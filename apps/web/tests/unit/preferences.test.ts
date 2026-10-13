@@ -31,6 +31,8 @@ describe('DEFAULT_PREFERENCES', () => {
       // Même contrat pour le mode échange
       // (`packages/db/migrations/0003_trading_mode.sql`).
       toolTradingMode: false,
+      // Et pour le scanner (`packages/db/migrations/0006_card_scanner.sql`).
+      toolCardScanner: false,
       // `'[]'::jsonb` en base (`packages/db/migrations/0013_awesome_mathemanic.sql`)
       // — « tout déplié », l'arbre du design validé. Un compte créé avant la
       // colonne lit donc la même chose ici et en base.

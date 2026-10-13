@@ -301,3 +301,40 @@ describe('lib/decks — availabilityMap et loadBorrowSources', () => {
     }
   })
 })
+
+describe('lib/scanner — lookupScannedCard et getScannedCards', () => {
+  it('rend la recherche par set et numéro, par nom et numéro, puis par nom, avec de vrais paramètres tableau', async () => {
+    const { lookupScannedCard } = await import('@/lib/scanner/lookup')
+
+    await lookupScannedCard({ setCode: 'M10', collectorNumber: '0146', names: ['Lightning Bolt'] })
+
+    const queries = takeQueries()
+    // Set et numéro, puis nom et numéro, puis nom seul.
+    expect(queries).toHaveLength(3)
+    for (const [index, query] of queries.entries()) {
+      expectRealArrayParams(query, `lookupScannedCard — requête ${index}`)
+    }
+  })
+
+  it('rend la recherche restreinte aux sets choisis avec de vrais paramètres tableau', async () => {
+    const { lookupScannedCardIn } = await import('@/lib/scanner/lookup')
+
+    await lookupScannedCardIn({ setCode: 'M10', collectorNumber: '0146', names: ['Lightning Bolt'] }, ['fin'])
+
+    const queries = takeQueries()
+    expect(queries.length).toBeGreaterThanOrEqual(2)
+    for (const [index, query] of queries.entries()) {
+      expectRealArrayParams(query, `lookupScannedCardIn — requête ${index}`)
+    }
+  })
+
+  it('rend la lecture des cartes scannées avec un vrai paramètre tableau', async () => {
+    const { getScannedCards } = await import('@/lib/scanner/review')
+
+    await getScannedCards([CARD_IDS[0]!], 'eur')
+
+    const queries = takeQueries()
+    expect(queries).toHaveLength(1)
+    expectRealArrayParams(queries[0]!, 'getScannedCards')
+  })
+})

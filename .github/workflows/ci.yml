@@ -123,7 +123,7 @@ jobs:
           cache: gradle
       - run: pnpm install --frozen-lockfile --filter @spellcache/android
       - run: pnpm --filter @spellcache/android sync
-      - run: ./gradlew assembleDebug --no-daemon
+      - run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
         working-directory: apps/android/android
 
   e2e:

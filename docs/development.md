@@ -117,6 +117,20 @@ so the Android app follows the server's version.
 - **Back button**: walks the WebView history. From the instance's first page it
   returns to the server screen (to change server); from there it leaves the
   app.
+- **Card scanner**: `/tools/scanner` (Settings › Tools › Card scanner) is the
+  review screen; its `Scan cards` button navigates to `spellcache://scanner`,
+  which `ScannerPlugin` intercepts to open `ScannerActivity` (CameraX + ML Kit
+  text recognition, bundled model, no Google Play services needed). Each stable
+  reading (set code, collector number and language at the bottom left, the top
+  lines as name candidates) is looked up with the WebView's session cookie
+  (`GET /api/scanner/lookup`); only that text leaves the phone. On close,
+  `MainActivity` hands the scanned cards to the page
+  (`window.__spellcacheScanned`), which keeps them in `sessionStorage` until
+  they are added in one write. The page shows the button only when the user
+  agent carries `SpellcacheScanner` (an app built with the scanner).
+  The sound of a counted card is `pluck_001` from Kenney's
+  [Interface Sounds](https://kenney.nl/assets/interface-sounds) (CC0), in
+  `app/src/main/res/raw/scanner_pluck.ogg`.
 - **Sign-in**: the emailed link opens in the browser, not in the app. In the
   app, sign in with the code from the same email.
 - **Requirements on the server**: HTTPS with a certificate Android trusts.
@@ -232,8 +246,9 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
   point to a collection, never to a `user_id`.
 - **Preferences are stored on the account** (`users` table), not in the
   browser, so mobile and desktop agree. Only the state of a running table
-  tool game is local: `lifeGame` in `localStorage`, the running playtest in
-  `sessionStorage` (it survives a reload, not a new tab).
+  tool game is local: `lifeGame` in `localStorage`, the running playtest and
+  the cards scanned but not yet added in `sessionStorage` (they survive a
+  reload, not a new tab).
 - **`users.price_source` is the single source of truth** for currency and
   market (`tcgplayer_usd` ⇒ $, `cardmarket_eur` ⇒ €). Both Settings rows edit
   that one value; the app has no currency conversion.
@@ -270,7 +285,7 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
 - Do NOT add password authentication or an external OAuth provider.
 - Do NOT use variable row heights in a virtualised list.
 - Do NOT invent new visual language: features marked `Planned` or `Soon` in
-  Settings (Card scanner, AI assistant) stay greyed-out rows with
+  Settings (AI assistant) stay greyed-out rows with
   no screen, and a new screen is built from existing components and tokens.
   Discuss any visual novelty in an issue first.
 - Do NOT cache user data offline: the app is always online; offline use is not

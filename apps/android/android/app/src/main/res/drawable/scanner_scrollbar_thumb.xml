@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barre de défilement des réglages : 3 dp de large dans une piste de
+     10 dp, en retrait du bord et des coins. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetTop="14dp"
+    android:insetBottom="14dp"
+    android:insetLeft="2dp"
+    android:insetRight="5dp">
+    <shape android:shape="rectangle">
+        <solid android:color="#59FFFFFF" />
+        <corners android:radius="2dp" />
+    </shape>
+</inset>

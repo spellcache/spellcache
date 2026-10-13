@@ -22,18 +22,49 @@ any proxy can sit in front of it (nginx, Traefik, Caddy, Cloudflare Tunnel…).
 | Email | A [Resend](https://resend.com) account with a verified sending domain (see [Email](../email/)) |
 
 ```bash
-sudo apt update && sudo apt install -y postgresql-client-17 openssl git
+sudo apt update && sudo apt install -y postgresql-client-17 openssl curl
 ```
+
+## Quick install
+
+The installer downloads the files of the latest release into `/srv/spellcache`
+(no clone, no build), asks for the public URL, the administrator's email and
+the Resend key, generates the secrets, starts the containers and queues the
+catalogue import:
+
+```bash
+curl -fsSL https://get.spellcache.com | sudo sh
+```
+
+Read it first if you prefer:
+[`install.sh`](https://github.com/spellcache/spellcache/blob/main/install.sh).
+To install elsewhere or pick a version, pass the variables after `sudo`
+(`… | sudo SPELLCACHE_DIR=/opt/spellcache SPELLCACHE_VERSION=1.2.3 sh`). Run the
+same command again later to [update](../updating/).
+
+It covers the steps from **Get the files** to **Import the card catalogue**.
+Then put your [reverse proxy](../reverse-proxy/) in front of `127.0.0.1:3000`,
+create the [first account](#first-account) and set up the
+[scheduled tasks](../scheduled-tasks/). The rest of this guide applies as is:
+the files keep their place in the repository.
+
+The sections below do the same by hand.
 
 ## Get the files
 
-The repository holds the Compose file and the backup scripts:
+Download them from the latest release, keeping their paths:
 
 ```bash
-sudo mkdir -p /srv && cd /srv
-sudo git clone https://github.com/spellcache/spellcache.git
-cd /srv/spellcache
+sudo mkdir -p /srv/spellcache/deploy && cd /srv/spellcache
+TAG=$(curl -fsSL https://api.github.com/repos/spellcache/spellcache/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+for f in docker-compose.example.yml .env.example deploy/backup.sh deploy/restore.sh; do
+  sudo curl -fsSL "https://raw.githubusercontent.com/spellcache/spellcache/$TAG/$f" -o "$f"
+done
+sudo chmod +x deploy/*.sh
 ```
+
+Or clone the repository
+(`git clone https://github.com/spellcache/spellcache.git /srv/spellcache`).
 
 ## Configure
 

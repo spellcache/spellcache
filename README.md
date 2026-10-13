@@ -48,14 +48,17 @@ Requirements: a Linux server with Docker, a domain with an HTTPS reverse proxy, 
 [Resend](https://resend.com) account for sign-in emails.
 
 ```bash
-git clone https://github.com/spellcache/spellcache.git && cd spellcache
-cp .env.example .env        # fill in the Production section
-docker compose -f docker-compose.example.yml up -d   # then put your HTTPS reverse proxy in front of 127.0.0.1:3000
-docker compose -f docker-compose.example.yml exec -T worker node apps/worker/src/index.ts --run-now
+curl -fsSL https://get.spellcache.com | sudo sh
 ```
 
-The last command imports the card catalogue (twenty minutes to an hour). The
-complete guide (reverse proxy, backups, restore, updates) is in the
+The [installer](install.sh) downloads the files of the latest release into
+`/srv/spellcache`, asks for your URL, the administrator's email and the Resend
+key, starts the containers and imports the card catalogue (twenty minutes to an
+hour). Then put your HTTPS reverse proxy in front of `127.0.0.1:3000`. Running
+it again updates to the latest release.
+
+The complete guide (manual installation, reverse proxy, backups, restore,
+updates) is in the
 **[self-hosting documentation](https://spellcache.github.io/spellcache/self-hosting/installation/)**.
 
 ## Documentation

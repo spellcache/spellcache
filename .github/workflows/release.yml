@@ -139,6 +139,30 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
         run: docker buildx imagetools inspect "$IMAGE:$VERSION"
 
+  # Script d'installation (get.spellcache.com) et fichiers d'une installation
+  # manuelle, joints à la release. Après `images` : le script installe des
+  # images qui doivent déjà exister sur GHCR.
+  installer:
+    name: Publish installer
+    needs: [release-please, images]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          # Le script publié installe sa propre release, sans interroger l'API.
+          sed "s/^RELEASE_TAG=''$/RELEASE_TAG='$TAG'/" install.sh > "$RUNNER_TEMP/install.sh"
+          grep -qx "RELEASE_TAG='$TAG'" "$RUNNER_TEMP/install.sh"
+          gh release upload "$TAG" "$RUNNER_TEMP/install.sh" docker-compose.example.yml .env.example --clobber
+
   # APK Android signé, joint à la release GitHub. Le keystore et ses mots de
   # passe sont des secrets du dépôt (docs/development.md, « Android app »).
   android:

@@ -248,7 +248,7 @@ describe('lib/decks/legality — evaluateDeck', () => {
 
   it('reports a dismantled deck as dismantled rather than short or without format', () => {
     for (const format of ['commander', null] as const) {
-      const status = evaluateDeck({ format, deckState: 'dismantled', cards: [], commander: null })
+      const status = evaluateDeck({ format, deckState: 'dismantled', cards: [], commanders: [] })
 
       expect(status).toEqual({ kind: 'dismantled', label: 'Dismantled', issues: [] })
     }

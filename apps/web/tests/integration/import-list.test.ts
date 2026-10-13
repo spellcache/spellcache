@@ -402,8 +402,38 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('import de liste et partage publ
     expect(commander?.zone).toBe('commander')
     // `zone` et `is_commander` s'écrivent ensemble : sans
     // ce couplage, `getDeck` n'afficherait jamais ce commandant et
-    // `hasCommanderHolding` resterait bloqué sur `commander_full`.
+    // `commanderSlotAvailable` resterait bloqué sur `commander_full`.
     expect(commander?.isCommander).toBe(true)
+  })
+
+  it('garde les deux commandants d’une paire à l’import comme à l’export', async () => {
+    const { userId, collectionId } = await setup('partners')
+    const thrasios = await insertCard({ name: 'Thrasios, Triton Hero', typeLine: 'Legendary Creature — Merfolk Wizard' })
+    const tymna = await insertCard({ name: 'Tymna the Weaver', typeLine: 'Legendary Creature — Human Cleric' })
+    await insertCard({ name: 'Sol Ring' })
+    const deck = await createContainer(userId, collectionId, {
+      kind: 'deck',
+      name: 'Partners',
+      format: 'commander',
+      deckState: 'plan',
+    })
+
+    await actions.importListAction({
+      containerId: deck.id,
+      text: 'Commander\n1 Thrasios, Triton Hero\n1 Tymna the Weaver\nDeck\n1 Sol Ring',
+    })
+
+    const rows = await holdingRows(deck.id)
+    for (const cardId of [thrasios, tymna]) {
+      expect(rows.find((row) => row.cardId === cardId)).toMatchObject({ zone: 'commander', isCommander: true })
+    }
+
+    const exported = await actions.getContainerListAction({ containerId: deck.id })
+    expect(exported.ok).toBe(true)
+    if (!exported.ok) return
+    const lines = formatContainerList(exported.lines).split('\n')
+    const commanderSection = lines.slice(lines.indexOf('Commander') + 1, lines.indexOf('Deck'))
+    expect(commanderSection.filter((line) => /^\d/.test(line))).toHaveLength(2)
   })
 
   // ---------------------------------------------------------- annulation

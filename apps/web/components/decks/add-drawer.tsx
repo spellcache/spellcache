@@ -224,7 +224,7 @@ export function AddDrawer({
         onCardAddFailed(card, activeZone)
         setError(
           result.error === 'commander_full'
-            ? 'This deck already has a commander.'
+            ? 'Only a legal partner can join the commander zone.'
             : 'Could not add that card. Try again.',
         )
         return

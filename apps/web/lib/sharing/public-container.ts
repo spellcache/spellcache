@@ -98,6 +98,8 @@ interface CardRow extends Record<string, unknown> {
   legalities: Record<string, Legality>
   color_identity: string[]
   type_line: string
+  // Commandants seulement (contrôle de paire) : `null` ailleurs.
+  oracle_text: string | null
 }
 
 // Zone effective d'une ligne : `is_commander` fait foi sur `zone`,
@@ -167,6 +169,7 @@ export async function getPublicContainer(containerId: string): Promise<PublicCon
       cd.legalities as legalities,
       cd.color_identity as color_identity,
       cd.type_line as type_line,
+      case when h.is_commander then cd.oracle_text end as oracle_text,
       round((case when h.finish = 'nonfoil' then ${nonfoil} else ${foil} end) * 100) as price_minor
     from holdings h
     join cards cd on cd.id = h.card_id
@@ -246,13 +249,18 @@ function evaluateStatus(
     colorIdentity: row.color_identity,
     typeLine: row.type_line,
   }))
-  const commander = rows.find((row) => row.is_commander) ?? null
-
   return evaluateDeck({
     format,
     deckState: deckState ?? 'plan',
     cards,
-    commander: commander ? { colorIdentity: commander.color_identity } : null,
+    commanders: rows
+      .filter((row) => row.is_commander)
+      .map((row) => ({
+        name: row.name,
+        typeLine: row.type_line,
+        oracleText: row.oracle_text,
+        colorIdentity: row.color_identity,
+      })),
   })
 }
 

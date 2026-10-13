@@ -244,7 +244,7 @@ export function DeckView({
   if (initialDeck !== syncedDeck) {
     setSyncedDeck(initialDeck)
     if (previewHoldingId?.startsWith('optimistic-')) {
-      const allSlots = (detail: DeckDetail) => [...(detail.commander ? [detail.commander] : []), ...detail.slots]
+      const allSlots = (detail: DeckDetail) => [...detail.commanders, ...detail.slots]
       const pending = allSlots(deck).find((slot) => slot.holdingId === previewHoldingId)
       const settled = pending
         ? allSlots(initialDeck).find((slot) => slot.cardId === pending.cardId && slot.zone === pending.zone)
@@ -358,7 +358,7 @@ export function DeckView({
     if (!result.ok) {
       setTransitionError(
         result.error === 'commander_full'
-          ? 'This deck already has a commander.'
+          ? 'Only a legal partner can join the commander zone.'
           : 'Could not move this card. Try again.',
       )
       return
@@ -415,14 +415,13 @@ export function DeckView({
   // des exemplaires voulus au prix unitaire de leur impression, cartes non
   // encore possédées comprises — c'est ce que la liste vaut, pas ce que la
   // collection en couvre (`coverage.toBuyMinor` dit déjà l'autre).
-  const totalValueMinor = [deck.commander, ...deck.slots].reduce(
-    (sum, slot) => (slot ? sum + (slot.priceMinor ?? 0) * slot.need : sum),
+  const totalValueMinor = [...deck.commanders, ...deck.slots].reduce(
+    (sum, slot) => sum + (slot.priceMinor ?? 0) * slot.need,
     0,
   )
 
-  const commanderArtUrl = deck.commander
-    ? thumbUrl(deck.commander.cardId, 'art_crop')
-    : null
+  const leadCommander = deck.commanders[0] ?? null
+  const commanderArtUrl = leadCommander ? thumbUrl(leadCommander.cardId, 'art_crop') : null
   // Même règle que `DeckBackdrop.hasBackdrop` : un fond
   // est peint pour une dérogation posée, l'art du commandant ou le dégradé
   // d'identité d'un deck avec format — jamais pour la surface nue. Ce qui
@@ -472,7 +471,7 @@ export function DeckView({
   const counts: AddDrawerCounts = {
     main: mainboardSlots.reduce((sum, slot) => sum + slot.need, 0),
     side: sideSlots.reduce((sum, slot) => sum + slot.need, 0),
-    commander: deck.commander ? deck.commander.need : 0,
+    commander: deck.commanders.reduce((sum, slot) => sum + slot.need, 0),
   }
 
   // La liste se parcourt : aucune recherche ni tri par-dessus — un deck tient
@@ -481,7 +480,7 @@ export function DeckView({
 
   // Feuille de carte ouverte depuis une ligne de la liste, et ses voisines
   // dans l'ordre affiché : commandant, mainboard, sideboard.
-  const previewOrder = [...(deck.commander ? [deck.commander] : []), ...visibleMainboard, ...sideSlots]
+  const previewOrder = [...deck.commanders, ...visibleMainboard, ...sideSlots]
   const previewIndex = previewOrder.findIndex((slot) => slot.holdingId === previewHoldingId)
   const previewSlot = previewIndex === -1 ? null : previewOrder[previewIndex]!
   const previewTile = useMemo(
@@ -544,7 +543,8 @@ export function DeckView({
         ...current,
         slots,
         coverage: result.coverage,
-        commander: addedZone === 'commander' ? nextSlot : current.commander,
+        commanders:
+          addedZone === 'commander' ? slots.filter((slot) => slot.zone === 'commander') : current.commanders,
       }
     })
   }
@@ -618,12 +618,8 @@ export function DeckView({
         ...current,
         slots,
         coverage,
-        commander:
-          addedZone === 'commander'
-            ? nextNeed > 0
-              ? nextSlot
-              : null
-            : current.commander,
+        commanders:
+          addedZone === 'commander' ? slots.filter((slot) => slot.zone === 'commander') : current.commanders,
       }
     })
   }
@@ -1125,31 +1121,34 @@ export function DeckView({
           {/* Zone commandant : réservée au format Commander (demande
               produit) — ou à un commandant hérité d'avant un changement de
               format, pour ne jamais rendre ses cartes inaccessibles. */}
-          {(deck.format === 'commander' || deck.commander !== null) && deck.commander && (
+          {deck.commanders.length > 0 && (
             <>
-              {/* `{need}`, jamais `1` en dur : la
-                  zone commandant peut porter plus d'un exemplaire pour un
-                  commandant partenaire ou une carte empilée manuellement. */}
+              {/* Somme des `need`, jamais le nombre de lignes : une paire en
+                  partenariat compte deux, une carte empilée manuellement
+                  compte chacun de ses exemplaires. */}
               <div className="mb-10 ml-4 text-section-label font-semibold uppercase tracking-section-label text-text-2">
-                Commander · {deck.commander.need}
+                Commander · {counts.commander}
               </div>
               <div className="mb-18 flex flex-col gap-8">
-                <DeckCardRow
-                  thumbUrl={deck.commander.thumbUrl}
-                  name={deck.commander.name}
-                  manaCost={deck.commander.manaCost}
-                  setLine={deck.commander.setLine}
-                  setIconUri={deck.commander.setIconUri}
-                  qty={deck.commander.need}
-                  zone="commander"
-                  onZoneChange={(next) => void handleSlotZone(deck.commander!, next)}
-                  onRemove={() => void handleRemoveSlot(deck.commander!)}
-                  onOpen={() => setPreviewHoldingId(deck.commander!.holdingId)}
-                />
+                {deck.commanders.map((commander) => (
+                  <DeckCardRow
+                    key={commander.holdingId}
+                    thumbUrl={commander.thumbUrl}
+                    name={commander.name}
+                    manaCost={commander.manaCost}
+                    setLine={commander.setLine}
+                    setIconUri={commander.setIconUri}
+                    qty={commander.need}
+                    zone="commander"
+                    onZoneChange={(next) => void handleSlotZone(commander, next)}
+                    onRemove={() => void handleRemoveSlot(commander)}
+                    onOpen={() => setPreviewHoldingId(commander.holdingId)}
+                  />
+                ))}
               </div>
             </>
           )}
-          {deck.format === 'commander' && deck.commander === null && (
+          {deck.format === 'commander' && deck.commanders.length === 0 && (
             <>
               <div className="mb-10 ml-4 text-section-label font-semibold uppercase tracking-section-label text-text-2">
                 Commander
@@ -1323,7 +1322,7 @@ export function DeckView({
         containerId={deckId}
         initialLook={lookFromHeader(header)}
         target="deck"
-        commanderCardId={deck.commander?.cardId ?? null}
+        commanderCardId={leadCommander?.cardId ?? null}
         onSaved={(look, coverArtist) =>
           setHeader((current) => ({
             ...current,

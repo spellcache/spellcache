@@ -163,7 +163,7 @@ export interface AddHoldingOptions {
   // `updateHolding`, hors de toute transaction commune, laisserait sur un
   // échec entre les deux `zone = 'commander'` avec `is_commander = false`,
   // un état que ni `getDeck` ni `deck-view` ne savent surfacer, et que
-  // `hasCommanderHolding` (qui n'interroge que `zone`) rend indéfiniment
+  // `commanderSlotAvailable` (qui n'interroge que `zone`) rend indéfiniment
   // bloquant (`commander_full` sans commandant affiché). Utilisé par
   // `createDeckAction`/`addToDeckAction`. Optionnel, défaut `false` — même
   // valeur que le défaut de colonne (`packages/db/src/schema.ts`).

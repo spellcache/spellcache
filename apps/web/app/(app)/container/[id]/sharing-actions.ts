@@ -377,7 +377,7 @@ export async function importListAction(
             // `zone` et `is_commander` s'écrivent **ensemble**, jamais l'un
             // sans l'autre : une ligne `zone = 'commander'` avec
             // `is_commander = false` est un état que ni `getDeck` ni
-            // `deck-view` ne savent surfacer, et que `hasCommanderHolding` rend
+            // `deck-view` ne savent surfacer, et que `commanderSlotAvailable` rend
             // indéfiniment bloquant. Une section `Commander` d'une liste collée
             // doit donc produire un vrai commandant, pas une ligne de mainboard
             // déguisée.

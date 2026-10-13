@@ -4,14 +4,13 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   // `tsconfig.json` pose `"jsx": "preserve"` (le SWC de Next fait le vrai
   // transform, pas `tsc` — docs/development.md, aucun composant n'importe `React`).
-  // Esbuild (Vite) ne comprend pas cette valeur et retombe sur le runtime
-  // classique (`React.createElement`, exigeant un `React` global) : sans
-  // cette option, tout fichier `.test.tsx` qui rend un composant réel
-  // planterait avec `React is not defined` (`tests/unit/row-heights.test.tsx`,
+  // Oxc, le transformeur de Vite 8, ne transforme pas le JSX avec cette
+  // valeur : sans runtime automatique explicite, tout fichier `.test.tsx` qui
+  // rend un composant réel échoue à l'analyse (`tests/unit/row-heights.test.tsx`,
   // `tests/unit/mana-cost.test.tsx` — le rendu réel des composants remplace
   // ici un calcul de hauteur à la main).
-  esbuild: {
-    jsx: 'automatic',
+  oxc: {
+    jsx: { runtime: 'automatic' },
   },
   resolve: {
     // Reflète le path mapping `@/*` de tsconfig.json — les tests important

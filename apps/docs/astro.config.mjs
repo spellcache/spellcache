@@ -50,6 +50,7 @@ export default defineConfig({
         './src/styles/theme.css',
       ],
       components: { PageTitle: './src/components/PageTitle.astro' },
+      routeMiddleware: './src/route-data.ts',
       // Blocs de code toujours sombres, sur l'encre de l'app, dans les deux
       // thèmes.
       expressiveCode: {

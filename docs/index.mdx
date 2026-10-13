@@ -9,16 +9,16 @@ hero:
   tagline: A self-hosted, mobile-first app for inventory, binders, decks, prices and trades. Card data comes from a nightly local mirror of Scryfall.
   image:
     html: |
-      <div class="sc-terminal" aria-label="Installation commands">
+      <div class="sc-terminal" aria-label="Installation with the installer">
         <div class="bar"><i></i><i></i><i></i></div>
-        <pre><span class="p">$</span> git clone https://github.com/spellcache/spellcache.git
-      <span class="p">$</span> cp .env.example .env
-      <span class="p">$</span> docker compose -f docker-compose.example.yml up -d
-      <span class="d"> ✔ postgres  healthy
-       ✔ redis     healthy
-       ✔ web       healthy  127.0.0.1:3000</span>
-      <span class="p">$</span> docker compose … exec -T worker node apps/worker/src/index.ts --run-now
-      <span class="ok">[import] catalogue and prices imported</span></pre>
+        <pre><span class="p">$</span> curl -fsSL https://get.spellcache.com | sudo sh
+      <span class="d">==> Configuration</span>
+      Public URL of the app, with https://: https://spellcache.example.com
+      Email of the first administrator: you@example.com
+      Resend API key (sign-in emails): re_…
+      <span class="d">==> Starting the containers (the first start pulls the images)
+      ==> Queueing the card catalogue import</span>
+      <span class="ok">spellcache is running in /srv/spellcache.</span></pre>
       </div>
   actions:
     - text: Self-host it

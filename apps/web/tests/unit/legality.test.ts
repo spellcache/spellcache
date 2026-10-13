@@ -235,6 +235,14 @@ describe('lib/decks/legality — evaluateDeck', () => {
     expect(status.issues).toContainEqual({ kind: 'no_commander', count: 1 })
   })
 
+  it('reports a dismantled deck as dismantled rather than short or without format', () => {
+    for (const format of ['commander', null] as const) {
+      const status = evaluateDeck({ format, deckState: 'dismantled', cards: [], commander: null })
+
+      expect(status).toEqual({ kind: 'dismantled', label: 'Dismantled', issues: [] })
+    }
+  })
+
   it('flags a banned card using the catalogue legality field', () => {
     const cards: DeckEvaluationCard[] = [
       card({ cardId: 'commander', name: 'Krenko, Mob Boss', qty: 1, colorIdentity: ['R'] }),

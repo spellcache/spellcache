@@ -166,8 +166,9 @@ function toneOf(status: DeckStatus): Tone | null {
   if (status.kind === 'needsWork') return 'warn'
   if (status.kind === 'noFormat') return 'none'
   // `noRules` : aucun contrôle ne s'applique — le deck n'appartient à
-  // aucun panier de filtre, il ne se voit que sous `All`.
-  if (status.kind === 'noRules') return null
+  // aucun panier de filtre, il ne se voit que sous `All`. Même chose pour un
+  // deck démonté.
+  if (status.kind === 'noRules' || status.kind === 'dismantled') return null
   return 'ok'
 }
 

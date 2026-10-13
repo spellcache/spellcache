@@ -34,8 +34,9 @@ const TONES: Tone[] = ['warn', 'ok', 'none']
 function toneOf(deck: DeckSummary): Tone | null {
   if (deck.status.kind === 'needsWork') return 'warn'
   if (deck.status.kind === 'noFormat') return 'none'
-  // `noRules` : aucun panier de filtre — visible sous `All` seulement.
-  if (deck.status.kind === 'noRules') return null
+  // `noRules`, `dismantled` : aucun panier de filtre — visibles sous `All`
+  // seulement.
+  if (deck.status.kind === 'noRules' || deck.status.kind === 'dismantled') return null
   return 'ok'
 }
 

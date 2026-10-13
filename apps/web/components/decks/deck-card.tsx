@@ -14,7 +14,7 @@
 // La ligne de statut reprend telle quelle celle calculée par `evaluateDeck` :
 // aucune règle de légalité n'est écrite ici, et le seul import de logique de
 // deck de ce fichier est `lib/decks/legality` (pour son type).
-import { Check, CircleHelp, Layers3, TriangleAlert } from 'lucide-react'
+import { Archive, Check, CircleHelp, Layers3, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react'
 
@@ -69,14 +69,15 @@ function StatusLine({ status }: { status: DeckCardData['status'] }) {
     )
   }
 
-  if (status.kind === 'noFormat') {
+  if (status.kind === 'noFormat' || status.kind === 'dismantled') {
+    const Icon = status.kind === 'dismantled' ? Archive : CircleHelp
     // Couleur de statut neutre (l'étagère `Unsorted` utilise la même carte
     // que les autres, avec la couleur de statut neutre — pas un rendu
     // spécial) : c'est bien le statut du deck qui choisit cette teinte, jamais
     // l'étagère où il est rangé.
     return (
       <div className="mt-8 flex items-center gap-5 text-deck-card-status font-bold text-text-2">
-        <CircleHelp width={STATUS_ICON_SIZE} height={STATUS_ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+        <Icon width={STATUS_ICON_SIZE} height={STATUS_ICON_SIZE} strokeWidth={STROKE_WIDTH} />
         <span className="min-w-0 truncate">{label}</span>
       </div>
     )

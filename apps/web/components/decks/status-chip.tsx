@@ -11,7 +11,7 @@
 // `--color-status-warn-bg`/`--color-status-ok-bg` (app/globals.css) pour la
 // raison de ne pas reprendre tels quels les alphas du composant de statut
 // d'origine.
-import { Check, CircleHelp, TriangleAlert } from 'lucide-react'
+import { Archive, Check, CircleHelp, TriangleAlert } from 'lucide-react'
 
 import type { DeckStatus } from '@/lib/decks/legality'
 
@@ -31,10 +31,12 @@ export function StatusChip({ status }: { status: DeckStatus }) {
     )
   }
 
-  if (status.kind === 'noFormat') {
+  // Deck démonté : même habillage neutre que `noFormat`, rien à corriger.
+  if (status.kind === 'noFormat' || status.kind === 'dismantled') {
+    const Icon = status.kind === 'dismantled' ? Archive : CircleHelp
     return (
       <span className="flex items-center gap-6 rounded-pill bg-surface-2 px-9 py-5 text-deck-status font-bold text-text-2">
-        <CircleHelp width={ICON_SIZE} height={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
+        <Icon width={ICON_SIZE} height={ICON_SIZE} strokeWidth={STROKE_WIDTH} />
         {status.label}
       </span>
     )

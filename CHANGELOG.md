@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/spellcache/spellcache/compare/v0.3.1...v0.4.0) (2026-10-13)
+
+
+### Features
+
+* add a one-command installer ([#45](https://github.com/spellcache/spellcache/issues/45)) ([68fd53f](https://github.com/spellcache/spellcache/commit/68fd53f296a739b5df641271cfe4c4d2a62a3e4a))
+* **android:** add a card scanner with batch review ([#42](https://github.com/spellcache/spellcache/issues/42)) ([5345ab5](https://github.com/spellcache/spellcache/commit/5345ab55a661993fc8120eff304f98c6c3744755))
+
 ## [0.3.1](https://github.com/spellcache/spellcache/compare/v0.3.0...v0.3.1) (2026-10-11)
 
 

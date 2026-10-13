@@ -32,20 +32,49 @@ any proxy can sit in front of it (nginx, Traefik, Caddy, Cloudflare Tunnel…).
 | Email | A [Resend](https://resend.com) account with a verified sending domain (see section 3) |
 
 ```bash
-sudo apt update && sudo apt install -y postgresql-client-17 openssl git
+sudo apt update && sudo apt install -y postgresql-client-17 openssl curl
 ```
 
 ## 2. Installation
 
-### 2.1 Get the files
+### Quick install
 
-The repository holds the Compose file and the backup scripts:
+The installer downloads the files of the latest release into `/srv/spellcache`
+(no clone, no build), asks for the public URL, the administrator's email and
+the Resend key, generates the secrets, starts the containers and queues the
+catalogue import:
 
 ```bash
-sudo mkdir -p /srv && cd /srv
-sudo git clone https://github.com/spellcache/spellcache.git
-cd /srv/spellcache
+curl -fsSL https://get.spellcache.com | sudo sh
 ```
+
+Read it first if you prefer: [`install.sh`](../install.sh). To install
+elsewhere or pick a version, pass the variables after `sudo`
+(`… | sudo SPELLCACHE_DIR=/opt/spellcache SPELLCACHE_VERSION=1.2.3 sh`). Run the
+same command again later to update (section 5).
+
+It covers sections 2.1 to 2.4. Then put your reverse proxy in front of
+`127.0.0.1:3000` (section 4), create the first account (section 2.5) and set
+up the scheduled tasks (section 2.6). The rest of this guide applies as is: the
+files keep their place in the repository.
+
+The sections below do the same by hand.
+
+### 2.1 Get the files
+
+Download them from the latest release, keeping their paths:
+
+```bash
+sudo mkdir -p /srv/spellcache/deploy && cd /srv/spellcache
+TAG=$(curl -fsSL https://api.github.com/repos/spellcache/spellcache/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+for f in docker-compose.example.yml .env.example deploy/backup.sh deploy/restore.sh deploy/cron.md; do
+  sudo curl -fsSL "https://raw.githubusercontent.com/spellcache/spellcache/$TAG/$f" -o "$f"
+done
+sudo chmod +x deploy/*.sh
+```
+
+Or clone the repository (`git clone https://github.com/spellcache/spellcache.git
+/srv/spellcache`).
 
 ### 2.2 Configure
 
@@ -175,13 +204,25 @@ Do not add basic auth or an access filter in front of the whole site.
 
 ## 5. Updating
 
+With the installer, run it again: it downloads the files of the new release,
+sets `SPELLCACHE_VERSION` in `.env` and restarts the containers, without
+touching the rest of `.env`.
+
+```bash
+curl -fsSL https://get.spellcache.com | sudo sh
+```
+
+By hand:
+
 ```bash
 cd /srv/spellcache
-git pull                                                     # Compose file and scripts
+git pull                                                     # or download the files again (section 2.1)
 docker compose -f docker-compose.example.yml pull            # new images
 docker compose -f docker-compose.example.yml up -d
 docker image prune -f
 ```
+
+With a version pinned in `.env`, change `SPELLCACHE_VERSION` before `pull`.
 
 `web` restarts, applies pending migrations, then serves traffic again — a few
 seconds of downtime. The thumbnail cache (`thumbnails` volume) is kept.

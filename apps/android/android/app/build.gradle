@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 // Version de l'app = version de la release, mise à jour par release-please.
 // Le `versionCode` Android (entier croissant) en est dérivé :
 // 1.2.3 -> 10203 (mineure et patch < 100).
-def appVersionName = "0.3.1" // x-release-please-version
+def appVersionName = "0.4.0" // x-release-please-version
 def (versionMajor, versionMinor, versionPatch) = appVersionName.tokenize('.').collect { it.toInteger() }
 
 // Signature de release fournie par l'environnement (CI) ; sans elle,
@@ -65,6 +65,16 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Scanner de cartes : caméra et reconnaissance de texte sur l'appareil.
+    // Modèle embarqué dans l'APK (pas celui des services Google Play) : le
+    // scanner fonctionne aussi sans eux, et aucune image ne quitte le
+    // téléphone.
+    implementation "androidx.camera:camera-camera2:$cameraxVersion"
+    implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
+    implementation "androidx.camera:camera-view:$cameraxVersion"
+    implementation "com.google.mlkit:text-recognition:$mlkitTextRecognitionVersion"
+    // Icônes de set de Scryfall (SVG), affichées à côté du code du set.
+    implementation "com.caverock:androidsvg-aar:$androidSvgVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

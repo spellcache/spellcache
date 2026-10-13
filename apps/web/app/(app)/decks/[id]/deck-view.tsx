@@ -18,6 +18,7 @@ import {
   CircleHelp,
   ClipboardList,
   Copy,
+  Archive,
   Ellipsis,
   FlaskConical,
   FolderInput,
@@ -690,6 +691,22 @@ export function DeckView({
     </>
   )
 
+  // Un deck démonté a rendu ses cartes à la collection : sans ce bandeau,
+  // la liste vide et l'absence de `Add cards`/`Assemble` ne disent pas
+  // pourquoi.
+  const dismantledNotice = deck.deckState === 'dismantled' && (
+    <div className="mb-14 flex items-center gap-12 rounded-card border border-border bg-surface-1 p-13">
+      <Archive width={19} height={19} strokeWidth={1.75} className="flex-shrink-0 text-text-2" />
+      <div className="min-w-0 flex-1">
+        <div className="text-card-name-compact font-bold text-text">Dismantled</div>
+        <div className="mt-2 text-value-caption leading-normal text-text-2">
+          Its cards went back to your collection.
+          {canEdit && ' Restart it to plan it again from the same list.'}
+        </div>
+      </div>
+    </div>
+  )
+
   const deckTitleBlock = (
     <>
       {deckHeading}
@@ -839,6 +856,7 @@ export function DeckView({
               {/* Statut du deck, toujours présent sur cet onglet : légal,
                   sans format à valider, ou fautif — les deux bandeaux plus
                   bas portent ce dernier cas, avec ce qu'il faut corriger. */}
+              {dismantledNotice}
               {deck.status.kind === 'noFormat' && (
                 <div className="mb-10 flex items-center gap-12 rounded-card border border-border bg-surface-1 p-13">
                   <CircleHelp
@@ -1099,6 +1117,7 @@ export function DeckView({
 
           {tab === 'list' && (
             <>
+          {dismantledNotice}
           {/* Zone commandant : réservée au format Commander (demande
               produit) — ou à un commandant hérité d'avant un changement de
               format, pour ne jamais rendre ses cartes inaccessibles. */}
@@ -1237,7 +1256,18 @@ export function DeckView({
             (bandeau ci-dessus) ou `Move back to Assemble` (menu `···`). Un
             deck `dismantled` n'a plus de holdings du tout (démonté vers un
             binder) : rien à ajouter tant qu'il n'est pas relancé (`Restart`,
-            menu `···`) non plus. */}
+            menu `···`, ou bouton ci-dessous) non plus. */}
+        {canEdit && deck.deckState === 'dismantled' && tab === 'list' && (
+          <div className="z-20 flex flex-shrink-0 gap-8 border-t border-surface-2 bg-surface-3 px-12 py-10">
+            <button
+              type="button"
+              onClick={() => setRestartConfirmOpen(true)}
+              className="flex flex-1 items-center justify-center rounded-control bg-accent py-13 text-body font-extrabold text-on-accent"
+            >
+              Restart
+            </button>
+          </div>
+        )}
         {canEdit && (deck.deckState === 'plan' || deck.deckState === 'assemble') && tab === 'list' && (
           // Dans le FLUX de la colonne, sous la zone de defilement (demande
           // produit) : la barre fermait l ecran en position fixed et la scrollbar

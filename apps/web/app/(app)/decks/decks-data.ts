@@ -236,9 +236,10 @@ export async function listDecks(
     })
 
     if (isLegalBucket(status.kind)) legal += 1
-    // `noRules` (format posé mais sans règles — tout sauf Commander) ne
-    // compte dans aucun des deux paniers : visible sous `All` seulement.
-    else if (status.kind !== 'noRules') needsWork += 1
+    // `noRules` (format posé mais sans règles — tout sauf Commander) et
+    // `dismantled` ne comptent dans aucun des deux paniers : visibles sous
+    // `All` seulement.
+    else if (status.kind !== 'noRules' && status.kind !== 'dismantled') needsWork += 1
 
     decks.push({
       id: row.id,

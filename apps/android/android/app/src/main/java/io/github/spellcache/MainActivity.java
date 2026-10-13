@@ -1,11 +1,15 @@
 package io.github.spellcache;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -16,6 +20,8 @@ import java.util.Locale;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
+
+import io.github.spellcache.scanner.ScannerActivity;
 
 public class MainActivity extends BridgeActivity {
 
@@ -50,6 +56,14 @@ public class MainActivity extends BridgeActivity {
         "  return typeof window.__spellcacheBack === 'function' && window.__spellcacheBack() === true;" +
         "})()";
 
+    // Cartes rendues par le scanner à l'écran qui l'a ouvert
+    // (`app/(app)/tools/scanner/scanner-view.tsx`). Le JSON vient de
+    // `ScannerActivity` : identifiants, quantités et langues seulement.
+    private static final String SCANNED_JS =
+        "(function () {" +
+        "  return typeof window.__spellcacheScanned === 'function' && window.__spellcacheScanned({ cards: %s }) === true;" +
+        "})()";
+
     // Garde-fou : instance lente ou injoignable, l'écran local prend le relais.
     private static final long SPLASH_TIMEOUT_MS = 10_000;
 
@@ -61,12 +75,16 @@ public class MainActivity extends BridgeActivity {
     // l'instance, ou jusqu'à ce que l'écran local affiche son formulaire.
     private volatile boolean keepSplash = true;
 
+    private final ActivityResultLauncher<Intent> scanner = registerForActivityResult(
+        new ActivityResultContracts.StartActivityForResult(), this::onScannerResult);
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         SplashScreen.installSplashScreen(this).setKeepOnScreenCondition(() -> keepSplash);
         new Handler(Looper.getMainLooper()).postDelayed(this::hideSplash, SPLASH_TIMEOUT_MS);
 
         registerPlugin(ServerPlugin.class);
+        registerPlugin(ScannerPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Retour : l'instance referme d'abord sa feuille, sa visionneuse ou sa
@@ -110,6 +128,22 @@ public class MainActivity extends BridgeActivity {
 
     void hideSplash() {
         keepSplash = false;
+    }
+
+    // Seulement depuis une page de l'instance enregistrée : c'est elle qui
+    // reçoit les cartes et à qui le scanner envoie le texte lu.
+    void openScanner() {
+        String origin = ServerPlugin.savedOrigin(this);
+        String url = getBridge().getWebView().getUrl();
+        if (origin == null || url == null || !url.startsWith(origin + "/")) return;
+        scanner.launch(ScannerActivity.intent(this, origin));
+    }
+
+    private void onScannerResult(ActivityResult result) {
+        Intent data = result.getData();
+        String cards = data == null ? null : data.getStringExtra(ScannerActivity.EXTRA_CARDS);
+        if (cards == null) return;
+        getBridge().getWebView().evaluateJavascript(String.format(Locale.US, SCANNED_JS, cards), null);
     }
 
     private void goBackInWebView() {

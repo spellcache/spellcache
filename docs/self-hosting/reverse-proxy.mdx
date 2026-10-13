@@ -1,0 +1,84 @@
+---
+title: Reverse proxy
+description: Put HTTPS in front of spellcache with nginx, Caddy or Cloudflare Tunnel.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components'
+
+`web` listens on `127.0.0.1:3000` on the host (`WEB_BIND` / `WEB_PORT` in
+`.env` to change it). Put the reverse proxy of your choice in front of it.
+
+## What the proxy must do
+
+- terminate HTTPS for your domain, ideally with HSTS
+  (`Strict-Transport-Security`);
+- forward the original `Host` header;
+- set `X-Forwarded-For` to the **client** IP. Sign-in rate limits are per IP,
+  so a proxy that sends its own IP for everyone makes all users share one limit.
+  spellcache reads the last entry of the header, the one your proxy writes:
+  replace the header (as below) rather than append to a value the client sent;
+- not cache HTML responses.
+
+`AUTH_URL` must be the public HTTPS URL users type in their browser.
+
+## Examples
+
+<Tabs syncKey="proxy">
+  <TabItem label="nginx">
+    ```nginx
+    server {
+        listen 443 ssl http2;
+        server_name spellcache.example.com;
+        # ssl_certificate / ssl_certificate_key …
+
+        location / {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Caddy">
+    Caddy obtains and renews the certificate by itself.
+
+    ```txt title="Caddyfile"
+    spellcache.example.com {
+        reverse_proxy 127.0.0.1:3000 {
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+    ```
+
+    `header_up` replaces the header with the address of the connecting client
+    instead of appending to it.
+  </TabItem>
+  <TabItem label="Cloudflare Tunnel">
+    `cloudflared` opens an outbound tunnel: no port to open on the server, and
+    Cloudflare terminates HTTPS.
+
+    ```yaml
+    # /etc/cloudflared/config.yml
+    tunnel: <tunnel-id>
+    credentials-file: /etc/cloudflared/<tunnel-id>.json
+    ingress:
+      - hostname: spellcache.example.com
+        service: http://127.0.0.1:3000
+      - service: http_status:404
+    ```
+
+    Cloudflare appends the client IP to `X-Forwarded-For`, so with the tunnel
+    connecting straight to `web` the last entry is the right one. If a second proxy sits
+    between the tunnel and `web`, that proxy must pass the client IP on, for
+    example from the `CF-Connecting-IP` header.
+  </TabItem>
+</Tabs>
+
+## Public share pages
+
+:::danger
+Do not put basic auth or an access filter in front of the whole site. The
+public share pages (`/s/<id>`) must stay readable without an account:
+Scryfall's terms forbid putting card data behind authentication or a paywall.
+:::

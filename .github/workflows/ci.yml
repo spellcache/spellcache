@@ -63,6 +63,39 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  installer:
+    name: Installer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: shellcheck -s sh install.sh
+      # Installation complète sous dash (le sh de Debian et Ubuntu), avec un
+      # `docker` factice : vérifie les téléchargements de la dernière release
+      # et le .env produit, sans démarrer de conteneur.
+      - name: Install with a stubbed docker
+        env:
+          SPELLCACHE_DIR: ${{ runner.temp }}/spellcache
+          SPELLCACHE_URL: spellcache.example.com
+          SPELLCACHE_ADMIN_EMAIL: admin@example.com
+          RESEND_API_KEY: re_test
+          RESEND_FROM_EMAIL: spellcache <signin@example.com>
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '#!/bin/sh\nexit 0\n' > "$RUNNER_TEMP/bin/docker"
+          chmod +x "$RUNNER_TEMP/bin/docker"
+          # Version passée explicitement : l'API GitHub non authentifiée que le
+          # script interroge sinon est limitée par IP, partagée entre runners.
+          export SPELLCACHE_VERSION="$(gh release view --json tagName -q .tagName)"
+          PATH="$RUNNER_TEMP/bin:$PATH" dash install.sh < /dev/null
+          cd "$SPELLCACHE_DIR"
+          test "$(stat -c %a .env)" = 600
+          grep -qx 'AUTH_URL=https://spellcache.example.com' .env
+          grep -qx 'ADMIN_EMAIL=admin@example.com' .env
+          grep -Eq '^AUTH_SECRET=.{40,}$' .env
+          grep -Eq '^REDIS_PASSWORD=[0-9a-f]{48}$' .env
+          test -x deploy/backup.sh
+
   docker:
     name: Docker image (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -123,7 +156,7 @@ jobs:
           cache: gradle
       - run: pnpm install --frozen-lockfile --filter @spellcache/android
       - run: pnpm --filter @spellcache/android sync
-      - run: ./gradlew assembleDebug --no-daemon
+      - run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
         working-directory: apps/android/android
 
   e2e:

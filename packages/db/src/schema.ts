@@ -89,6 +89,10 @@ export const cards = pgTable(
     // `oracle_id` (`apps/web/lib/decks/availability.ts`), une fois par ligne
     // de deck ou de collection affichée.
     index('cards_oracle_id_idx').on(table.oracleId),
+    // Le scanner retrouve l'impression exacte par le code de set et le
+    // numéro de collection imprimés en bas de la carte, une lecture par
+    // carte scannée (`apps/web/lib/scanner/lookup.ts`).
+    index('cards_set_collector_number_idx').on(table.setCode, table.collectorNumber),
   ],
 )
 
@@ -179,6 +183,13 @@ export const users = pgTable('users', {
   // contrepartie d'un échange entre deux comptes — un compte qui ne l'a pas
   // activé n'apparaît dans aucune recherche de contrepartie.
   toolTradingMode: boolean('tool_trading_mode').notNull().default(false),
+  // Scanner de cartes : l'écran de revue s'affiche partout, la caméra ne
+  // s'ouvre que dans l'app Android.
+  toolCardScanner: boolean('tool_card_scanner').notNull().default(false),
+  // Réglages du scanner de l'app Android (mode, cadre, caméra, mise au
+  // point, flash), sur le compte comme toute préférence : rien à refaire
+  // après une réinstallation. Forme validée par `apps/web/lib/scanner/settings.ts`.
+  scannerSettings: jsonb('scanner_settings').$type<Record<string, unknown>>().notNull().default({}),
   // État replié/déplié de l'arbre de la barre latérale desktop : il survit à
   // une reconnexion. Une préférence de compte comme les autres — jamais
   // `localStorage` (docs/development.md). Porte les nœuds **repliés**, pas les

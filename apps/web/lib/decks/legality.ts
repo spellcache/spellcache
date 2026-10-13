@@ -85,8 +85,10 @@ export interface DeckStatus {
   // l'app n'a de règles QUE pour Commander — les autres formats sont un
   // simple libellé, sans zone commandant, sans contrôle de légalité, sans
   // puce de statut. Ils ne comptent ni sous `Legal` ni sous
-  // `Needs attention` : seulement sous `All`.
-  kind: 'built' | 'legal' | 'needsWork' | 'noFormat' | 'noRules'
+  // `Needs attention` : seulement sous `All`. `dismantled` : le deck a rendu
+  // ses cartes à la collection ; sa légalité n'a plus de sens tant qu'il
+  // n'est pas relancé, il ne compte lui aussi que sous `All`.
+  kind: 'built' | 'legal' | 'needsWork' | 'noFormat' | 'noRules' | 'dismantled'
   label: string // "Legal for Commander" | "36 short · 2 duplicates" | "No format set"
   issues: LegalityIssue[]
 }
@@ -209,6 +211,12 @@ function groupByCard(cards: DeckEvaluationCard[]): { totals: Map<string, CardTot
 }
 
 export function evaluateDeck(input: EvaluateDeckInput): DeckStatus {
+  // Avant le format : un deck démonté n'a plus de cartes, le dire « 100
+  // short » ou « No format set » cacherait la seule chose à savoir.
+  if (input.deckState === 'dismantled') {
+    return { kind: 'dismantled', label: 'Dismantled', issues: [] }
+  }
+
   if (!input.format) {
     return { kind: 'noFormat', label: 'No format set', issues: [] }
   }

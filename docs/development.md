@@ -1,9 +1,13 @@
-# Developing spellcache
+---
+title: Development
+description: Local setup, commands, monorepo layout, conventions and architecture decisions.
+---
 
 Local setup, commands, monorepo layout, conventions and architecture decisions.
 Code comments refer to this file (`docs/development.md`, mostly its
 conventions and anti-patterns). For the pull request workflow, see the organisation's
-`CONTRIBUTING.md`.
+`CONTRIBUTING.md`. For an overview of how the pieces fit together, see
+[Architecture](../contributing/architecture/).
 
 ## Stack
 
@@ -70,6 +74,7 @@ after the other: they share that database.
 │   ├── android/            # @spellcache/android — Capacitor shell for Android
 │   │   ├── www/            # server selection screen (plain HTML/JS, no build)
 │   │   └── android/        # Android Studio project (Gradle)
+│   ├── docs/               # @spellcache/docs — Starlight site that publishes docs/
 │   ├── web/                # @spellcache/web — Next.js app
 │   │   ├── app/            # App Router: routes, layouts, Server Actions
 │   │   ├── components/     # ui/ primitives + cards/, decks/, collection/, …
@@ -87,7 +92,7 @@ after the other: they share that database.
 │                           #   shared test database setup (testing/)
 ├── deploy/                 # backup/restore scripts, migrator, container entrypoint
 ├── design/assets/icon/     # app icon sources
-├── docs/                   # self-hosting.md, development.md
+├── docs/                   # documentation sources (Markdown), published by apps/docs
 ├── docker-compose.yml      # development
 └── docker-compose.example.yml  # self-hosting (GHCR images)
 ```
@@ -101,6 +106,31 @@ Rules of the layout:
   them (`transpilePackages`), Node runs them directly in the worker. Their
   internal relative imports carry the `.ts` extension, and they never use the
   `@/` alias (it only exists in `apps/web`).
+
+## Documentation site
+
+The pages live in `docs/` as Markdown, readable on GitHub. `apps/docs` is a
+[Starlight](https://starlight.astro.build) project that publishes them to
+GitHub Pages; it holds no content of its own.
+
+```bash
+pnpm docs:dev       # http://localhost:4321/spellcache/
+pnpm docs:build     # static site in apps/docs/dist/
+```
+
+- Every page starts with a front matter holding at least `title` (the page
+  heading: no `#` title in the body) and `description`.
+- A new page is added to the `sidebar` of `apps/docs/astro.config.mjs`.
+- Links between pages are relative to the published URL, with a trailing
+  slash: from `docs/guide/decks.md`, `../trading/` or
+  `../../self-hosting/backup/`.
+- Use `.mdx` only for Starlight components (tabs, cards). Asides use the
+  `:::note`, `:::tip`, `:::caution` and `:::danger` syntax.
+- [Configuration](../reference/configuration/) is built from
+  `.env.example` and [Changelog](../reference/changelog/) includes
+  `CHANGELOG.md`: edit those files, not the pages.
+- The `Docs` workflow builds the site on every pull request that touches it
+  and deploys it when `main` changes.
 
 ## Android app
 
@@ -117,6 +147,20 @@ so the Android app follows the server's version.
 - **Back button**: walks the WebView history. From the instance's first page it
   returns to the server screen (to change server); from there it leaves the
   app.
+- **Card scanner**: `/tools/scanner` (Settings › Tools › Card scanner) is the
+  review screen; its `Scan cards` button navigates to `spellcache://scanner`,
+  which `ScannerPlugin` intercepts to open `ScannerActivity` (CameraX + ML Kit
+  text recognition, bundled model, no Google Play services needed). Each stable
+  reading (set code, collector number and language at the bottom left, the top
+  lines as name candidates) is looked up with the WebView's session cookie
+  (`GET /api/scanner/lookup`); only that text leaves the phone. On close,
+  `MainActivity` hands the scanned cards to the page
+  (`window.__spellcacheScanned`), which keeps them in `sessionStorage` until
+  they are added in one write. The page shows the button only when the user
+  agent carries `SpellcacheScanner` (an app built with the scanner).
+  The sound of a counted card is `pluck_001` from Kenney's
+  [Interface Sounds](https://kenney.nl/assets/interface-sounds) (CC0), in
+  `app/src/main/res/raw/scanner_pluck.ogg`.
 - **Sign-in**: the emailed link opens in the browser, not in the app. In the
   app, sign in with the code from the same email.
 - **Requirements on the server**: HTTPS with a certificate Android trusts.
@@ -232,8 +276,9 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
   point to a collection, never to a `user_id`.
 - **Preferences are stored on the account** (`users` table), not in the
   browser, so mobile and desktop agree. Only the state of a running table
-  tool game is local: `lifeGame` in `localStorage`, the running playtest in
-  `sessionStorage` (it survives a reload, not a new tab).
+  tool game is local: `lifeGame` in `localStorage`, the running playtest and
+  the cards scanned but not yet added in `sessionStorage` (they survive a
+  reload, not a new tab).
 - **`users.price_source` is the single source of truth** for currency and
   market (`tcgplayer_usd` ⇒ $, `cardmarket_eur` ⇒ €). Both Settings rows edit
   that one value; the app has no currency conversion.
@@ -270,7 +315,7 @@ base64 -w0 spellcache-release.jks         # value of ANDROID_KEYSTORE_BASE64
 - Do NOT add password authentication or an external OAuth provider.
 - Do NOT use variable row heights in a virtualised list.
 - Do NOT invent new visual language: features marked `Planned` or `Soon` in
-  Settings (Card scanner, AI assistant) stay greyed-out rows with
+  Settings (AI assistant) stay greyed-out rows with
   no screen, and a new screen is built from existing components and tokens.
   Discuss any visual novelty in an issue first.
 - Do NOT cache user data offline: the app is always online; offline use is not

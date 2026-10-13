@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.example.yml up -d
 #
 # Les images viennent de GHCR, publiées à chaque release
-# (`SPELLCACHE_VERSION`, `latest` par défaut). Voir docs/self-hosting.md.
+# (`SPELLCACHE_VERSION`, `latest` par défaut). Voir docs/self-hosting/installation.md.
 #
 # L'interpolation `${...}` ci-dessous lit le fichier `.env` du répertoire du
 # projet. Aucune valeur réelle n'existe dans le dépôt.
@@ -74,7 +74,8 @@ services:
       # Boucle locale du VPS uniquement, jamais `0.0.0.0` : c'est par là que
       # `deploy/backup.sh` et `deploy/restore.sh` joignent la base depuis
       # l'hôte (ils ont besoin d'openssl et de la clé SSH de l'hôte, ils ne
-      # peuvent donc pas tourner dans un conteneur). Voir deploy/cron.md.
+      # peuvent donc pas tourner dans un conteneur). Voir
+      # docs/self-hosting/scheduled-tasks.md.
       - '127.0.0.1:5432:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']

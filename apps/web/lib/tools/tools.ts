@@ -18,6 +18,7 @@ export const TOOL_PREFERENCE = {
   life_tracker: 'toolLifeTracker',
   playtest: 'toolPlaytest',
   trading_mode: 'toolTradingMode',
+  card_scanner: 'toolCardScanner',
 } as const
 
 export type ShippedToolKey = keyof typeof TOOL_PREFERENCE
@@ -30,7 +31,12 @@ const SHIPPED_TOOL_KEYS = Object.keys(TOOL_PREFERENCE) as ShippedToolKey[]
 // Aucun outil actif — l'état d'une session absente ou d'un compte dont
 // l'onboarding n'est pas terminé (le shell est monté avant `requireSession`
 // sur `/onboarding/username`).
-export const NO_TOOLS: ToolFlags = { life_tracker: false, playtest: false, trading_mode: false }
+export const NO_TOOLS: ToolFlags = {
+  life_tracker: false,
+  playtest: false,
+  trading_mode: false,
+  card_scanner: false,
+}
 
 // Les apps font partie de l'application, il n'y a ni store ni greffons.
 export function anyToolEnabled(tools: ToolFlags): boolean {
@@ -100,7 +106,8 @@ export const TOOLS: ToolCatalogEntry[] = [
     key: 'card_scanner',
     name: 'Card scanner',
     Icon: ScanLine,
-    state: 'planned',
+    path: '/tools/scanner',
+    state: 'shipped',
     description: 'A simple yet useful card scanner to scan and add cards to your collection',
   },
   {

@@ -203,6 +203,45 @@ export async function addHolding(
   })
 }
 
+export interface AddHoldingsEntry {
+  cardId: string
+  finish: Finish
+  condition: Condition
+  language: string
+  qty: number
+}
+
+// Plusieurs cartes dans un même container, en une transaction et un seul
+// recalcul de `container_stats` (cartes scannées) : un échec n'en ajoute
+// aucune. Deux entrées de même clé s'additionnent, comme deux `addHolding`.
+export async function addHoldings(
+  userId: string,
+  containerId: string,
+  entries: AddHoldingsEntry[],
+): Promise<{ added: number }> {
+  await requireContainerAccess(userId, containerId, 'write')
+  await assertNotDeckLocked(db, containerId)
+
+  return db.transaction(async (tx) => {
+    let added = 0
+    for (const { qty, ...rest } of entries) {
+      const key: HoldingKey = { containerId, ...rest }
+      const [existing] = await tx.select().from(holdings).where(matchKey(key)).for('update').limit(1)
+      if (existing) {
+        await tx
+          .update(holdings)
+          .set({ qty: existing.qty + qty })
+          .where(eq(holdings.id, existing.id))
+      } else {
+        await tx.insert(holdings).values({ ...key, zone: DEFAULT_ZONE, qty })
+      }
+      added += qty
+    }
+    await recomputeContainerStats(containerId, tx)
+    return { added }
+  })
+}
+
 export async function setHoldingQuantity(
   userId: string,
   holdingId: string,

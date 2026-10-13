@@ -25,6 +25,11 @@
 
         </activity>
 
+        <activity
+            android:name=".scanner.ScannerActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.Scanner" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -39,4 +44,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Le scanner est un outil parmi d'autres : l'app s'installe aussi sans caméra. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 </manifest>

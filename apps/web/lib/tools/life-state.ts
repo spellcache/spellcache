@@ -74,20 +74,61 @@ export function seatTint(seat: number): string {
   return SEAT_TINTS[seat % SEAT_TINTS.length]!
 }
 
-// Libellés de siège de la surbrillance bloquante — indexés par siège, pas par position dans la
-// grille : le repli générique couvre un septième joueur hypothétique que
-// `PLAYER_COUNTS` n'offre pas aujourd'hui, sans borner ce tableau à six.
-const SEAT_NAMES = [
-  'Bottom-left seat',
-  'Bottom-right seat',
-  'Top-left seat',
-  'Top-right seat',
-  'Left seat',
-  'Right seat',
-] as const
+// Libellé de siège du voile « {siège} starts », déduit de la place du pavé
+// dans la grille (`seatRows`) et non de l'index : les premiers index sont la
+// rangée du haut. Une liste indexée annonçait « Top-left » pour le pavé du
+// bas à gauche. Gauche et droite se lisent depuis le bas de l'écran, côté où
+// le voile s'affiche à l'endroit.
+const COLUMN_NAMES: Record<number, readonly string[]> = {
+  1: [''],
+  2: ['left', 'right'],
+  3: ['left', 'middle', 'right'],
+}
 
-export function seatName(seat: number): string {
-  return SEAT_NAMES[seat] ?? `Seat ${seat + 1}`
+export function seatName(seat: number, players: number): string {
+  const rows = seatRows(players)
+  const top = rows.top.indexOf(seat)
+  const row = top >= 0 ? rows.top : rows.bottom
+  const column = top >= 0 ? top : rows.bottom.indexOf(seat)
+  const columnName = COLUMN_NAMES[row.length]?.[column]
+  if (column < 0 || columnName === undefined) return `Seat ${seat + 1}`
+  const rowName = top >= 0 ? 'Top' : 'Bottom'
+  return columnName ? `${rowName}-${columnName} seat` : `${rowName} seat`
+}
+
+// Ordre de passage de la surbrillance pendant le tirage : le tour de la table
+// dans le sens des aiguilles d'une montre (rangée du haut de gauche à droite,
+// rangée du bas de droite à gauche), pour que la lumière tourne au lieu de
+// sauter d'un coin à l'autre.
+export function seatsAroundTable(players: number): number[] {
+  const rows = seatRows(players)
+  return [...rows.top, ...[...rows.bottom].reverse()]
+}
+
+export interface RollStep {
+  seat: number
+  // Durée pendant laquelle ce siège reste allumé avant le suivant.
+  holdMs: number
+}
+
+const ROLL_LAPS = 2
+const ROLL_FIRST_HOLD_MS = 70
+const ROLL_LAST_HOLD_MS = 420
+
+// Animation du tirage : deux tours de table au moins, qui ralentissent
+// jusqu'au siège tiré. Le résultat est décidé avant (`lifeReducer`) ; la
+// séquence ne fait que le mettre en scène, elle ne tire rien elle-même.
+export function rollSequence(players: number, winner: number): RollStep[] {
+  const order = seatsAroundTable(players)
+  const landing = order.indexOf(winner)
+  if (landing < 0) return [{ seat: winner, holdMs: ROLL_LAST_HOLD_MS }]
+  const count = ROLL_LAPS * order.length + landing + 1
+  return Array.from({ length: count }, (_, step) => {
+    // Ralentissement quadratique : rapide au départ, il s'étire sur la fin.
+    const progress = count === 1 ? 1 : step / (count - 1)
+    const holdMs = Math.round(ROLL_FIRST_HOLD_MS + (ROLL_LAST_HOLD_MS - ROLL_FIRST_HOLD_MS) * progress * progress)
+    return { seat: order[step % order.length]!, holdMs }
+  })
 }
 
 // Orientation de la grille (la grille suit le nombre de joueurs, les pavés du

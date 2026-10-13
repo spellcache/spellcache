@@ -5,20 +5,29 @@
 // plein écran, orientation, barre de partie et surbrillance bloquante. Le
 // tirage se fait au lancement de la partie (réglage `Roll for first player`
 // du setup) et sur le bouton `Roll` dédié de la barre — `Reset` ne tire
-// jamais.
+// jamais. Avant l'annonce, une lumière fait le tour des pavés et ralentit
+// jusqu'au siège tiré (`rollSequence`), pour que la table voie qui commence.
 //
 // `fixed inset-0` : l'écran de partie masque la navigation et ne doit pas
 // hériter de la réserve de 96px du shell. La réserve reste posée une seule fois, sur
 // le `<main>` de `app/(app)/app-shell.tsx` ; ce panneau passe par-dessus au
 // lieu de la combattre.
-import { Dices, RotateCcw, Users, X, type LucideIcon } from 'lucide-react'
+import { Crown, Dices, RotateCcw, Users, X, type LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { binderBackdropGradient } from '@/lib/binders/gradients'
 import { LifePad } from '@/components/tools/life-pad'
-import { lifeReducer, seatName, seatRows, seatTint, type LifeGame } from '@/lib/tools/life-state'
+import {
+  lifeReducer,
+  rollSequence,
+  seatName,
+  seatRows,
+  seatTint,
+  type LifeGame,
+  type RollStep,
+} from '@/lib/tools/life-state'
 
 const ICON_STROKE = 1.75
+const CROWN_STROKE = 1.8
 
 // Wake Lock : détection à l'exécution plutôt qu'une déclaration de type
 // optimiste — la partie doit démarrer sur un navigateur qui n'a pas l'API, et
@@ -42,25 +51,30 @@ function screenWakeLock(): WakeLockLike | null {
 // Voile bloquant qui annonce le premier joueur : la partie reste gelée tant
 // que personne n'a tapé `Play`, il n'y a donc ni minuteur ni écoute
 // `pointerdown` en capture à désarmer.
-function FirstPlayerOverlay({
+export function FirstPlayerOverlay({
   seat,
+  players,
   onRollAgain,
   onPlay,
 }: {
   seat: number
+  players: number
   onRollAgain: () => void
   onPlay: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-20 bg-first-player-veil p-24 scheme-dark">
+      {/* La tuile prend la teinte du siège tiré, celle du pavé que la
+          lumière vient d'allumer : aucun numéro de siège n'est affiché sur la
+          table, un chiffre ne désignait personne. */}
       <div
-        className="flex h-first-player-tile w-first-player-tile items-center justify-center rounded-first-player-tile font-mono text-first-player-seat font-extrabold text-text"
-        style={{ background: binderBackdropGradient('blue') }}
+        className="flex h-first-player-tile w-first-player-tile items-center justify-center rounded-first-player-tile text-text"
+        style={{ background: `color-mix(in oklab, ${seatTint(seat)} 70%, var(--color-surface-1))` }}
       >
-        {seat + 1}
+        <Crown width={64} height={64} strokeWidth={CROWN_STROKE} />
       </div>
       <div className="text-first-player-label font-extrabold tracking-sheet-title text-text">
-        {seatName(seat)} starts
+        {seatName(seat, players)} starts
       </div>
       <div className="flex w-full max-w-first-player-actions gap-10">
         <button
@@ -119,14 +133,50 @@ export function LifeGameScreen({
   onChange: (update: (game: LifeGame) => LifeGame) => void
   onExit: () => void
   // `Start game` avec `Roll for first player` actif : le tirage a déjà eu
-  // lieu dans le setup, le voile bloquant s'ouvre avec l'écran. Un simple
+  // lieu dans le setup, le tour de table puis le voile s'enchaînent à
+  // l'ouverture de l'écran. Un simple
   // rechargement de page monte le même écran sans
   // rejouer l'ouverture.
   rollOverlayOnMount?: boolean
 }) {
-  const [showOverlay, setShowOverlay] = useState(
-    () => rollOverlayOnMount && game.firstPlayer !== null,
+  // Tirage en deux temps : la lumière fait le tour de la table (`spin`), puis
+  // le voile annonce le siège (`showOverlay`). `Start game` avec le tirage
+  // actif ouvre l'écran directement sur la première phase.
+  const [spin, setSpin] = useState<RollStep[] | null>(() =>
+    rollOverlayOnMount && game.firstPlayer !== null
+      ? rollSequence(game.setup.players, game.firstPlayer)
+      : null,
   )
+  const [spotlight, setSpotlight] = useState<number | null>(null)
+  const [showOverlay, setShowOverlay] = useState(false)
+
+  useEffect(() => {
+    if (!spin) return
+    // Mouvement réduit demandé : pas de lumière qui tourne, l'annonce tout
+    // de suite.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setSpin(null)
+      setShowOverlay(true)
+      return
+    }
+
+    let step = 0
+    let timer = 0
+    const next = () => {
+      const current = spin[step]
+      if (!current) {
+        setSpotlight(null)
+        setSpin(null)
+        setShowOverlay(true)
+        return
+      }
+      setSpotlight(current.seat)
+      step += 1
+      timer = window.setTimeout(next, current.holdMs)
+    }
+    next()
+    return () => window.clearTimeout(timer)
+  }, [spin])
 
   useEffect(() => {
     if (!game.setup.keepAwake) return
@@ -186,8 +236,14 @@ export function LifeGameScreen({
   }
 
   function roll() {
-    onChange((current) => lifeReducer(current, { type: 'roll' }))
-    setShowOverlay(true)
+    // Le siège est tiré ici, avant l'animation qui le met en scène ; seul
+    // `firstPlayer` est appliqué en mise à jour fonctionnelle, pour ne pas
+    // écraser un total ajusté au même instant.
+    const winner = lifeReducer(game, { type: 'roll' }).firstPlayer
+    if (winner === null) return
+    onChange((current) => ({ ...current, firstPlayer: winner }))
+    setShowOverlay(false)
+    setSpin(rollSequence(game.setup.players, winner))
   }
 
   const rows = seatRows(game.setup.players)
@@ -199,7 +255,10 @@ export function LifeGameScreen({
           life={game.life[seat] ?? game.setup.startingLife}
           tint={seatTint(seat)}
           flip={flip}
-          first={game.firstPlayer === seat}
+          // La couronne attend la fin du tour de table : elle ne doit pas
+          // trahir le résultat pendant que la lumière tourne.
+          first={!spin && game.firstPlayer === seat}
+          spotlight={spotlight === seat}
           onAdjust={(delta) => adjust(seat, delta)}
         />
       </div>
@@ -226,9 +285,18 @@ export function LifeGameScreen({
         {rows.bottom.map((seat) => renderSeat(seat, false))}
       </div>
 
+      {/* Pendant le tour de table, la grille reste visible mais ne prend
+          aucun appui : un total ajusté par erreur passerait inaperçu. */}
+      {spin && (
+        <div className="fixed inset-0 z-50" role="status">
+          <span className="sr-only">Picking the first player…</span>
+        </div>
+      )}
+
       {showOverlay && game.firstPlayer !== null && (
         <FirstPlayerOverlay
           seat={game.firstPlayer}
+          players={game.setup.players}
           onRollAgain={roll}
           onPlay={() => setShowOverlay(false)}
         />

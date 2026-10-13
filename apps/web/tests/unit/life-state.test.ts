@@ -10,8 +10,11 @@ import {
   lifeReducer,
   loadLifeState,
   parseStartingLife,
+  rollSequence,
   saveLifeState,
+  seatName,
   seatRows,
+  seatsAroundTable,
   startLifeGame,
   type LifeGame,
   type LifeSetup,
@@ -164,6 +167,67 @@ describe('seatRows', () => {
     [6, { top: [0, 1, 2], bottom: [3, 4, 5] }],
   ])('follows the player count for %i seats', (players, expected) => {
     expect(seatRows(players as number)).toEqual(expected)
+  })
+})
+
+// Le libellé suit la place du pavé dans la grille : à quatre joueurs, le
+// siège 2 est en bas à gauche (`seatRows`), une liste indexée l'annonçait
+// « Top-left ».
+describe('seatName', () => {
+  it.each([
+    [2, ['Top seat', 'Bottom seat']],
+    [3, ['Top-left seat', 'Top-right seat', 'Bottom seat']],
+    [4, ['Top-left seat', 'Top-right seat', 'Bottom-left seat', 'Bottom-right seat']],
+    [
+      5,
+      ['Top-left seat', 'Top-middle seat', 'Top-right seat', 'Bottom-left seat', 'Bottom-right seat'],
+    ],
+    [
+      6,
+      [
+        'Top-left seat',
+        'Top-middle seat',
+        'Top-right seat',
+        'Bottom-left seat',
+        'Bottom-middle seat',
+        'Bottom-right seat',
+      ],
+    ],
+  ])('names every seat by its place for %i players', (players, names) => {
+    const rows = seatRows(players as number)
+    const seats = [...rows.top, ...rows.bottom]
+    expect(seats.map((seat) => seatName(seat, players as number))).toEqual(names)
+  })
+
+  it('falls back to a number for a seat outside the grid', () => {
+    expect(seatName(6, 4)).toBe('Seat 7')
+  })
+})
+
+describe('seatsAroundTable', () => {
+  it('goes clockwise: top row left to right, bottom row right to left', () => {
+    expect(seatsAroundTable(4)).toEqual([0, 1, 3, 2])
+    expect(seatsAroundTable(5)).toEqual([0, 1, 2, 4, 3])
+  })
+})
+
+describe('rollSequence', () => {
+  it.each([2, 3, 4, 5, 6])('lands on the drawn seat after two laps, for %i players', (players) => {
+    for (let winner = 0; winner < players; winner += 1) {
+      const steps = rollSequence(players, winner)
+      expect(steps.at(-1)!.seat).toBe(winner)
+      expect(steps.length).toBeGreaterThan(2 * players)
+    }
+  })
+
+  it('follows the order around the table and slows down', () => {
+    const steps = rollSequence(4, 2)
+    const order = seatsAroundTable(4)
+    steps.forEach((step, index) => expect(step.seat).toBe(order[index % order.length]))
+    for (let index = 1; index < steps.length; index += 1) {
+      expect(steps[index]!.holdMs).toBeGreaterThanOrEqual(steps[index - 1]!.holdMs)
+    }
+    expect(steps.at(-1)!.holdMs).toBeGreaterThan(steps[0]!.holdMs * 4)
   })
 })
 

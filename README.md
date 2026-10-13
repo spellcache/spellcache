@@ -95,7 +95,8 @@ written in French; identifiers, the UI and the documentation are in English.
 
 ## License
 
-The source code is released under the [MIT License](LICENSE).
+The source code is released under the [MIT License](LICENSE). Third-party
+material is listed in [NOTICE](NOTICE).
 
 ## Legal
 

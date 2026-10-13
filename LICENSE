@@ -19,14 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party material
-
-This license covers the spellcache source code only. Magic: The Gathering, its
-card names, card images, mana and set symbols are property of Wizards of the
-Coast LLC and are not covered by this license; spellcache does not ship them —
-they are downloaded from Scryfall at setup and at runtime. Card data and
-prices come from Scryfall (https://scryfall.com) and remain subject to
-Scryfall's terms.

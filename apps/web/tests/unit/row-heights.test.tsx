@@ -36,7 +36,7 @@ import { AppTile } from '@/components/tools/app-tile'
 import { LifePad } from '@/components/tools/life-pad'
 import { PlannedToolRow } from '@/components/settings/planned-tool-row'
 import { StylePicker } from '@/components/settings/style-picker'
-import { LifeGameScreen } from '@/components/tools/life-game'
+import { FirstPlayerOverlay, LifeGameScreen } from '@/components/tools/life-game'
 import { Switch } from '@/components/ui/switch'
 
 import type { HoldingRow } from '@/app/(app)/container/[id]/holdings-data'
@@ -1467,16 +1467,32 @@ describe('Life tracker grid', () => {
   // Le tirage ouvre un voile bloquant plein écran (`FirstPlayerOverlay`),
   // pas une surbrillance temporaire : il nomme le siège tiré et
   // n'offre que deux issues, `Roll again` et `Play`.
-  it('opens a blocking overlay naming the drawn seat, with Roll again and Play', async () => {
+  it('starts on the light going round the table, without crown or announcement yet', async () => {
     const page = await pageWithGrid(2, true)
+
+    // Le premier rendu est le tour de table : un voile transparent qui bloque
+    // les appuis, la couronne cachée tant que le résultat n'est pas annoncé.
+    const blocker = page.locator('div.fixed.inset-0.z-50')
+    expect(await blocker.count()).toBe(1)
+    expect(await blocker.getAttribute('role')).toBe('status')
+    expect(await blocker.locator('button').count()).toBe(0)
+    expect(await page.locator('[data-seat] svg.lucide-crown').count()).toBe(0)
+
+    await page.close()
+  })
+
+  it('announces the drawn seat by its place on the table, with Roll again and Play', async () => {
+    // Siège 2 à quatre joueurs : rangée du bas, à gauche (`seatRows`).
+    const page = await pageWithBody(
+      `${FONT_VARS}${renderToStaticMarkup(
+        <FirstPlayerOverlay seat={2} players={4} onRollAgain={() => {}} onPlay={() => {}} />,
+      )}`,
+    )
 
     const overlay = page.locator('div.fixed.inset-0.z-50')
     expect(await overlay.count()).toBe(1)
-
-    const overlayText = (await overlay.textContent()) ?? ''
-    // Siège 2 (0-indexé) affiché « 3 », `SEAT_NAMES[2]` = « Top-left seat ».
-    expect(overlayText).toContain('3')
-    expect(overlayText).toContain('Top-left seat starts')
+    expect((await overlay.textContent()) ?? '').toContain('Bottom-left seat starts')
+    expect(await overlay.locator('svg.lucide-crown').count()).toBe(1)
 
     const buttons = await overlay.locator('button').allTextContents()
     expect(buttons).toEqual(['Roll again', 'Play'])

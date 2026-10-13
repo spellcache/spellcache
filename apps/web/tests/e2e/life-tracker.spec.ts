@@ -230,6 +230,39 @@ test('the roll announces a seat behind a blocking veil, Play closes it, the crow
   await expect(crown).toHaveCount(1)
 })
 
+// Le siège annoncé est celui que la couronne marque ensuite, lu par la
+// géométrie de l'écran. Une liste de libellés indexée annonçait « Top-left »
+// pour le pavé du bas à gauche. La lumière qui tourne pendant le tirage passe
+// d'abord sur les pavés, puis le voile s'ouvre.
+test('the announced seat is the one the light stops on and the crown marks', async ({ page }) => {
+  const email = await signInWithFreshAccount(page)
+  await enableLifeTracker(email)
+
+  await page.goto('/tools/life')
+  await page.getByRole('button', { name: '4', exact: true }).click()
+  await page.getByRole('button', { name: 'Start game' }).click()
+
+  await expect(page.locator('[data-spotlight]')).toHaveCount(1)
+  const announce = page.getByText(/ seat starts$/)
+  await expect(announce).toBeVisible()
+  await expect(page.locator('[data-spotlight]')).toHaveCount(0)
+  const label = (await announce.textContent()) ?? ''
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+
+  const crowned = page.locator('[data-seat]').filter({ has: page.locator('svg.lucide-crown') })
+  const seatBox = (await crowned.boundingBox())!
+  const barBox = (await page.getByRole('button', { name: 'Roll', exact: true }).boundingBox())!
+  const viewport = page.viewportSize()!
+
+  const [, row, column] = /^(Top|Bottom)-(left|right) seat starts$/.exec(label) ?? []
+  expect(row, `unexpected label "${label}"`).toBeDefined()
+  if (row === 'Top') expect(seatBox.y + seatBox.height).toBeLessThanOrEqual(barBox.y)
+  else expect(seatBox.y).toBeGreaterThanOrEqual(barBox.y + barBox.height)
+  const center = seatBox.x + seatBox.width / 2
+  if (column === 'left') expect(center).toBeLessThan(viewport.width / 2)
+  else expect(center).toBeGreaterThan(viewport.width / 2)
+})
+
 // L'état de partie survit à un rechargement (stockage local), et la sortie
 // ramène au setup.
 test('a running game survives a reload and the X returns to setup', async ({

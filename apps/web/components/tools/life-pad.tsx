@@ -37,12 +37,15 @@ export function LifePad({
   tint,
   flip = false,
   first = false,
+  spotlight = false,
   onAdjust,
 }: {
   life: number
   tint: string
   flip?: boolean
   first?: boolean
+  // Pavé allumé par la lumière qui tourne pendant le tirage du premier joueur.
+  spotlight?: boolean
   onAdjust: (delta: number) => void
 }) {
   // `useRef`, pas `useState` : les timers ne pilotent aucun rendu, seule la
@@ -81,12 +84,16 @@ export function LifePad({
       // polluerait un `innerText` (`tests/e2e/life-tracker.spec.ts`).
       data-life={life}
       data-dead={dead ? 'true' : undefined}
-      className={`relative h-full w-full overflow-hidden rounded-life-pad border text-text ${
+      data-spotlight={spotlight ? 'true' : undefined}
+      className={`relative h-full w-full overflow-hidden rounded-life-pad border text-text transition-[background-color,border-color,box-shadow] duration-100 motion-reduce:transition-none ${
         flip ? 'rotate-180' : ''
       }`}
+      // Allumé : la teinte du siège remplit le pavé et déborde en halo, le
+      // reste de la table garde son fond discret.
       style={{
-        background: `color-mix(in oklab, ${tint} 12%, var(--color-surface-1))`,
-        borderColor: `color-mix(in oklab, ${tint} 34%, transparent)`,
+        background: `color-mix(in oklab, ${tint} ${spotlight ? 46 : 12}%, var(--color-surface-1))`,
+        borderColor: spotlight ? tint : `color-mix(in oklab, ${tint} 34%, transparent)`,
+        boxShadow: spotlight ? `0 0 28px color-mix(in oklab, ${tint} 55%, transparent)` : undefined,
       }}
     >
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-8">

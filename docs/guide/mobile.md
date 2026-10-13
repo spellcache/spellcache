@@ -43,6 +43,9 @@ The server must be reachable over HTTPS with a certificate Android trusts.
 Plain HTTP and self-signed certificates are refused. If the app cannot reach
 the server, check the address and that the server answers in a browser.
 
+The Android app also carries the [card scanner](../table-tools/#card-scanner),
+which reads cards with the camera.
+
 Later launches open your server directly. To change server, press the system
 **Back** button from the first page of your server: it returns to the server
 screen. Links to other sites open in your browser.

@@ -11,6 +11,7 @@ tab appears in the tab bar as soon as one of them is on.
 | **Life tracker** | Life totals for up to six players, with a first-player pick |
 | **Playtest** | Draw opening hands, mulligan and play the first turns of a deck |
 | **Trading mode** | See [Trading](../trading/) |
+| **Card scanner** | Add a pile of cards with the camera of the Android app, see [Card scanner](#card-scanner) |
 
 ## Life tracker
 
@@ -57,3 +58,25 @@ Open **Tools › Playtest** and pick a deck, or use **Playtest** in a deck's men
 play**, **Restart on the draw** and **End game**.
 
 A running playtest survives a reload of the page, but not a new tab.
+
+## Card scanner
+
+The scanner adds many cards at once with the phone's camera. It needs the
+[Android app](../mobile/#android-app): in a browser, the **Card scanner** screen
+asks you to open it in the app.
+
+1. Open **Tools › Card scanner**. The settings shown at the top apply to every
+   card you scan: condition, language (or **Language detected**), foil, and an
+   optional list of sets to look in. Tap them to change them.
+2. Tap **Scan cards** and hold each card flat in the frame. The set code and
+   collector number at the bottom left are read first, the name at the top
+   otherwise. A sound confirms each card counted.
+3. Close the camera. The review lists every card read; those marked **To
+   check** could not be matched exactly. Tap a card to change its printing,
+   quantity, finish, condition or language, or to **Remove from this scan**.
+4. Choose where they go with **Add to** (the collection, a binder or a list),
+   then tap **Add N cards**.
+
+Text is read on the phone; no image leaves it. Only the text read is sent to
+your server to find the card. Cards scanned but not added yet survive a reload
+of the page, not a new tab.

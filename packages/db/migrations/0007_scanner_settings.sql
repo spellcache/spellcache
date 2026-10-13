@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "scanner_settings" jsonb DEFAULT '{}'::jsonb NOT NULL;

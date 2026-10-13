@@ -10,10 +10,12 @@ const config: CapacitorConfig = {
   appName: 'spellcache',
   webDir: 'www',
   backgroundColor: '#0A090E',
-  // Marqueur lu par l'instance (`components/ui/use-back-to-close.ts`) : dans
-  // l'app, les feuilles ne poussent plus d'entrée d'historique, le retour
-  // passe par `MainActivity`.
-  appendUserAgent: 'SpellcacheAndroid',
+  // Marqueurs lus par l'instance : `SpellcacheAndroid`
+  // (`components/ui/use-back-to-close.ts`) — dans l'app, les feuilles ne
+  // poussent plus d'entrée d'historique, le retour passe par `MainActivity` ;
+  // `SpellcacheScanner` (`lib/scanner/pending.ts`) — la caméra du scanner de
+  // cartes est disponible.
+  appendUserAgent: 'SpellcacheAndroid SpellcacheScanner',
   android: {
     // Une instance en HTTP clair n'est pas prise en charge (cookies de
     // session `Secure`, service worker) : refusée dès l'écran de connexion.

@@ -21,6 +21,7 @@ import {
   Palette,
   PanelRight,
   Rows3,
+  ScanLine,
   SunMoon,
   Sun,
   Wallet,
@@ -122,6 +123,7 @@ const TOGGLE_ICON: Record<ToggleField, React.ReactNode> = {
   toolLifeTracker: <HeartPulse width={18} height={18} strokeWidth={1.75} />,
   toolPlaytest: <FlaskConical width={18} height={18} strokeWidth={1.75} />,
   toolTradingMode: <ArrowLeftRight width={18} height={18} strokeWidth={1.75} />,
+  toolCardScanner: <ScanLine width={18} height={18} strokeWidth={1.75} />,
   pureBlack: <Contrast width={18} height={18} strokeWidth={1.75} />,
 }
 

@@ -38,7 +38,8 @@ stays in your database; no Scryfall API call is made while you browse.
   a preview pane on large screens.
 - **Android app**: an APK attached to every
   [release](https://github.com/spellcache/spellcache/releases), which opens your
-  own server.
+  own server. It adds a card scanner: point the camera at a pile of cards, review
+  them, and add them all at once. Text is read on the phone; no image leaves it.
 - **Sign-in without passwords**: a one-time link or code by email.
 
 ## Quick start (self-hosting)

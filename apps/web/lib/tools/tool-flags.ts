@@ -16,6 +16,7 @@ export const toolFlagColumns = {
   toolLifeTracker: users.toolLifeTracker,
   toolPlaytest: users.toolPlaytest,
   toolTradingMode: users.toolTradingMode,
+  toolCardScanner: users.toolCardScanner,
 } satisfies Record<ToolPreferenceField, unknown>
 
 export async function getToolFlags(userId: string): Promise<ToolFlags> {

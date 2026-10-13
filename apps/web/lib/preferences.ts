@@ -32,6 +32,7 @@ export interface Preferences {
   toolLifeTracker: boolean
   toolPlaytest: boolean
   toolTradingMode: boolean
+  toolCardScanner: boolean
   // Nœuds repliés de la barre latérale desktop — sur le compte, pas dans le
   // navigateur, pour qu'une reconnexion depuis un autre poste retrouve le
   // même arbre.
@@ -57,6 +58,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   toolLifeTracker: false,
   toolPlaytest: false,
   toolTradingMode: false,
+  toolCardScanner: false,
   sidebarCollapsed: [],
   accentColor: 'gold',
   pureBlack: false,
@@ -78,6 +80,7 @@ export const preferencesSchema: z.ZodType<Partial<Preferences>> = z
     toolLifeTracker: z.boolean().optional(),
     toolPlaytest: z.boolean().optional(),
     toolTradingMode: z.boolean().optional(),
+    toolCardScanner: z.boolean().optional(),
     // Énumération fermée : un identifiant libre laisserait entrer n'importe
     // quelle chaîne dans la colonne jsonb (docs/development.md — toute entrée externe
     // validée à la frontière, jamais castée).
@@ -100,6 +103,7 @@ export async function getPreferences(userId: string): Promise<Preferences> {
       toolLifeTracker: users.toolLifeTracker,
       toolPlaytest: users.toolPlaytest,
       toolTradingMode: users.toolTradingMode,
+      toolCardScanner: users.toolCardScanner,
       sidebarCollapsed: users.sidebarCollapsed,
       accentColor: users.accentColor,
       pureBlack: users.pureBlack,

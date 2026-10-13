@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "tool_card_scanner" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "cards_set_collector_number_idx" ON "cards" USING btree ("set_code","collector_number");

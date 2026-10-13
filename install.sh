@@ -5,8 +5,8 @@
 #
 # Télécharge seulement ce qu'une release utilise (Compose, .env.example, scripts
 # de sauvegarde) : ni clone, ni build. Les fichiers gardent leur place dans le
-# dépôt, si bien que docs/self-hosting.md et deploy/cron.md s'appliquent tels
-# quels au répertoire installé.
+# dépôt, si bien que la documentation d'auto-hébergement (docs/self-hosting/)
+# s'applique telle quelle au répertoire installé.
 #
 # Premier lancement : génère les secrets, demande ce qui ne peut pas l'être
 # (URL publique, e-mail de l'admin, clé Resend), démarre la pile et met en file
@@ -31,7 +31,7 @@ REPO=spellcache/spellcache
 # Release) : le script installe alors la version avec laquelle il a été publié.
 RELEASE_TAG=''
 
-FILES='docker-compose.example.yml .env.example deploy/backup.sh deploy/restore.sh deploy/cron.md'
+FILES='docker-compose.example.yml .env.example deploy/backup.sh deploy/restore.sh'
 COMPOSE_FILE=docker-compose.example.yml
 
 say() { printf '%s\n' "$*"; }
@@ -197,9 +197,10 @@ spellcache $version is running in $dir.
 
 Next steps:
   1. Point your HTTPS reverse proxy to 127.0.0.1:${web_port:-3000} for $SPELLCACHE_URL
-     (docs: https://github.com/$REPO/blob/$tag/docs/self-hosting.md#4-reverse-proxy).
+     (docs: https://spellcache.github.io/spellcache/self-hosting/reverse-proxy/).
   2. Sign in at $SPELLCACHE_URL with $SPELLCACHE_ADMIN_EMAIL: it becomes the admin.
-  3. Set up the nightly run and the backups: $dir/deploy/cron.md.
+  3. Set up the nightly run and the backups:
+     https://spellcache.github.io/spellcache/self-hosting/scheduled-tasks/
 
 Follow the catalogue import:
   cd $dir && docker compose -f $COMPOSE_FILE logs -f worker

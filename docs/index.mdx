@@ -1,0 +1,106 @@
+---
+title: 'Your Magic: The Gathering collection, on your own server'
+description: 'Your Magic: The Gathering collection, on your own server.'
+template: splash
+editUrl: false
+lastUpdated: false
+hero:
+  title: 'Your Magic: The Gathering collection, <em>on your own server.</em>'
+  tagline: A self-hosted, mobile-first app for inventory, binders, decks, prices and trades. Card data comes from a nightly local mirror of Scryfall.
+  image:
+    html: |
+      <div class="sc-terminal" aria-label="Installation commands">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <pre><span class="p">$</span> git clone https://github.com/spellcache/spellcache.git
+      <span class="p">$</span> cp .env.example .env
+      <span class="p">$</span> docker compose -f docker-compose.example.yml up -d
+      <span class="d"> ✔ postgres  healthy
+       ✔ redis     healthy
+       ✔ web       healthy  127.0.0.1:3000</span>
+      <span class="p">$</span> docker compose … exec -T worker node apps/worker/src/index.ts --run-now
+      <span class="ok">[import] catalogue and prices imported</span></pre>
+      </div>
+  actions:
+    - text: Self-host it
+      link: quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: User guide
+      link: guide/collection/
+      variant: secondary
+    - text: Releases
+      link: https://github.com/spellcache/spellcache/releases
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+## Where do you want to start?
+
+<CardGrid>
+  <LinkCard
+    title="Run it for my playgroup"
+    description="A Linux server with Docker, a domain and a Resend account. About 30 minutes, plus the catalogue import."
+    href="quick-start/"
+  />
+  <LinkCard
+    title="Hack on the code"
+    description="pnpm monorepo, Next.js, Drizzle and PostgreSQL. Local setup in five commands."
+    href="development/"
+  />
+  <LinkCard
+    title="Use an instance someone set up"
+    description="Sign in, add your cards, build decks and trade."
+    href="guide/collection/"
+  />
+  <LinkCard
+    title="Something is wrong"
+    description="Symptoms and fixes for a self-hosted instance."
+    href="self-hosting/troubleshooting/"
+  />
+</CardGrid>
+
+## What it does
+
+<CardGrid>
+  <Card title="Collection" icon="open-book">
+    Every copy with its finish, condition and language. Binders, lists, and
+    fast search and filters over the whole catalogue.
+  </Card>
+  <Card title="Decks" icon="list-format">
+    Plan from what you own or not, check Commander legality, assemble from
+    owned copies, dismantle back.
+  </Card>
+  <Card title="Value" icon="seti:graphql">
+    Daily TCGplayer ($) or Cardmarket (€) prices per collection, binder and
+    deck.
+  </Card>
+  <Card title="Trading" icon="random">
+    A step-by-step wizard, in person or live with another account of your
+    server, that updates your collection when the trade is done.
+  </Card>
+  <Card title="Sharing" icon="add-document">
+    Collections shared between accounts with Owner, Contributor and Guest
+    roles. Public links for decks and binders.
+  </Card>
+  <Card title="Mobile first" icon="laptop">
+    Installable as an app, an Android APK with a card scanner on every
+    release, sidebar and preview pane on large screens.
+  </Card>
+</CardGrid>
+
+## On a phone
+
+![Collection home with the total value and binders](./assets/screenshots/collection-compact.png)
+![A Commander deck with its commander and mainboard](./assets/screenshots/deck.png)
+![Life tracker for a four-player game](./assets/screenshots/life.png)
+
+<p class="legal">
+  spellcache is unofficial Fan Content permitted under the{' '}
+  <a href="https://company.wizards.com/en/legal/fancontentpolicy">Fan Content Policy</a>. Not
+  approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the
+  Coast. ©Wizards of the Coast LLC. Card data, images and prices are provided by{' '}
+  <a href="https://scryfall.com">Scryfall</a>; spellcache is not affiliated with Scryfall.
+  Released under the MIT License.
+</p>

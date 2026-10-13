@@ -1,0 +1,68 @@
+---
+title: Quick start
+description: From an empty server to a working spellcache instance, in one page.
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+This page is the short path. Each step links to the full guide when you need
+the details.
+
+## Before you start
+
+- [ ] A Linux server with Docker Engine 24+ and 4 GB of RAM
+- [ ] A domain name, with a DNS record pointing to the server
+- [ ] A reverse proxy that can terminate HTTPS for that domain
+- [ ] A [Resend](https://resend.com) account with that domain verified, and an
+      API key
+
+## Install
+
+<Steps>
+
+1. **Run the installer**
+
+   ```bash
+   curl -fsSL https://get.spellcache.com | sudo sh
+   ```
+
+   It downloads the files of the latest release into `/srv/spellcache`, asks
+   for the public URL, the administrator's email and the Resend key, generates
+   the secrets, starts the containers and queues the catalogue import (twenty
+   minutes to an hour). To do each step by hand instead, follow
+   [Installation](../self-hosting/installation/#get-the-files).
+
+2. **Put HTTPS in front**
+
+   Point your reverse proxy to `127.0.0.1:3000`. Examples for nginx, Caddy and
+   Cloudflare Tunnel are in [Reverse proxy](../self-hosting/reverse-proxy/).
+
+3. **Check that everything runs**
+
+   ```bash
+   cd /srv/spellcache
+   docker compose -f docker-compose.example.yml ps
+   docker compose -f docker-compose.example.yml logs -f worker
+   ```
+
+   Every service shows `healthy`, and the worker logs the import. If `web`
+   stays `starting`, see [Troubleshooting](../self-hosting/troubleshooting/).
+
+4. **Sign in**
+
+   Open your domain, enter the administrator's email, and type the code from
+   the email. This first account is the administrator. Invite the others from
+   **Settings › Administration › Users**.
+
+</Steps>
+
+## Before you forget
+
+- Add the two [cron entries](../self-hosting/scheduled-tasks/): nightly run and
+  backup.
+- Set `BACKUP_DEST` and `BACKUP_PASSPHRASE` in `/srv/spellcache/.env`
+  (`openssl rand -base64 32`), and keep a copy of the passphrase somewhere else
+  than the server.
+- Run a first [backup](../self-hosting/backup/) by hand.
+
+Then send your playgroup to the [user guide](../guide/collection/).

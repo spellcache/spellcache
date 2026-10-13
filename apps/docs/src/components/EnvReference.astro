@@ -1,0 +1,55 @@
+---
+// Référence de configuration lue dans .env.example au build : le fichier
+// reste la seule source, la page ne peut pas diverger de lui.
+import source from '../../../../.env.example?raw'
+
+import { parseEnvExample } from '../lib/env-example'
+
+interface Props {
+  // Titre de section tel qu'écrit dans .env.example (« # 2. Production »). Le
+  // titre de page reste dans le MDX, pour que Starlight l'ajoute au sommaire.
+  section: string
+}
+
+const section = parseEnvExample(source).find((s) => s.title === Astro.props.section)
+// Une section renommée dans .env.example doit casser le build, pas vider la page.
+if (!section) throw new Error(`.env.example has no section named "${Astro.props.section}"`)
+// Échappe le texte puis rend les `code` du fichier.
+const inline = (text: string) =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+---
+
+{section.intro.length > 0 && <p set:html={inline(section.intro.join(' '))} />}
+{section.introCode.length > 0 && <pre class="sc-pre"><code>{section.introCode.join('\n')}</code></pre>}
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th>
+      <th>Status</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    {section.entries.map((entry) => (
+      <tr>
+        <td>
+          {entry.names.map((name, i) => (
+            <>
+              {i > 0 && <br />}
+              <code>{name}</code>
+            </>
+          ))}
+        </td>
+        <td>{entry.status}</td>
+        <td>
+          <span set:html={inline(entry.description)} />
+          {entry.code.length > 0 && <pre class="sc-pre"><code>{entry.code.join('\n')}</code></pre>}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>

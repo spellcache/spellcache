@@ -25,6 +25,9 @@ const eslintConfig = [
       'apps/android/android/**',
       'apps/android/www/capacitor.js',
       '**/.next/**',
+      // Site de documentation : sortie du build et types générés par Astro.
+      'apps/docs/dist/**',
+      'apps/docs/.astro/**',
       '**/node_modules/**',
       '**/next-env.d.ts',
       '**/test-results/**',

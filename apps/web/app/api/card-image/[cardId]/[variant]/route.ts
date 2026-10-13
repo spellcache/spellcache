@@ -47,7 +47,8 @@ const ANONYMOUS_WINDOW_SECONDS = 600
 
 async function allowDownload(request: Request): Promise<boolean> {
   if (await auth()) return true
-  // Dernière entrée : celle qu'écrit le reverse proxy (docs/self-hosting.md).
+  // Dernière entrée : celle qu'écrit le reverse proxy
+  // (docs/self-hosting/reverse-proxy.mdx).
   const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'unknown'
   return rateLimit(`ratelimit:card-image:${ip}`, ANONYMOUS_MISSES_PER_WINDOW, ANONYMOUS_WINDOW_SECONDS)
 }

@@ -1,0 +1,43 @@
+---
+title: Configuration
+description: Every variable of the .env file, read from .env.example.
+---
+
+import EnvReference from '../../apps/docs/src/components/EnvReference.astro'
+
+spellcache reads one `.env` at the repository root: the Next.js app, the
+worker, drizzle-kit, Playwright, and `docker compose` for `${...}` interpolation
+in `docker-compose.example.yml`. Never commit it.
+
+```bash
+cp .env.example .env
+```
+
+The tables below are read from [`.env.example`](https://github.com/spellcache/spellcache/blob/main/.env.example)
+each time the site is built. **required** variables must be set; **optional** ones
+have a default and are commented out in the file. Uncomment a line only to
+change its default: an empty value is not the same as an unset one.
+
+## Development
+
+Running the app on your machine with `pnpm dev`. Self-hosting reads these too.
+
+<EnvReference section="Development" />
+
+## Production
+
+Self-hosting with `docker-compose.example.yml`.
+
+<EnvReference section="Production" />
+
+## Worker
+
+The nightly import schedule, for development and production.
+
+<EnvReference section="Worker" />
+
+## Backup
+
+`deploy/backup.sh` and `deploy/restore.sh`, run on the host.
+
+<EnvReference section="Backup" />

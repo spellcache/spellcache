@@ -139,6 +139,22 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('card scanner', () => {
       })
     })
 
+    it('trusts the read name over a number missing a digit', async () => {
+      await insertCard(pool, { name: 'Dwarven Castle Guard', setCode: 'fin', collectorNumber: '18' })
+      const shinra = await insertCard(pool, { name: 'Shinra Reinforcements', setCode: 'fin', collectorNumber: '118' })
+      const read = { setCode: 'FIN', collectorNumber: 'O18', names: ['Shinra Reinforcements', 'Human Soldier'] }
+
+      expect(await lookupScannedCard(read)).toMatchObject({ cardId: shinra, exact: true })
+      expect((await lookupScannedCardIn(read, ['fin'])).match).toMatchObject({ cardId: shinra, exact: true })
+    })
+
+    it('keeps the printing of the number when the read name is not found', async () => {
+      const id = await insertCard(pool, { name: 'Lightning Bolt', setCode: 'm10', collectorNumber: '146' })
+      const read = { setCode: 'M10', collectorNumber: '0146', names: ['Foudre'] }
+
+      expect(await lookupScannedCard(read)).toMatchObject({ cardId: id, exact: true })
+    })
+
     it('looks a token up in the token set of the printed set', async () => {
       await insertCard(pool, { name: 'Case of the Shattered Pact', setCode: 'mkm', collectorNumber: '1' })
       const token = await insertCard(pool, { name: 'Detective', setCode: 'tmkm', collectorNumber: '3' })

@@ -80,6 +80,9 @@ public final class ScanSession {
     static final int STABLE_FRAMES = 2;
     // Images de suite sans la carte comptée avant qu'elle puisse recompter.
     static final int ABSENT_FRAMES_TO_REARM = 2;
+    // Et au moins ce temps sans elle : une image plus rapide (build
+    // release) ne doit pas raccourcir l'absence exigée.
+    static final long ABSENT_MS_TO_REARM = 1_000;
     // Images sans bas de carte lisible avant de chercher par le nom.
     static final int NAME_FALLBACK_FRAMES = 6;
 
@@ -93,11 +96,15 @@ public final class ScanSession {
     private final List<Entry> history = new ArrayList<>();
 
     private String lastKey;
+    // Titre de la lecture en cours de stabilisation.
+    private String lastTitle;
     private int streak;
     private int framesWithoutCollector;
     private Entry lastCounted;
     // Images de suite où la dernière carte comptée n'apparaît plus.
     private int absentFrames;
+    // Dernière image où elle a été lue.
+    private long lastSeenAt;
     // Dernier exemplaire annulé : la carte encore dans le cadre ne recompte pas.
     private boolean lastUndone;
 
@@ -114,7 +121,7 @@ public final class ScanSession {
         String key = read(reading, now);
         // Après la décision : une carte qui revient après son absence
         // recompte avant d'être de nouveau vue comme présente.
-        trackPresence(reading);
+        trackPresence(reading, now);
         return key;
     }
 
@@ -124,12 +131,21 @@ public final class ScanSession {
         if (specific) framesWithoutCollector = 0;
         else framesWithoutCollector++;
         String key = reading.key();
+        String title = reading.names.isEmpty() ? null : reading.names.get(0);
+        // Bas de carte manqué sur une image, même titre : la stabilité attend
+        // l'image suivante au lieu de repartir de zéro.
+        if (!specific && framesWithoutCollector < NAME_FALLBACK_FRAMES
+            && lastKey != null && lastTitle != null && title != null && sameCard(title, lastTitle)) {
+            return null;
+        }
         if (!specific && framesWithoutCollector < NAME_FALLBACK_FRAMES) key = null;
         if (key == null) {
             lastKey = null;
+            lastTitle = null;
             streak = 0;
             return null;
         }
+        lastTitle = title;
         if (key.equals(lastKey)) {
             streak++;
         } else {
@@ -161,15 +177,20 @@ public final class ScanSession {
 
     // La dernière carte comptée est-elle encore lue ? Par son nom (une de
     // ses lignes candidates) ou par une lecture déjà résolue vers elle.
-    private void trackPresence(ScanReading reading) {
+    private void trackPresence(ScanReading reading, long now) {
         if (lastCounted == null) return;
         Match known = reading.key() == null ? null : resolved.get(reading.key());
         boolean present = known != null && known != NO_MATCH
             && sameCard(known.name, lastCounted.match.name);
         for (String name : reading.names) {
-            if (sameCard(name, lastCounted.match.name)) present = true;
+            if (sameCard(name, lastCounted.match.name) || startOfName(name, lastCounted.match.name)) present = true;
         }
-        absentFrames = present ? 0 : absentFrames + 1;
+        if (present) {
+            absentFrames = 0;
+            lastSeenAt = now;
+        } else {
+            absentFrames++;
+        }
     }
 
     // Même carte : noms égaux en ignorant casse et ponctuation ; une carte
@@ -183,6 +204,15 @@ public final class ScanSession {
         return a.equals(b) || a.equals(front);
     }
 
+    // Titre lu tronqué (`Circle of` pour « Circle of Power ») : la carte est
+    // toujours là. Assez long pour ne pas confondre deux cartes.
+    static boolean startOfName(String read, String name) {
+        String a = normalized(read);
+        return a.length() >= MIN_NAME_START && normalized(name).startsWith(a);
+    }
+
+    private static final int MIN_NAME_START = 6;
+
     private static String normalized(String text) {
         return text.toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", "");
     }
@@ -190,7 +220,7 @@ public final class ScanSession {
     private Entry accept(Match match, long now) {
         boolean stillInFrame = lastCounted != null
             && sameCard(match.name, lastCounted.match.name)
-            && absentFrames < ABSENT_FRAMES_TO_REARM;
+            && (absentFrames < ABSENT_FRAMES_TO_REARM || now - lastSeenAt < ABSENT_MS_TO_REARM);
         if (stillInFrame) {
             if (lastUndone || lastCounted.match.exact || !match.exact) return null;
             // Lue par son nom puis par son numéro : l'exemplaire compté
@@ -210,6 +240,7 @@ public final class ScanSession {
         lastCounted = entry;
         lastUndone = false;
         absentFrames = 0;
+        lastSeenAt = now;
         return entry;
     }
 

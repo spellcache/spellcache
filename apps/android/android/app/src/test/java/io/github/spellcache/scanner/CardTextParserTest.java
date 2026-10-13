@@ -151,7 +151,7 @@ public class CardTextParserTest {
         assertNull(reading.setCode);
         assertEquals("51A/264", reading.collectorNumber);
         assertTrue(reading.hasNumberAndName());
-        assertEquals("num|51A/264|delver of secrets", reading.key());
+        assertEquals("num|51a/264|delver of secrets", reading.key());
     }
 
     @Test
@@ -164,7 +164,7 @@ public class CardTextParserTest {
         assertEquals("MKM", reading.setCode);
         assertEquals("0003", reading.collectorNumber);
         assertTrue(reading.token);
-        assertEquals("MKM|0003|EN|T", reading.key());
+        assertEquals("MKM|3|EN|T", reading.key());
 
         ScanReading card = CardTextParser.parse(Arrays.asList(
             line("C 0118", 30, 900),

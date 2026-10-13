@@ -58,7 +58,7 @@ public class ScanSessionTest {
         session.onLookup(session.onReading(BOLT_M10, 100), BOLT, 200);
         session.onReading(NOTHING, 300);
         session.onReading(NOTHING, 400);
-        session.onReading(BOLT_M10, 500);
+        session.onReading(BOLT_M10, 1_300);
         assertNotNull(session.counted);
         assertEquals(2, session.entries().get(0).qty);
     }
@@ -179,7 +179,7 @@ public class ScanSessionTest {
         }
         session.onReading(NOTHING, t);
         session.onReading(NOTHING, t + 10);
-        session.onReading(BOLT_M10, t + 20);
+        session.onReading(BOLT_M10, t + 2_000);
         return session.counted;
     }
 
@@ -204,5 +204,64 @@ public class ScanSessionTest {
         assertEquals(2, merged.qty);
         assertSame(merged, session.undo());
         assertEquals(1, merged.qty);
+    }
+
+    @Test
+    public void treatsAnOReadForAZeroAsTheSameReading() {
+        ScanSession session = new ScanSession();
+        assertNull(session.onReading(new ScanReading("FIN", "O173", "EN", Collections.singletonList("Balamb T-Rexaur")), 0));
+        assertNotNull(session.onReading(new ScanReading("FIN", "0173", "EN", Collections.singletonList("Balamb T-Rexaur")), 100));
+    }
+
+    @Test
+    public void waitsThroughAFrameThatMissedTheBottomLineOfTheSameCard() {
+        ScanSession session = new ScanSession();
+        ScanReading cerberus = new ScanReading("FIN", "O162", "EN", Collections.singletonList("Summon: G.F. Cerberus"));
+        ScanReading titleOnly = new ScanReading(null, null, null, Collections.singletonList("Summon: G.F. Cerberus"));
+        assertNull(session.onReading(cerberus, 0));
+        assertNull(session.onReading(titleOnly, 100));
+        assertNotNull(session.onReading(cerberus, 200));
+    }
+
+    @Test
+    public void restartsTheWaitWhenAnotherCardShowsUp() {
+        ScanSession session = new ScanSession();
+        assertNull(session.onReading(BOLT_M10, 0));
+        assertNull(session.onReading(new ScanReading(null, null, null, Collections.singletonList("Llanowar Elves")), 100));
+        assertNull(session.onReading(BOLT_M10, 200));
+    }
+
+    private static final ScanReading CIRCLE =
+        new ScanReading("FIN", "0092", "EN", Collections.singletonList("Circle of Power"));
+
+    private static ScanSession countedCircle() {
+        ScanSession session = new ScanSession();
+        session.onReading(CIRCLE, 0);
+        session.onLookup(session.onReading(CIRCLE, 500), match("circle", "Circle of Power", true), 550);
+        return session;
+    }
+
+    @Test
+    public void keepsACardWhoseTitleIsReadCutShortInTheFrame() {
+        ScanSession session = countedCircle();
+        session.onReading(new ScanReading(null, null, null, Collections.singletonList("Circle of")), 1_100);
+        session.onReading(NOTHING, 1_600);
+        session.onReading(CIRCLE, 2_100);
+        assertNull(session.counted);
+        assertEquals(1, session.total());
+    }
+
+    @Test
+    public void waitsASecondWithoutTheCardBeforeCountingItAgain() {
+        ScanSession session = countedCircle();
+        session.onReading(NOTHING, 800);
+        session.onReading(NOTHING, 1_000);
+        session.onReading(CIRCLE, 1_200);
+        assertNull(session.counted);
+        session.onReading(NOTHING, 1_400);
+        session.onReading(NOTHING, 1_600);
+        session.onReading(CIRCLE, 2_200);
+        assertNotNull(session.counted);
+        assertEquals(2, session.total());
     }
 }

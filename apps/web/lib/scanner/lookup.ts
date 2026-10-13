@@ -161,6 +161,19 @@ function cleanedNames(query: ScanQuery): string[] {
     .filter((name) => name.length >= MIN_NAME_LENGTH)
 }
 
+// Impression lue par son set et son numéro, contre le nom lu : un chiffre
+// manqué (`0118` lu `O18`) désigne une autre carte du même set. Le nom lu y
+// désigne alors la bonne ; introuvable (carte non anglaise, nom mal lu),
+// l'impression du numéro reste.
+async function checkedByName(printing: ScanMatch, names: string[], setCodes: string[]): Promise<ScanMatch> {
+  if (names.length === 0 || names.some((name) => sameName(printing.name, name))) return printing
+  for (const name of names) {
+    const match = await findByName(name, setCodes, { onlySets: setCodes })
+    if (match) return match
+  }
+  return printing
+}
+
 // Au plus trois lignes de nom par lecture : au-delà, c'est du texte de règles.
 export const MAX_SCANNED_NAMES = 3
 const MIN_NAME_LENGTH = 3
@@ -172,7 +185,7 @@ export async function lookupScannedCard(query: ScanQuery): Promise<ScanMatch | n
 
   if (setCodes.length > 0 && numbers.length > 0) {
     const printing = await findPrinting(setCodes, numbers)
-    if (printing) return printing
+    if (printing) return checkedByName(printing, names, setCodes)
   }
 
   // Numéro sans code de set lisible (cartes de 2008 à 2014, `51/264`) : le
@@ -210,7 +223,7 @@ export async function lookupScannedCardIn(query: ScanQuery, onlySets: string[]):
   const allowed = setCodes.filter((code) => onlySets.includes(code))
   if (allowed.length > 0 && numbers.length > 0) {
     const printing = await findPrinting(allowed, numbers)
-    if (printing) return { match: printing, outsideSets: false }
+    if (printing) return { match: await checkedByName(printing, names, allowed), outsideSets: false }
   }
 
   // 2. Code de set douteux : le numéro dans les sets choisis, confirmé par

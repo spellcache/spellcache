@@ -2,6 +2,11 @@
 
 **Your Magic: The Gathering collection, on your own server.**
 
+[![CI](https://github.com/spellcache/spellcache/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/spellcache/spellcache/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/spellcache/spellcache)](https://github.com/spellcache/spellcache/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/spellcache/spellcache)](LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/spellcache/spellcache/badge)](https://scorecard.dev/viewer/?uri=github.com/spellcache/spellcache)
+
 **Documentation: [spellcache.github.io/spellcache](https://spellcache.github.io/spellcache/)**
 
 spellcache is a self-hosted, mobile-first web app to manage a card collection:

@@ -1,9 +1,11 @@
 package io.github.spellcache.scanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
 
@@ -108,6 +110,7 @@ public class ScanSessionTest {
         session.onLookup(key, BOLT_OTHER, t += 100);
         String exactKey = twoFrames(session, BOLT_M10, t += 100, t += 100);
         assertNotNull(session.onLookup(exactKey, BOLT, t + 100));
+        assertTrue(session.upgraded);
         assertEquals(1, session.total());
         assertEquals(1, session.entries().size());
         assertSame(BOLT, session.entries().get(0).match);
@@ -278,6 +281,7 @@ public class ScanSessionTest {
         String key = session.onReading(BOLT_M10, 0);
         assertEquals(BOLT_M10.key(), key);
         assertNotNull(session.onLookup(key, BOLT, true, 100));
+        assertFalse(session.upgraded);
         assertEquals(1, session.total());
     }
 

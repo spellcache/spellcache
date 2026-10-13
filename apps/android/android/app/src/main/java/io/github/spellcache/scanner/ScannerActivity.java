@@ -971,23 +971,34 @@ public final class ScannerActivity extends AppCompatActivity {
 
     private void onText(Text text, int width, int height, int turn) {
         if (stopped || isFinishing()) return;
-        List<CardTextParser.TextLine> lines = new ArrayList<>();
+        List<CardTextParser.RawLine> raw = new ArrayList<>();
         for (Text.TextBlock block : text.getTextBlocks()) {
             for (Text.Line line : block.getLines()) {
+                android.graphics.Point[] corners = line.getCornerPoints();
+                if (corners != null && corners.length == 4) {
+                    raw.add(new CardTextParser.RawLine(line.getText(), new float[] {
+                        corners[0].x, corners[0].y, corners[1].x, corners[1].y,
+                        corners[2].x, corners[2].y, corners[3].x, corners[3].y,
+                    }));
+                    continue;
+                }
                 Rect box = line.getBoundingBox();
-                if (box == null) continue;
-                lines.add(new CardTextParser.TextLine(line.getText(), box.left, box.top, box.right, box.bottom));
+                if (box != null) raw.add(CardTextParser.RawLine.ofBox(line.getText(), box.left, box.top, box.right, box.bottom));
             }
         }
         ScanReading reading;
+        CardTextParser.Straightened straight;
         if (autoMode()) {
             // Ce qui est lu est ce qui est visible (côtés rognés en remplissage) ;
             // une image tournée d'un quart de tour n'a plus ce repère.
-            if (turn == 0) lines = linesIn(frame.visibleInImage(), lines, width, height, 0f);
-            reading = CardTextParser.parseAround(lines, width / 2, height / 2, Math.round(width * COLUMN_TOLERANCE));
+            if (turn == 0) raw = linesIn(frame.visibleInImage(), raw, width, height, 0f);
+            // Carte de côté, penchée ou à l'envers : lignes redressées.
+            straight = CardTextParser.straighten(raw, width, height);
+            reading = CardTextParser.parseAround(straight.lines, straight.centerX, straight.centerY,
+                Math.round(straight.width * COLUMN_TOLERANCE));
             // Image sans texte lisible : un quart de tour à l'essai suivant.
             if (turn == extraRotation && !reading.hasCollectorInfo()
-                && CardTextParser.readableLines(lines) < MIN_READABLE_LINES) {
+                && CardTextParser.readableLines(straight.lines) < MIN_READABLE_LINES) {
                 if (++unreadableFrames >= UNREADABLE_FRAMES_BEFORE_TURN) {
                     extraRotation = (extraRotation + 90) % 360;
                     unreadableFrames = 0;
@@ -996,10 +1007,10 @@ public final class ScannerActivity extends AppCompatActivity {
                 unreadableFrames = 0;
             }
         } else {
-            lines = linesInFrame(lines, width, height);
-            reading = CardTextParser.parse(lines);
+            straight = CardTextParser.straighten(linesInFrame(raw, width, height), width, height);
+            reading = CardTextParser.parse(straight.lines);
         }
-        if (debuggable) logReading(lines, reading);
+        if (debuggable) logReading(straight, reading);
         long now = SystemClock.elapsedRealtime();
         String key = session.onReading(reading, now);
         if (session.counted != null) onCounted(session.counted);
@@ -1011,32 +1022,30 @@ public final class ScannerActivity extends AppCompatActivity {
 
     // Mode Cadre : les lignes dont le centre tombe dans le cadre, marge
     // comprise. L'aperçu et l'analyse montrent le même champ (4:3 entier).
-    private List<CardTextParser.TextLine> linesInFrame(List<CardTextParser.TextLine> lines, int width, int height) {
+    private List<CardTextParser.RawLine> linesInFrame(List<CardTextParser.RawLine> lines, int width, int height) {
         return linesIn(frame.frameInImage(), lines, width, height, FRAME_MARGIN);
     }
 
     // Lignes dont le centre tombe dans `zone` (fractions de l'image), agrandie
     // de `margin` (fraction de sa taille).
-    private static List<CardTextParser.TextLine> linesIn(
-        RectF zone, List<CardTextParser.TextLine> lines, int width, int height, float margin
+    private static List<CardTextParser.RawLine> linesIn(
+        RectF zone, List<CardTextParser.RawLine> lines, int width, int height, float margin
     ) {
         if (zone == null || width <= 0 || height <= 0) return lines;
         zone.inset(-zone.width() * margin, -zone.height() * margin);
-        List<CardTextParser.TextLine> kept = new ArrayList<>();
-        for (CardTextParser.TextLine line : lines) {
-            float x = (line.left + line.right) / 2f / width;
-            float y = (line.top + line.bottom) / 2f / height;
-            if (zone.contains(x, y)) kept.add(line);
+        List<CardTextParser.RawLine> kept = new ArrayList<>();
+        for (CardTextParser.RawLine line : lines) {
+            if (zone.contains(line.centerX() / width, line.centerY() / height)) kept.add(line);
         }
         return kept;
     }
 
-    private void logReading(List<CardTextParser.TextLine> lines, ScanReading reading) {
+    private void logReading(CardTextParser.Straightened straight, ScanReading reading) {
         StringBuilder text = new StringBuilder();
-        for (CardTextParser.TextLine line : lines) {
+        for (CardTextParser.TextLine line : straight.lines) {
             text.append("\n  [").append(line.left).append(',').append(line.top).append("] ").append(line.text);
         }
-        Log.d("SpellcacheScanner", "mode=" + settings.scanMode + " turn=" + extraRotation
+        Log.d("SpellcacheScanner", "mode=" + settings.scanMode + " turn=" + extraRotation + " angle=" + straight.degrees
             + " set=" + reading.setCode + " number=" + reading.collectorNumber
             + " lang=" + reading.language + " names=" + reading.names + text);
     }
@@ -1078,6 +1087,13 @@ public final class ScannerActivity extends AppCompatActivity {
 
     private void onCounted(ScanSession.Entry entry) {
         ScanSession.Match match = entry.match;
+        if (debuggable) {
+            Log.d("SpellcacheScanner", "counted " + match.name + " exact=" + match.exact + " upgraded=" + session.upgraded);
+        }
+        if (session.upgraded) {
+            showCountedCard(entry);
+            return;
+        }
         showStatus(match.name, detailOf(entry));
         // Comme dans l'app : icône du set, code, numéro.
         if (match.exact) showSetIcon(match);

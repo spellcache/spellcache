@@ -88,6 +88,59 @@ public class CardTextParserTest {
         assertEquals("Summon: G.F. Cerberus", reading.names.get(0));
     }
 
+    // Ligne d'une carte droite, tournée de `degrees` autour du centre d'une
+    // image 1440×1920 : ce que rend la reconnaissance pour une carte tenue
+    // de côté, à l'envers ou penchée.
+    private static CardTextParser.RawLine turned(String text, int left, int top, int degrees) {
+        int right = left + 200;
+        int bottom = top + 20;
+        double a = Math.toRadians(degrees);
+        float[] corners = new float[8];
+        int[][] points = {{left, top}, {right, top}, {right, bottom}, {left, bottom}};
+        for (int i = 0; i < 4; i++) {
+            double x = points[i][0] - 720;
+            double y = points[i][1] - 960;
+            corners[i * 2] = (float) (x * Math.cos(a) - y * Math.sin(a) + 720);
+            corners[i * 2 + 1] = (float) (x * Math.sin(a) + y * Math.cos(a) + 960);
+        }
+        return new CardTextParser.RawLine(text, corners);
+    }
+
+    private static ScanReading cerberusTurnedBy(int degrees) {
+        CardTextParser.Straightened straight = CardTextParser.straighten(Arrays.asList(
+            turned("Summon: G.F. Cerberus", 399, 392, degrees),
+            turned("library. You may put it", 433, 644, degrees),
+            turned("RO162", 372, 1389, degrees),
+            turned("FFVIII", 479, 1388, degrees),
+            turned("FIN EN KEVIN GLINT", 376, 1409, degrees)
+        ), 1440, 1920);
+        return CardTextParser.parseAround(straight.lines, straight.centerX, straight.centerY,
+            Math.round(straight.width * 0.06f));
+    }
+
+    @Test
+    public void readsACardHeldSidewaysUpsideDownOrTilted() {
+        for (int degrees : new int[] {0, 90, 180, -90, 15, -20}) {
+            ScanReading reading = cerberusTurnedBy(degrees);
+            assertEquals("at " + degrees + "°", "FIN", reading.setCode);
+            assertEquals("at " + degrees + "°", "O162", reading.collectorNumber);
+            assertEquals("at " + degrees + "°", "Summon: G.F. Cerberus", reading.names.get(0));
+        }
+    }
+
+    @Test
+    public void dropsTextRunningAcrossTheCard() {
+        CardTextParser.Straightened straight = CardTextParser.straighten(Arrays.asList(
+            turned("Summon: G.F. Cerberus", 399, 392, 90),
+            turned("RO162", 372, 1389, 90),
+            turned("FIN EN KEVIN GLINT", 376, 1409, 90),
+            // Boîte posée à côté, son texte dans l'autre sens.
+            turned("Booster Display Box", 900, 300, 0)
+        ), 1440, 1920);
+        assertEquals(90, straight.degrees);
+        assertEquals(3, straight.lines.size());
+    }
+
     @Test
     public void readsTheRarityAndNumberSeparated() {
         ScanReading reading = CardTextParser.parse(Arrays.asList(

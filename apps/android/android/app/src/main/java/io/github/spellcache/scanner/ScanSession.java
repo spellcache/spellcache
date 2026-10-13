@@ -110,6 +110,11 @@ public final class ScanSession {
 
     /** Carte comptée par le dernier `onReading`, `null` sinon. */
     public Entry counted;
+    /**
+     * Le dernier comptage remplace l'exemplaire compté par son nom par
+     * l'impression exacte : la même carte, ni son ni animation de plus.
+     */
+    public boolean upgraded;
 
     /**
      * Une image lue. Renvoie la lecture à demander au serveur, ou `null`
@@ -241,6 +246,7 @@ public final class ScanSession {
             // devient l'impression exacte.
             removeLast();
         }
+        upgraded = stillInFrame;
 
         // Un nouvel exemplaire prend les réglages par défaut : la ligne de
         // cette carte passée en foil ou dans une autre langue reste à part.

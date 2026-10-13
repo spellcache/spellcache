@@ -41,6 +41,150 @@ public final class CardTextParser {
         }
     }
 
+    /**
+     * Une ligne telle que rendue par la reconnaissance : ses quatre coins
+     * dans l'image (haut gauche, haut droit, bas droit, bas gauche, dans le
+     * sens de lecture), `x` puis `y`.
+     */
+    public static final class RawLine {
+        final String text;
+        final float[] corners;
+
+        public RawLine(String text, float[] corners) {
+            this.text = text;
+            this.corners = corners;
+        }
+
+        /** Sans coins connus : sa boîte, texte supposé droit. */
+        public static RawLine ofBox(String text, int left, int top, int right, int bottom) {
+            return new RawLine(text, new float[] {left, top, right, top, right, bottom, left, bottom});
+        }
+
+        public float centerX() {
+            return (corners[0] + corners[2] + corners[4] + corners[6]) / 4f;
+        }
+
+        public float centerY() {
+            return (corners[1] + corners[3] + corners[5] + corners[7]) / 4f;
+        }
+
+        // Sens de lecture, en radians dans le repère de l'image.
+        double angle() {
+            return Math.atan2(corners[3] - corners[1], corners[2] - corners[0]);
+        }
+
+        double length() {
+            return Math.hypot(corners[2] - corners[0], corners[3] - corners[1]);
+        }
+    }
+
+    /** Lignes ramenées dans le repère de la carte, et le centre de l'image dans ce repère. */
+    public static final class Straightened {
+        public final List<TextLine> lines;
+        public final int centerX;
+        public final int centerY;
+        /** Largeur de l'image le long des lignes de texte. */
+        public final int width;
+        /** Rotation corrigée, en degrés. */
+        public final int degrees;
+
+        Straightened(List<TextLine> lines, int centerX, int centerY, int width, int degrees) {
+            this.lines = lines;
+            this.centerX = centerX;
+            this.centerY = centerY;
+            this.width = width;
+            this.degrees = degrees;
+        }
+    }
+
+    // Écart au sens dominant au-delà duquel une ligne n'est pas sur la même
+    // carte (autre carte posée de travers, texte du fond). Les lignes courtes
+    // (rareté seule, `C`) ont un sens trop incertain pour être écartées.
+    private static final double MAX_SKEW = Math.toRadians(25);
+    private static final int MIN_SKEW_CHARS = 4;
+
+    /**
+     * La reconnaissance lit le texte d'une carte de côté, penchée ou à
+     * l'envers, mais rend ses lignes dans le repère de l'image : « au-dessus »,
+     * « même colonne » n'y ont plus de sens. Les lignes sont tournées du sens
+     * de lecture dominant, comme si la carte était droite.
+     */
+    public static Straightened straighten(List<RawLine> raw, int width, int height) {
+        double angle = dominantAngle(raw);
+        double cos = Math.cos(-angle);
+        double sin = Math.sin(-angle);
+
+        List<TextLine> lines = new ArrayList<>();
+        for (RawLine line : raw) {
+            if (line.text.trim().length() >= MIN_SKEW_CHARS && line.length() > 0
+                && Math.abs(wrapped(line.angle() - angle)) > MAX_SKEW) continue;
+            float minX = Float.MAX_VALUE;
+            float minY = Float.MAX_VALUE;
+            float maxX = -Float.MAX_VALUE;
+            float maxY = -Float.MAX_VALUE;
+            for (int i = 0; i < 8; i += 2) {
+                float x = (float) (line.corners[i] * cos - line.corners[i + 1] * sin);
+                float y = (float) (line.corners[i] * sin + line.corners[i + 1] * cos);
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+            lines.add(new TextLine(line.text, Math.round(minX), Math.round(minY), Math.round(maxX), Math.round(maxY)));
+        }
+
+        double centerX = width / 2.0;
+        double centerY = height / 2.0;
+        // Étendue de l'image le long des lignes : ses coins tournés.
+        double minX = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE;
+        for (double[] corner : new double[][] {{0, 0}, {width, 0}, {width, height}, {0, height}}) {
+            double x = corner[0] * cos - corner[1] * sin;
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+        }
+        return new Straightened(
+            lines,
+            (int) Math.round(centerX * cos - centerY * sin),
+            (int) Math.round(centerX * sin + centerY * cos),
+            (int) Math.round(maxX - minX),
+            (int) Math.round(Math.toDegrees(angle)));
+    }
+
+    // Sens qui réunit le plus de texte (longueur des lignes à moins de
+    // `MAX_SKEW`), puis leur moyenne : le texte d'un objet voisin, dans un
+    // autre sens, ne fausse pas celui de la carte.
+    private static double dominantAngle(List<RawLine> raw) {
+        RawLine best = null;
+        double bestSupport = 0;
+        for (RawLine candidate : raw) {
+            if (candidate.length() == 0) continue;
+            double support = 0;
+            for (RawLine line : raw) {
+                if (Math.abs(wrapped(line.angle() - candidate.angle())) <= MAX_SKEW) support += line.length();
+            }
+            if (support > bestSupport) {
+                bestSupport = support;
+                best = candidate;
+            }
+        }
+        if (best == null) return 0;
+        double sumX = 0;
+        double sumY = 0;
+        for (RawLine line : raw) {
+            if (Math.abs(wrapped(line.angle() - best.angle())) > MAX_SKEW) continue;
+            sumX += line.corners[2] - line.corners[0];
+            sumY += line.corners[3] - line.corners[1];
+        }
+        return Math.atan2(sumY, sumX);
+    }
+
+    private static double wrapped(double radians) {
+        while (radians > Math.PI) radians -= 2 * Math.PI;
+        while (radians < -Math.PI) radians += 2 * Math.PI;
+        return radians;
+    }
+
     // Langues imprimées à côté du code de set.
     private static final Set<String> LANGUAGES = new HashSet<>(Arrays.asList(
         "EN", "FR", "DE", "IT", "ES", "SP", "PT", "JP", "JA", "KO", "RU", "CS", "CT", "PH", "ZHS", "ZHT"

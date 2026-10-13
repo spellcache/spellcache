@@ -1,0 +1,13 @@
+spellcache
+Copyright (c) 2026 The spellcache contributors
+
+The spellcache source code is released under the MIT License (see LICENSE).
+
+Third-party material
+
+The MIT License covers the spellcache source code only. Magic: The Gathering,
+its card names, card images, mana and set symbols are property of Wizards of
+the Coast LLC and are not covered by this license; spellcache does not ship
+them — they are downloaded from Scryfall at setup and at runtime. Card data
+and prices come from Scryfall (https://scryfall.com) and remain subject to
+Scryfall's terms.

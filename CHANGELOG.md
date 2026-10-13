@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/spellcache/spellcache/compare/v0.4.0...v0.5.0) (2026-10-13)
+
+
+### Features
+
+* **web:** animate the first-player roll and name the right seat ([#50](https://github.com/spellcache/spellcache/issues/50)) ([a0bfe59](https://github.com/spellcache/spellcache/commit/a0bfe59f3e905e9724fa4154d89f4e19098f4438))
+
+
+### Bug Fixes
+
+* **web:** allow partner and background commander pairs ([#38](https://github.com/spellcache/spellcache/issues/38)) ([bf1d031](https://github.com/spellcache/spellcache/commit/bf1d03195a1ff5a6dc4d3a0bc49581a97a73a76d))
+* **web:** show when a deck is dismantled ([#46](https://github.com/spellcache/spellcache/issues/46)) ([823a3a7](https://github.com/spellcache/spellcache/commit/823a3a73f63c0d780d09aa5154630df489894ecf))
+
 ## [0.4.0](https://github.com/spellcache/spellcache/compare/v0.3.1...v0.4.0) (2026-10-13)
 
 

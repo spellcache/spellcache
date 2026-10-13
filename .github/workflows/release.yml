@@ -103,6 +103,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -138,6 +140,22 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.app }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: docker buildx imagetools inspect "$IMAGE:$VERSION"
+      # Provenance SLSA signée sur le manifeste multi-plateforme : c'est le
+      # digest que résout un tag, donc celui que `gh attestation verify
+      # oci://ghcr.io/spellcache/<app>:<version>` contrôle.
+      - id: digest
+        name: Resolve manifest digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.app }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.app }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
 
   # Script d'installation (get.spellcache.com) et fichiers d'une installation
   # manuelle, joints à la release. Après `images` : le script installe des

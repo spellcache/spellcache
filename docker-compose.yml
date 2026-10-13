@@ -46,8 +46,8 @@ services:
   # (conteneur worker du Compose) avec un ordonnanceur interne, qui doit
   # fonctionner ici, en local, via ce Compose de développement — le
   # déploiement en production et le cron système vivent ailleurs
-  # (`docker-compose.example.yml`, `deploy/cron.md`). Construit localement
-  # depuis le même Dockerfile que la production : un montage du dépôt ne
+  # (`docker-compose.example.yml`, `docs/self-hosting/scheduled-tasks.md`).
+  # Construit localement depuis le même Dockerfile que la production : un montage du dépôt ne
   # tient pas dans un workspace pnpm, dont
   # les `node_modules` de chaque package sont des liens symboliques en chemins
   # absolus de l'hôte, qui pendraient dans le vide dans le conteneur. Après

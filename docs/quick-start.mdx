@@ -1,0 +1,76 @@
+---
+title: Quick start
+description: From an empty server to a working spellcache instance, in one page.
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+This page is the short path. Each step links to the full guide when you need
+the details.
+
+## Before you start
+
+- [ ] A Linux server with Docker Engine 24+ and 4 GB of RAM
+- [ ] A domain name, with a DNS record pointing to the server
+- [ ] A reverse proxy that can terminate HTTPS for that domain
+- [ ] A [Resend](https://resend.com) account with that domain verified, and an
+      API key
+
+## Install
+
+<Steps>
+
+1. **Get the files and configure**
+
+   ```bash
+   sudo mkdir -p /srv && cd /srv
+   sudo git clone https://github.com/spellcache/spellcache.git && cd spellcache
+   cp .env.example .env && chmod 600 .env
+   ```
+
+   Fill in the **Production** section of `.env`: `AUTH_URL`, `AUTH_SECRET`,
+   `ADMIN_EMAIL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, the `POSTGRES_*`
+   values and `REDIS_PASSWORD`. Create the secrets with
+   `openssl rand -base64 32` and `openssl rand -hex 24`. Every variable is
+   described in the [configuration reference](../reference/configuration/).
+
+2. **Start**
+
+   ```bash
+   docker compose -f docker-compose.example.yml up -d
+   docker compose -f docker-compose.example.yml ps
+   ```
+
+   Within about two minutes, every service shows `healthy`. If `web` stays
+   `starting`, see [Troubleshooting](../self-hosting/troubleshooting/).
+
+3. **Put HTTPS in front**
+
+   Point your reverse proxy to `127.0.0.1:3000`. Examples for nginx, Caddy and
+   Cloudflare Tunnel are in [Reverse proxy](../self-hosting/reverse-proxy/).
+
+4. **Import the card catalogue**
+
+   ```bash
+   docker compose -f docker-compose.example.yml exec -T worker node apps/worker/src/index.ts --run-now
+   ```
+
+   Twenty minutes to an hour. The worker logs each step; the app shows cards
+   as soon as the import is done.
+
+5. **Sign in**
+
+   Open your domain, enter `ADMIN_EMAIL`, and type the code from the email.
+   This first account is the administrator. Invite the others from
+   **Settings › Administration › Users**.
+
+</Steps>
+
+## Before you forget
+
+- Add the two [cron entries](../self-hosting/scheduled-tasks/): nightly run and
+  backup.
+- Copy `BACKUP_PASSPHRASE` somewhere else than the server.
+- Run a first [backup](../self-hosting/backup/) by hand.
+
+Then send your playgroup to the [user guide](../guide/collection/).

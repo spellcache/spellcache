@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "pnpm --filter @spellcache/web dev",
     "android:dev": "pnpm --filter @spellcache/android dev",
+    "docs:dev": "pnpm --filter @spellcache/docs dev",
+    "docs:build": "pnpm --filter @spellcache/docs build",
     "build": "pnpm --filter @spellcache/web build",
     "start": "pnpm --filter @spellcache/web start",
     "typecheck": "pnpm -r typecheck",

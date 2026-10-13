@@ -4,8 +4,8 @@
 // Reprend et remplace `startNightlyScheduler` de `apps/worker/src/index.ts`, qui
 // ne connaissait qu'une heure UTC entière et aucun verrou : en production deux
 // déclencheurs coexistent — l'ordonnanceur interne de ce conteneur et l'entrée
-// cron de l'hôte documentée dans `deploy/cron.md`. Sans verrou partagé, une
-// nuit lançait deux imports bulk en parallèle.
+// cron de l'hôte documentée dans `docs/self-hosting/scheduled-tasks.md`. Sans
+// verrou partagé, une nuit lançait deux imports bulk en parallèle.
 //
 // Sans bundler (résolution ESM native de Node, `node apps/worker/src/index.ts`) : tous
 // les imports internes sont relatifs avec extension `.ts` explicite, jamais
@@ -30,7 +30,8 @@ export const NIGHTLY_LOCK_NAME = 'nightly'
 // mise en file et expire de lui-même. 6 h couvre largement le plus long import
 // bulk observé tout en étant très inférieur aux 24 h qui séparent deux nuits —
 // une nuit ratée pour cause de verrou périmé est donc impossible. Pour forcer
-// une relance dans la même fenêtre, supprimer la clé (voir docs/self-hosting.md).
+// une relance dans la même fenêtre, supprimer la clé (voir
+// docs/self-hosting/troubleshooting.md).
 export const NIGHTLY_LOCK_TTL_MS = 6 * 60 * 60 * 1000
 
 // Sondage minute par minute plutôt qu'un délai unique calculé au démarrage :
@@ -65,7 +66,8 @@ const consoleLogger: Logger = {
 
 // Client dédié au verrou, distinct de celui de la file (`apps/worker/src/index.ts`) :
 // `acquireLock` doit aussi fonctionner depuis le déclencheur en ligne de
-// commande de `deploy/cron.md`, qui n'ouvre jamais la boucle de consommation.
+// commande de `docs/self-hosting/scheduled-tasks.md`, qui n'ouvre jamais la
+// boucle de consommation.
 let lockClient: Redis | null = null
 
 function getLockClient(): Redis {

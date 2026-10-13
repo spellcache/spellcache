@@ -54,3 +54,8 @@ Thumbs.db
 # symboles de mana (propriété de Wizards of the Coast) — téléchargés depuis
 # Scryfall par scripts/fetch-mana.mjs, jamais versionnés
 **/public/mana/
+
+# site de documentation : cache Astro, et favicon copié depuis design/assets/
+# par apps/docs/scripts/copy-assets.mjs
+.astro/
+apps/docs/public/favicon.svg

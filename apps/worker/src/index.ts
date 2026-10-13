@@ -152,9 +152,10 @@ export async function consumeQueue(
 
 // Ordonnancement nocturne : délégué à `apps/worker/src/scheduler.ts` —
 // fenêtre horaire dans un fuseau IANA, et verrou Redis
-// partagé avec le déclencheur cron de l'hôte (`deploy/cron.md`). La boucle de
-// consommation ci-dessus reste la garantie « jamais deux jobs en concurrence »
-// à l'intérieur de ce process ; le verrou est la même garantie entre process.
+// partagé avec le déclencheur cron de l'hôte
+// (`docs/self-hosting/scheduled-tasks.md`). La boucle de consommation
+// ci-dessus reste la garantie « jamais deux jobs en concurrence » à
+// l'intérieur de ce process ; le verrou est la même garantie entre process.
 
 export async function startWorker(opts?: { maxIterations?: number }): Promise<void> {
   const health = createHealthState()
@@ -174,7 +175,7 @@ export async function startWorker(opts?: { maxIterations?: number }): Promise<vo
 }
 
 // Déclencheur nocturne en ligne de commande (`node apps/worker/src/index.ts --run-now`,
-// voir `deploy/cron.md`) : pose le verrou puis met la nuit
+// voir `docs/self-hosting/scheduled-tasks.md`) : pose le verrou puis met la nuit
 // en file, pour que le cron de l'hôte puisse la déclencher sans dupliquer
 // l'exécution de l'ordonnanceur interne. Sort 0 dans les deux cas — un
 // déclenchement ignoré parce qu'un autre détient le verrou est un succès, pas

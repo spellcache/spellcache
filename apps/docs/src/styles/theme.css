@@ -1,0 +1,354 @@
+/* Habillage du site de documentation : palette et formes de l'app
+   (apps/web/app/globals.css, bloc @theme), appliquées aux composants de
+   Starlight. Starlight est sombre par défaut, le thème clair se déclare sur
+   [data-theme='light'] ; les styles non « layered » ci-dessous passent devant
+   les siens. */
+
+:root {
+  /* Jetons propres au site, mêmes valeurs que l'app. */
+  --sc-bg: #0a090e;
+  --sc-surface-1: #14121a;
+  --sc-surface-2: #17151e;
+  --sc-surface-3: #1b1923;
+  --sc-text: #f1eff4;
+  --sc-text-2: #9a96a6;
+  --sc-text-3: #5d5a69;
+  --sc-accent: #e8b44a;
+  --sc-accent-text: #f0c060;
+  --sc-accent-bg: #221c12;
+  --sc-border: rgba(255, 255, 255, 0.06);
+  --sc-border-strong: rgba(255, 255, 255, 0.12);
+  --sc-ink: #16141f;
+
+  --sl-font: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --sl-font-mono: 'Geist Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --sl-color-accent-low: var(--sc-accent-bg);
+  --sl-color-accent: var(--sc-accent);
+  --sl-color-accent-high: var(--sc-accent-text);
+
+  --sl-color-white: var(--sc-text);
+  --sl-color-gray-1: #e2dfe8;
+  --sl-color-gray-2: #c9c5d3;
+  --sl-color-gray-3: var(--sc-text-2);
+  --sl-color-gray-4: var(--sc-text-3);
+  --sl-color-gray-5: var(--sc-surface-3);
+  --sl-color-gray-6: var(--sc-surface-1);
+  --sl-color-black: var(--sc-bg);
+
+  --sl-color-text: #d9d6e0;
+  --sl-color-text-accent: var(--sc-accent-text);
+  --sl-color-bg: var(--sc-bg);
+  --sl-color-bg-nav: color-mix(in srgb, var(--sc-surface-1) 88%, transparent);
+  --sl-color-bg-sidebar: var(--sc-surface-1);
+  --sl-color-bg-inline-code: var(--sc-surface-3);
+  --sl-color-hairline-light: var(--sc-border);
+  --sl-color-hairline: var(--sc-border);
+  --sl-color-hairline-shade: var(--sc-border-strong);
+
+  --sl-text-h1: 2.125rem;
+  --sl-text-h2: 1.375rem;
+  --sl-text-h3: 1.0625rem;
+  --sl-text-h4: 1rem;
+  --sl-line-height-headings: 1.2;
+}
+
+:root[data-theme='light'] {
+  --sc-bg: #f3f2f6;
+  --sc-surface-1: #ffffff;
+  --sc-surface-2: #f6f5f9;
+  --sc-surface-3: #ecebf1;
+  --sc-text: #16141f;
+  --sc-text-2: #615d6e;
+  --sc-text-3: #9a96a6;
+  --sc-accent-text: #8f6410;
+  --sc-accent-bg: #fbf0d9;
+  --sc-border: rgba(22, 20, 31, 0.09);
+  --sc-border-strong: rgba(22, 20, 31, 0.16);
+
+  --sl-color-gray-1: #26232f;
+  --sl-color-gray-2: #3d3a47;
+  --sl-color-gray-7: var(--sc-surface-2);
+  --sl-color-text: #26232f;
+}
+
+/* Tailles de titre fixes : Starlight les agrandit sur grand écran. */
+@media (min-width: 50em) {
+  :root {
+    --sl-text-h1: 2.125rem;
+    --sl-text-h2: 1.375rem;
+    --sl-text-h3: 1.0625rem;
+    --sl-text-h4: 1rem;
+  }
+}
+
+/* --- En-tête : translucide, flouté, comme la barre de l'app --- */
+header.header {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sc-border);
+}
+.site-title {
+  color: var(--sc-text);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.site-title img {
+  border-radius: 7px;
+}
+
+/* --- Barre latérale : intitulés de groupe en petites capitales, page
+       courante en pastille or pâle --- */
+.sidebar-pane {
+  border-inline-end: 1px solid var(--sc-border);
+}
+.sidebar-content summary .group-label .large {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sc-text-3);
+}
+.sidebar-content summary {
+  padding-block: 0.25rem;
+}
+.sidebar-content a {
+  border-radius: 6px;
+  color: var(--sc-text-2);
+  font-size: 0.875rem;
+}
+.sidebar-content a:hover {
+  color: var(--sc-text);
+  background: var(--sc-surface-2);
+}
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  background: var(--sc-accent-bg);
+  color: var(--sc-accent-text);
+  font-weight: 550;
+}
+
+/* --- Contenu --- */
+.sl-markdown-content h2 {
+  margin-top: 2.5rem;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.sl-markdown-content h3 {
+  margin-top: 1.75rem;
+}
+.sl-markdown-content :not(pre) > code {
+  padding: 0.0625rem 0.3125rem;
+  border: 1px solid var(--sc-border);
+  border-radius: 4px;
+  font-size: 0.86em;
+}
+
+/* Tableaux dans un cadre arrondi, en-tête sur fond légèrement teinté. */
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+}
+.sl-markdown-content :is(th, td) {
+  border-bottom: 1px solid var(--sc-border);
+  padding: 0.55rem 0.75rem;
+}
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+.sl-markdown-content th {
+  background: var(--sc-surface-2);
+  color: var(--sc-text-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.sl-markdown-content td code {
+  white-space: nowrap;
+}
+/* Exemples tirés de .env.example (EnvReference.astro) : mêmes couleurs que les
+   blocs de code, défilement horizontal plutôt qu'une page élargie. */
+.sl-markdown-content .sc-pre {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: var(--sc-ink);
+  color: #ece9f3;
+  font-size: 0.8rem;
+}
+.sl-markdown-content .sc-pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+/* Sur téléphone, un tableau trop large défile dans son cadre au lieu
+   d'élargir la page. */
+@media (max-width: 50em) {
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Encadrés : filet fin teinté sur tout le pourtour et titre en petites
+   capitales, plutôt que la barre latérale épaisse de Starlight. */
+.starlight-aside {
+  border: 1px solid color-mix(in srgb, var(--sl-color-asides-border) 45%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sl-color-asides-border) 8%, var(--sc-surface-1));
+  padding: 0.75rem 1rem;
+}
+.starlight-aside__title {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.starlight-aside__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Étapes numérotées : pastilles rondes en chiffres monospace. */
+.sl-steps > li::before {
+  background: var(--sc-surface-3);
+  border: 1px solid var(--sc-border-strong);
+  color: var(--sc-text);
+  font-family: var(--sl-font-mono);
+  font-weight: 600;
+}
+.sl-steps > li::after {
+  background: var(--sc-border-strong);
+}
+
+/* Onglets : soulignement or sous l'onglet actif. */
+starlight-tabs [role='tab'][aria-selected='true'] {
+  color: var(--sc-accent-text);
+  border-color: var(--sc-accent);
+}
+
+/* Liens précédent / suivant et cartes : objets distincts, bord fin. */
+.pagination-links a,
+.sl-link-card,
+.card {
+  background: var(--sc-surface-1);
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 10px;
+  box-shadow: none;
+}
+.pagination-links a:hover,
+.sl-link-card:hover {
+  border-color: var(--sc-accent);
+  background: var(--sc-surface-1);
+}
+.card .icon {
+  box-sizing: content-box;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--sc-accent-bg);
+  color: var(--sc-accent-text);
+}
+.card .title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.card .body {
+  color: var(--sc-text-2);
+  font-size: 0.875rem;
+}
+
+/* --- Accueil --- */
+.hero h1 {
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--sc-accent-text);
+}
+.sl-link-button {
+  border-radius: 999px;
+  font-weight: 600;
+}
+/* Le bouton principal garde l'or plein et l'encre, comme dans l'app. */
+.sl-link-button.primary {
+  background: var(--sc-accent);
+  border-color: var(--sc-accent);
+  color: var(--sc-ink);
+}
+
+/* Terminal de l'accueil : toujours sombre, quel que soit le thème. */
+.sc-terminal {
+  width: 100%;
+  max-width: 34rem;
+  padding: 1.25rem;
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 16px;
+  background: var(--sc-ink);
+  box-shadow: 0 30px 60px -30px rgba(22, 20, 31, 0.5);
+  color: #ece9f3;
+  text-align: start;
+}
+.sc-terminal .bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 0.875rem;
+}
+.sc-terminal .bar i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2b2836;
+}
+.sc-terminal pre {
+  margin: 0;
+  font: 0.8rem/1.8 var(--sl-font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sc-terminal .p {
+  color: #e8b44a;
+}
+.sc-terminal .d {
+  color: #8a8698;
+}
+.sc-terminal .ok {
+  color: #34d399;
+}
+
+/* CHANGELOG.md porte son propre « # Changelog », redondant avec le titre de
+   la page qui l'inclut. */
+.changelog > h1:first-child {
+  display: none;
+}
+
+/* Les seules images Markdown du site sont des captures de téléphone : largeur
+   d'écran mobile, côte à côte quand un paragraphe en contient plusieurs. */
+.sl-markdown-content p > img {
+  display: inline-block;
+  width: 100%;
+  max-width: 17rem;
+  margin: 0 0.75rem 0.75rem 0;
+  vertical-align: top;
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 1rem;
+}
+
+/* Mentions légales en pied de l'accueil : présentes, discrètes. */
+.legal {
+  margin-top: 3rem;
+  font-size: var(--sl-text-xs);
+  color: var(--sc-text-3);
+}

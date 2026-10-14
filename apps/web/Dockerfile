@@ -9,7 +9,7 @@
 #
 # Elle tourne en utilisateur non root (`nextjs`, uid 1001).
 
-FROM node:24-alpine AS base
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 # `libc6-compat` : Next et sharp sont liés à glibc sur certaines plateformes,
 # Alpine fournit musl. C'est la recommandation officielle de Next pour Alpine.
 RUN apk add --no-cache libc6-compat
@@ -52,7 +52,7 @@ COPY . .
 RUN pnpm --filter @spellcache/web build
 
 # --- Image finale ------------------------------------------------------------
-FROM node:24-alpine AS runner
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
 RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

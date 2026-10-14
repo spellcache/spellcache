@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="spellcache — Your Magic: The Gathering collection, on your own server.">
+  <rect width="1280" height="640" fill="#16141F"></rect>
+  <g transform="translate(76 134) scale(3.6)">
+    <path d="M44.5 10.5 H73.5 V73 L59 62 L44.5 73 Z" fill="none" stroke="#E8B44A" stroke-width="5" stroke-linejoin="round"></path>
+    <path d="M24 22 H58 V92 L41 79 L24 92 Z" fill="#16141F" stroke="#16141F" stroke-width="7" stroke-linejoin="round"></path>
+    <path d="M24 22 H58 V92 L41 79 L24 92 Z" fill="#E8B44A"></path>
+    <path d="M41 35 Q43.6 45.4 54 48 Q43.6 50.6 41 61 Q38.4 50.6 28 48 Q38.4 45.4 41 35 Z" fill="#16141F"></path>
+  </g>
+  <g font-family="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+    <text x="430" y="300" font-size="124" font-weight="700" fill="#F4EFE4" letter-spacing="-3">spellcache</text>
+    <text x="434" y="372" font-size="38" font-weight="400" fill="#B9B3C7">Your Magic: The Gathering collection,</text>
+    <text x="434" y="420" font-size="38" font-weight="400" fill="#B9B3C7">on your own server.</text>
+    <text x="434" y="498" font-size="26" font-weight="600" fill="#E8B44A" letter-spacing="2">SELF-HOSTED  ·  MOBILE-FIRST  ·  OPEN SOURCE</text>
+  </g>
+</svg>

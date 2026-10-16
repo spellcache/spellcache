@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@spellcache/core": "workspace:*",
-    "drizzle-orm": "^0.45.3",
-    "pg": "^8.13.1"
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

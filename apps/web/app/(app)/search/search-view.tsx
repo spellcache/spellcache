@@ -34,6 +34,7 @@ import type { CardSearchItem, CardSearchResult } from '@/lib/search/search-cards
 import { listSetsAction, searchCatalogAction, type SetSummary } from './actions'
 import { SET_TYPE_GROUPS, setGroupOf } from '@/lib/search/set-type-groups'
 import { SEARCH_INPUT_PROPS } from '@/components/ui/search-input-props'
+import { useChanged } from '@/components/ui/use-changed'
 
 type Category = 'cards' | 'sets'
 type Status = 'idle' | 'loading' | 'results' | 'empty' | 'error'
@@ -134,22 +135,21 @@ function CardsSearch({
     return () => clearTimeout(timer)
   }, [query])
 
+  const trimmedQuery = debouncedQuery.trim()
+  const effectiveQuery = trimmedQuery.length >= MIN_QUERY_LENGTH ? trimmedQuery : ''
+  // Rien à chercher : ni texte utilisable, ni filtre. L'écran le dit plutôt
+  // que de ramener le catalogue entier.
+  const searchable = effectiveQuery !== '' || filterCount > 0
+  const queryChanged = useChanged(effectiveQuery)
+  const filtersChanged = useChanged(filters)
+  if (queryChanged || filtersChanged) {
+    setStatus(searchable ? 'loading' : 'idle')
+    if (!searchable) setResult(null)
+  }
+
   useEffect(() => {
-    const trimmed = debouncedQuery.trim()
-    const effectiveQuery = trimmed.length >= MIN_QUERY_LENGTH ? trimmed : ''
-    const count = activeFilterCount(filters)
-
-    // Rien à chercher : ni texte utilisable, ni filtre. L'écran le dit plutôt
-    // que de ramener le catalogue entier.
-    if (effectiveQuery === '' && count === 0) {
-      latestRequestId.current += 1
-      setStatus('idle')
-      setResult(null)
-      return
-    }
-
     const requestId = ++latestRequestId.current
-    setStatus('loading')
+    if (!searchable) return
 
     searchCatalogAction({
       query: effectiveQuery,
@@ -179,7 +179,7 @@ function CardsSearch({
         if (requestId !== latestRequestId.current) return
         setStatus('error')
       })
-  }, [debouncedQuery, filters])
+  }, [effectiveQuery, filters, searchable])
 
   return (
     <Screen

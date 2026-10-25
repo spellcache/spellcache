@@ -14,7 +14,7 @@
 // search params (`useSearchParams` force le rendu client,
 // encapsulé dans un `<Suspense>` par l'appelant).
 import { ArrowDownWideNarrow, PanelRight, Search, SlidersHorizontal, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { DensityPicker } from './density-picker'
 import { FiltersSheet } from './filters-sheet'
@@ -23,6 +23,8 @@ import { listHoldingBindersAction, type HoldingBinderOption } from '@/app/(app)/
 import { formatCount, type Currency } from '@/lib/format/money'
 import { describeActiveFilters, type Density, type ViewState } from '@/lib/view-state/parse'
 import { SEARCH_INPUT_PROPS } from '@/components/ui/search-input-props'
+import { useChanged } from '@/components/ui/use-changed'
+import { useLatest } from '@/components/ui/use-latest'
 
 const SEARCH_DEBOUNCE_MS = 200
 
@@ -75,10 +77,8 @@ export function CommandBar({
   translucent?: boolean
 }) {
   const [queryDraft, setQueryDraft] = useState(viewState.query)
-  const onViewStateChangeRef = useRef(onViewStateChange)
-  onViewStateChangeRef.current = onViewStateChange
-  const viewStateRef = useRef(viewState)
-  viewStateRef.current = viewState
+  const onViewStateChangeRef = useLatest(onViewStateChange)
+  const viewStateRef = useLatest(viewState)
 
   // Filtre `Binder` (voir le commentaire de
   // tête de `listHoldings`, `holdings-data.ts`) : visible UNIQUEMENT sur le
@@ -91,11 +91,10 @@ export function CommandBar({
   const showBinderFilter = searchScope === null
   const [binders, setBinders] = useState<HoldingBinderOption[]>([])
 
+  if (useChanged(showBinderFilter) && !showBinderFilter) setBinders([])
+
   useEffect(() => {
-    if (!showBinderFilter) {
-      setBinders([])
-      return
-    }
+    if (!showBinderFilter) return
     let cancelled = false
     void listHoldingBindersAction(containerId).then((options) => {
       if (!cancelled) setBinders(options)
@@ -108,9 +107,7 @@ export function CommandBar({
   // Le champ garde son propre brouillon (comme `SearchField`) : la
   // frappe ne doit pas attendre l'aller-retour URL pour rester réactive,
   // seule la requête serveur est débouncée.
-  useEffect(() => {
-    setQueryDraft(viewState.query)
-  }, [viewState.query])
+  if (useChanged(viewState.query)) setQueryDraft(viewState.query)
 
   useEffect(() => {
     if (queryDraft === viewStateRef.current.query) return
@@ -118,7 +115,7 @@ export function CommandBar({
       onViewStateChangeRef.current({ ...viewStateRef.current, query: queryDraft })
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timeout)
-  }, [queryDraft])
+  }, [queryDraft, onViewStateChangeRef, viewStateRef])
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)

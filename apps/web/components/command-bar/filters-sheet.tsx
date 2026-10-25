@@ -26,6 +26,7 @@ import {
   type HoldingFilters,
 } from '@/lib/view-state/parse'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useChanged } from '@/components/ui/use-changed'
 import {
   countHoldingsAction,
   listContainerSetsAction,
@@ -125,10 +126,9 @@ export function FiltersSheet({
   // `EMPTY_FILTERS`, une fermeture sans
   // validation ne doit inversement rien laisser filtrer) — jamais persisté
   // entre deux ouvertures.
-  useEffect(() => {
-    if (!open) return
-    setDraft(filters)
-  }, [open, filters])
+  const openChanged = useChanged(open)
+  const filtersChanged = useChanged(filters)
+  if (open && (openChanged || filtersChanged)) setDraft(filters)
 
   useEffect(() => {
     if (!open) return

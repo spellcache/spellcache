@@ -89,6 +89,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   useEffect(() => {
     const pending = readPendingEmail()
     if (!pending) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- `sessionStorage`, lu après l'hydratation
     setEmail(pending)
     setStatus('sent')
     if (initialError) setCodeError(messageForAuthErrorCode(initialError, true))

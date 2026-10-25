@@ -25,6 +25,9 @@ export default async function CollectionPage({
 }) {
   const user = await requireSession()
 
+  let loaded:
+    | { style: 'shelves'; shelves: Awaited<ReturnType<typeof getCollectionShelves>> }
+    | { style: 'home'; data: Awaited<ReturnType<typeof getCollectionHome>> }
   try {
     // `__forceError` (jamais actif en production, sauf sur le build servi aux
     // tests e2e, reconnaissable à son transport de mail de test) : un composant serveur ne
@@ -49,13 +52,17 @@ export default async function CollectionPage({
     // rend `ShelvesView` ; toute autre valeur charge `getCollectionHome` et
     // reste sur `CollectionView`.
     const style = await getCollectionStyle(user.id)
-    if (style === 'shelves') {
-      const shelves = await getCollectionShelves(user.id)
-      return <ShelvesView initial={shelves} />
-    }
-    const data = await getCollectionHome(user.id)
-    return <CollectionView initial={data} />
+    loaded =
+      style === 'shelves'
+        ? { style, shelves: await getCollectionShelves(user.id) }
+        : { style: 'home', data: await getCollectionHome(user.id) }
   } catch {
     return <CollectionErrorState />
   }
+
+  return loaded.style === 'shelves' ? (
+    <ShelvesView initial={loaded.shelves} />
+  ) : (
+    <CollectionView initial={loaded.data} />
+  )
 }

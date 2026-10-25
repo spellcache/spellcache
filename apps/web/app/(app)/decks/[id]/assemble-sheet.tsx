@@ -14,6 +14,7 @@ import { SlotRow } from '@/components/decks/slot-row'
 import { Segmented } from '@/components/ui/segmented'
 import { SHEET_SCROLL_BLEED, Sheet } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
+import { useChanged } from '@/components/ui/use-changed'
 import type { Currency } from '@/lib/format/money'
 import { formatMoney } from '@/lib/format/money'
 
@@ -77,17 +78,19 @@ export function AssembleSheet({
   const [fromLooseCollection, setFromLooseCollection] = useState(true)
   const [fromOtherBuiltDecks, setFromOtherBuiltDecks] = useState(false)
   const [plan, setPlan] = useState<AssemblePlan | null>(null)
-  const [loadingPlan, setLoadingPlan] = useState(false)
+  const [loadingPlan, setLoadingPlan] = useState(open)
   const [tab, setTab] = useState<'missing' | 'owned' | 'borrowed'>('missing')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [assembling, setAssembling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
 
+  const planKey = open ? JSON.stringify([deckId, fromLooseCollection, fromOtherBuiltDecks]) : null
+  if (useChanged(planKey) && planKey !== null) setLoadingPlan(true)
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setLoadingPlan(true)
     void planAssemblyAction({ deckId, fromLooseCollection, fromOtherBuiltDecks }).then(
       (result) => {
         if (cancelled) return

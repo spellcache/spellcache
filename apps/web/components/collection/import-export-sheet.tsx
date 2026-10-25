@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import type { Condition } from '@spellcache/db/schema'
@@ -524,11 +525,14 @@ export function ImportExportSheet({
   const [tab, setTab] = useState<Tab>(initialTab)
   const [destinations, setDestinations] = useState<ImportExportDestinations | null>(null)
 
+  const openChanged = useChanged(open)
+  const initialTabChanged = useChanged(initialTab)
+  if (open && (openChanged || initialTabChanged)) setTab(initialTab)
+
   useEffect(() => {
     if (!open) return
-    setTab(initialTab)
     void listImportExportDestinationsAction().then(setDestinations)
-  }, [open, initialTab])
+  }, [open])
 
   return (
     <Sheet

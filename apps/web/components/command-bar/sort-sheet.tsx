@@ -26,10 +26,11 @@ import {
   Hash,
   Package,
 } from 'lucide-react'
-import { useEffect, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 
 import { Chip } from '@/components/ui/chip'
 import { ResponsiveSheet } from '@/components/ui/responsive-sheet'
+import { useChanged } from '@/components/ui/use-changed'
 import type { GroupKey, SortDir, SortKey } from '@/lib/view-state/parse'
 
 // Libellés directionnels PAR CLÉ — jamais un générique `High`/`Low` commun
@@ -103,14 +104,10 @@ export function SortSheet({
   const [draft, setDraft] = useState<SortDraft>({ sort, groupBy })
 
   // Le brouillon repart de l'état appliqué à chaque ouverture — même
-  // technique que `FiltersSheet` (effet sur `open`, pas un remontage complet
+  // technique que `FiltersSheet` (ajusté sur `open`, pas un remontage complet
   // du composant : `ResponsiveSheet` garde son animation de fermeture
   // intacte).
-  useEffect(() => {
-    if (!open) return
-    setDraft({ sort, groupBy })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  if (useChanged(open) && open) setDraft({ sort, groupBy })
 
   function selectSortKey(key: SortKey) {
     // Pose la clé, jamais le sens : une ligne qui devient active garde le

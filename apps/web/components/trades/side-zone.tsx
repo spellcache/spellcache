@@ -5,10 +5,11 @@
 // détails), l'ajustement de valeur et les notes de ce côté.
 import { Banknote, List, Plus } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 
 import { CompactCardList } from '@/components/trades/compact-card-list'
 import { RateChips } from '@/components/trades/rate-chips'
+import { useChanged } from '@/components/ui/use-changed'
 import { formatMoney, type Currency } from '@/lib/format/money'
 import { sideTotalMinor } from '@/lib/trades/pricing'
 import type { TradeSideView } from '@/lib/trades/trades'
@@ -75,9 +76,10 @@ export function SideZone({
   const [saved, setSaved] = useState(false)
 
   // Les notes de l'autre partie arrivent par la relecture périodique.
-  useEffect(() => {
-    if (!side.canEditNotes) setNotes(side.notes ?? '')
-  }, [side.notes, side.canEditNotes])
+  const notesChanged = useChanged(side.notes)
+  const canEditNotesChanged = useChanged(side.canEditNotes)
+  if (!side.canEditNotes && (notesChanged || canEditNotesChanged))
+    setNotes(side.notes ?? '')
 
   const actions = [
     addHref && side.canEdit && (

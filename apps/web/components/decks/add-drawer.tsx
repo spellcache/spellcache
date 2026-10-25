@@ -12,6 +12,7 @@ import { AddRow } from '@/components/cards/add-row'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
 import { useBackToClose } from '@/components/ui/use-back-to-close'
+import { useChanged } from '@/components/ui/use-changed'
 import type { DeckZone, Finish } from '@spellcache/db/schema'
 
 import {
@@ -139,7 +140,7 @@ export function AddDrawer({
   const [error, setError] = useState<string | null>(null)
   // « Searching... » pendant la requête : un signal entre la frappe et la
   // réponse.
-  const [searching, setSearching] = useState(false)
+  const [searching, setSearching] = useState(open)
   // Sélecteur d'impression à la demande — `null` tant
   // qu'aucune ligne ne l'a ouvert (`AddRow.onOpenPrintingPicker`).
   const [printingPickerCard, setPrintingPickerCard] = useState<AddDrawerCard | null>(null)
@@ -154,9 +155,13 @@ export function AddDrawer({
   // quantité deck-wide (voir son commentaire dans `deck-data.ts`),
   // indépendante de la zone sélectionnée — changer de zone n'a donc rien à
   // rafraîchir ici.
+  const searchKey = open
+    ? [deckId, query, colorIdentity.join(), filters.legalInColours, filters.ownedOnly].join('|')
+    : null
+  if (useChanged(searchKey) && searchKey !== null) setSearching(true)
+
   useEffect(() => {
     if (!open) return
-    setSearching(true)
     const timeout = setTimeout(() => {
       const thisRequest = ++requestId.current
       void searchDeckCardsAction({
@@ -177,12 +182,10 @@ export function AddDrawer({
   // Réinitialise la session (le compteur `Done · N added`, jamais la
   // recherche ni les filtres) à chaque ouverture : le nombre annoncé égale
   // le nombre réel d'ajouts de la session.
-  useEffect(() => {
-    if (open) {
-      setSessionAdded(0)
-      setError(null)
-    }
-  }, [open])
+  if (useChanged(open) && open) {
+    setSessionAdded(0)
+    setError(null)
+  }
 
   useBackToClose(open, onClose)
 

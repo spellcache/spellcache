@@ -17,6 +17,7 @@ import { EditionButton, PrintingPickerSheet } from '@/components/cards/printing-
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PickerSheet } from '@/components/ui/picker-sheet'
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 import type { Condition } from '@spellcache/db/schema'
 import type { CardSearchItem } from '@/lib/search/search-cards'
 
@@ -75,13 +76,13 @@ export function EditCardSheet({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const shownHolding = open ? holding : null
+  if (useChanged(shownHolding) && !shownHolding) setDetail(null)
+
   useEffect(() => {
-    if (!open || !holding) {
-      setDetail(null)
-      return
-    }
+    if (!shownHolding) return
     let cancelled = false
-    void getHoldingDetailAction(holding.holdingId).then((result) => {
+    void getHoldingDetailAction(shownHolding.holdingId).then((result) => {
       if (cancelled || !result) return
       setDetail(result)
       setLanguage(result.language)
@@ -93,7 +94,7 @@ export function EditCardSheet({
     return () => {
       cancelled = true
     }
-  }, [open, holding, containerId])
+  }, [shownHolding, containerId])
 
   if (!holding) return null
 

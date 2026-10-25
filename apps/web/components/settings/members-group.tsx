@@ -34,6 +34,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
+import { useChanged } from '@/components/ui/use-changed'
 import type { MemberRole } from '@spellcache/db/schema'
 import type { MemberCandidate, MemberRow } from '@/lib/collections/members'
 import { MEMBER_SEARCH_MIN_LENGTH } from '@/lib/username'
@@ -136,16 +137,18 @@ export function MembersGroup({
   // saisie (jamais la liste de l'instance) : une requête par pause de frappe,
   // à partir de `MEMBER_SEARCH_MIN_LENGTH` caractères.
   const searchQuery = username.trim().toLowerCase()
+  const candidateQuery =
+    isOwner && !isEmail && searchQuery.length >= MEMBER_SEARCH_MIN_LENGTH ? searchQuery : null
+  if (useChanged(JSON.stringify([collectionId, candidateQuery]))) {
+    if (candidateQuery === null) setCandidates([])
+    setCandidatesLoading(candidateQuery !== null)
+  }
+
   useEffect(() => {
-    if (!isOwner || isEmail || searchQuery.length < MEMBER_SEARCH_MIN_LENGTH) {
-      setCandidates([])
-      setCandidatesLoading(false)
-      return
-    }
+    if (candidateQuery === null) return
     let cancelled = false
-    setCandidatesLoading(true)
     const timer = setTimeout(() => {
-      void memberCandidatesAction({ collectionId, query: searchQuery }).then((result) => {
+      void memberCandidatesAction({ collectionId, query: candidateQuery }).then((result) => {
         if (cancelled) return
         setCandidatesLoading(false)
         setCandidates(result.ok ? result.candidates : [])
@@ -155,7 +158,7 @@ export function MembersGroup({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [collectionId, isOwner, isEmail, searchQuery])
+  }, [collectionId, candidateQuery])
 
   async function handleAddMember(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

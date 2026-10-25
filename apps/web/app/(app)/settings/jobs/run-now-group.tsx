@@ -69,6 +69,8 @@ export function RunNowGroup({ states }: { states: ManualJobState[] }) {
     const result = await triggerJobAction({ job })
     setPending(null)
     if (!result.ok) setError(ERROR_MESSAGES[result.error] ?? 'Could not start this job.')
+    // Faux positif : on est dans un gestionnaire d'événement, jamais au rendu.
+    // eslint-disable-next-line react-hooks/purity
     else setFollowUntil(Date.now() + FOLLOW_MS)
     router.refresh()
   }

@@ -54,6 +54,7 @@ export function Playtest({ deck }: { deck: PlaytestDeck }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reprise après l'hydratation
     setGame(loadPlaytestGame(deck))
     setLoaded(true)
   }, [deck])

@@ -30,7 +30,10 @@ The app opens in its own window, without the browser's toolbar.
 
 1. Download `spellcache-<version>.apk` from the latest
    [release](https://github.com/spellcache/spellcache/releases). A
-   `.sha256` file next to it lets you check the download.
+   `.sha256` file next to it lets you check the download, and the release's
+   `spellcache-<version>.intoto.jsonl` proves it was built by this repository's
+   release workflow:
+   `gh attestation verify spellcache-<version>.apk --bundle spellcache-<version>.intoto.jsonl -R spellcache/spellcache`.
 2. Open it on the phone. Android asks you to allow installs from the browser or
    file manager you used: allow it for this install.
 3. On first launch, enter **Your spellcache server**, the address you open

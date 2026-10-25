@@ -155,6 +155,7 @@ export function LifeGameScreen({
     // Mouvement réduit demandé : pas de lumière qui tourne, l'annonce tout
     // de suite.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- préférence navigateur, lue hors du rendu
       setSpin(null)
       setShowOverlay(true)
       return

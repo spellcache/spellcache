@@ -11,19 +11,6 @@ const eslintConfig = [
     settings: { next: { rootDir: 'apps/web/' } },
   },
   {
-    // Règles destinées au React Compiler, que l'app n'utilise pas : elles
-    // seront activées une fois le code existant mis en conformité.
-    rules: {
-      'react-hooks/error-boundaries': 'off',
-      'react-hooks/immutability': 'off',
-      'react-hooks/incompatible-library': 'off',
-      'react-hooks/preserve-manual-memoization': 'off',
-      'react-hooks/purity': 'off',
-      'react-hooks/refs': 'off',
-      'react-hooks/set-state-in-effect': 'off',
-    },
-  },
-  {
     // Le shell Android n'est pas une app Next : il redirige vers l'instance distante.
     files: ['apps/android/**'],
     rules: { '@next/next/no-location-assign-relative-destination': 'off' },

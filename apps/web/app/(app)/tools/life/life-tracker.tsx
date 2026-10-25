@@ -45,6 +45,7 @@ export function LifeTracker() {
   useEffect(() => {
     const stored = loadLifeState()
     if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reprise après l'hydratation
       setState(stored)
       if (!isPreset(stored.setup.startingLife))
         setOtherText(String(stored.setup.startingLife))

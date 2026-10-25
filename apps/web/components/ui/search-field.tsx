@@ -5,8 +5,9 @@
 // `useEffect` ci-dessous annule systématiquement le délai précédent avant
 // d'en programmer un nouveau.
 import { Search } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { SEARCH_INPUT_PROPS } from '@/components/ui/search-input-props'
+import { useLatest } from '@/components/ui/use-latest'
 
 const DEFAULT_DEBOUNCE_MS = 200
 
@@ -22,13 +23,12 @@ export function SearchField({
   autoFocus?: boolean
 }) {
   const [value, setValue] = useState('')
-  const onSearchRef = useRef(onSearch)
-  onSearchRef.current = onSearch
+  const onSearchRef = useLatest(onSearch)
 
   useEffect(() => {
     const timeout = setTimeout(() => onSearchRef.current(value), debounceMs)
     return () => clearTimeout(timeout)
-  }, [value, debounceMs])
+  }, [value, debounceMs, onSearchRef])
 
   // Le champ seul, sans marge ni fond de page : la barre collante de
   // l'onglet Search (`sticky top-0 bg-bg px-16 py-10`) vivait ici et

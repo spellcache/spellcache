@@ -64,11 +64,19 @@ export function CardsStep({
     if (result.ok) setGroups(result.groups)
   }
 
+  // Chargé une fois, avec l'état initial (`loading` vaut déjà `true`) ; la
+  // saisie, le filtre et l'ouverture rechargent eux-mêmes par `load`.
   useEffect(() => {
-    void load()
-    // Chargé une fois ; la saisie, le filtre et l'ouverture rechargent eux-mêmes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    let cancelled = false
+    void browseTradeableAction({ tradeId: trade.id, scope: 'all' }).then((result) => {
+      if (cancelled) return
+      setLoading(false)
+      if (result.ok) setGroups(result.groups)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [trade.id])
 
   async function after(ok: boolean) {
     if (ok) onChanged()

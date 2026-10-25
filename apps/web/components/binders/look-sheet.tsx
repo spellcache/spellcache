@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react'
 import { GradientSwatch } from '@/components/binders/gradient-swatch'
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 import { BINDER_GRADIENTS, type GradientKey } from '@/lib/binders/gradients'
 import { thumbUrl } from '@spellcache/core/images'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -184,30 +185,26 @@ export function LookSheet({
   // jamais celui d'une ouverture précédente (`Reset` ne modifie que le
   // brouillon, une fermeture sans sauvegarde ne doit donc pas non plus
   // laisser de brouillon périmé pour la prochaine ouverture).
-  useEffect(() => {
-    if (open) {
-      setDraft(fromBinderLook(initialLook, hasCommander))
-      setError(null)
-      setCardQuery('')
-      setSearchResults([])
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  if (useChanged(open) && open) {
+    setDraft(fromBinderLook(initialLook, hasCommander))
+    setError(null)
+    setCardQuery('')
+    setSearchResults([])
+  }
+
+  const searchQuery = open && draft.mode === 'art' ? cardQuery.trim() : null
+  if (useChanged(searchQuery) && searchQuery !== null) {
+    const searchable = searchQuery.length >= MIN_QUERY_LENGTH
+    if (!searchable) setSearchResults([])
+    setSearching(searchable)
+    setSearchFailed(false)
+  }
 
   useEffect(() => {
-    if (!open || draft.mode !== 'art') return
-    const query = cardQuery.trim()
-    if (query.length < MIN_QUERY_LENGTH) {
-      setSearchResults([])
-      setSearching(false)
-      setSearchFailed(false)
-      return
-    }
+    if (searchQuery === null || searchQuery.length < MIN_QUERY_LENGTH) return
     let cancelled = false
-    setSearching(true)
-    setSearchFailed(false)
     const timeout = setTimeout(() => {
-      void searchCatalogAction({ query, limit: SEARCH_LIMIT }).then((result) => {
+      void searchCatalogAction({ query: searchQuery, limit: SEARCH_LIMIT }).then((result) => {
         if (cancelled) return
         setSearching(false)
         if ('error' in result) {
@@ -222,7 +219,7 @@ export function LookSheet({
       cancelled = true
       clearTimeout(timeout)
     }
-  }, [open, draft.mode, cardQuery])
+  }, [searchQuery])
 
   async function handleSave() {
     setSubmitting(true)

@@ -42,6 +42,7 @@ import {
   type SelectionState,
 } from '@/components/selection/selection-provider'
 import { OverlayScrollbar } from '@/components/ui/overlay-scrollbar'
+import { useLatest } from '@/components/ui/use-latest'
 import { BREAKPOINTS } from '@/lib/breakpoints'
 import { useMinWidth } from '@/components/desktop/use-min-width'
 
@@ -133,8 +134,7 @@ function useSelectionGesture(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const firedRef = useRef(false)
-  const activeRef = useRef(selection.active)
-  activeRef.current = selection.active
+  const activeRef = useLatest(selection.active)
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) clearTimeout(timerRef.current)
@@ -154,7 +154,7 @@ function useSelectionGesture(
         }
       }, LONG_PRESS_MS)
     },
-    [id, selection, clearTimer, selectionEnabled],
+    [id, selection, clearTimer, selectionEnabled, activeRef],
   )
 
   const onPointerMove = useCallback(
@@ -206,7 +206,7 @@ function useSelectionGesture(
       // la ligne elle-même (`onOpen`), inchangé.
       onPlainClick(id)
     },
-    [id, selection, onModifiedClick, onPlainClick, selectionEnabled],
+    [id, selection, onModifiedClick, onPlainClick, selectionEnabled, activeRef],
   )
 
   // Clic droit desktop = même intention que l'appui long : entre en sélection
@@ -225,7 +225,7 @@ function useSelectionGesture(
         selection.enter(id)
       }
     },
-    [id, selection, selectionEnabled, clearTimer],
+    [id, selection, selectionEnabled, clearTimer, activeRef],
   )
 
   return {

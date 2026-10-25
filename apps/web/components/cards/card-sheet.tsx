@@ -23,6 +23,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { useCanEdit } from '@/lib/collections/access-context'
 import { largeUrl } from '@spellcache/core/images'
 import { ZoomableCardImage } from '@/components/cards/zoomable-card-image'
+import { useChanged } from '@/components/ui/use-changed'
 import { useSwipe } from '@/components/ui/use-swipe'
 
 import {
@@ -82,23 +83,25 @@ export function CardSheet({
   const [holdingDetail, setHoldingDetail] = useState<HoldingDetail | null>(null)
   const swipe = useSwipe({ onPrevious, onNext, keyboard: open })
 
+  const shownHolding = open ? holding : null
+  if (useChanged(shownHolding) && !shownHolding) {
+    setDetail(null)
+    setHoldingDetail(null)
+  }
+
   useEffect(() => {
-    if (!open || !holding) {
-      setDetail(null)
-      setHoldingDetail(null)
-      return
-    }
+    if (!shownHolding) return
     let cancelled = false
-    getCardDetailAction(holding.cardId).then((result) => {
+    getCardDetailAction(shownHolding.cardId).then((result) => {
       if (!cancelled) setDetail(result)
     })
-    getHoldingDetailAction(holding.holdingId).then((result) => {
+    getHoldingDetailAction(shownHolding.holdingId).then((result) => {
       if (!cancelled) setHoldingDetail(result)
     })
     return () => {
       cancelled = true
     }
-  }, [open, holding])
+  }, [shownHolding])
 
   if (!holding) return null
 

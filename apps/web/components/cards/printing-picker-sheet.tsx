@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react'
 import { printingsAction } from '@/app/(app)/search/actions'
 import { SearchRow } from '@/components/search/search-row'
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 import type { Currency } from '@/lib/format/money'
 import type { CardSearchItem, PrintingItem } from '@/lib/search/search-cards'
 import { thumbUrl } from '@spellcache/core/images'
@@ -103,11 +104,15 @@ export function PrintingPickerSheet({
 
   // Rechargée à chaque ouverture : la liste est courte et les prix bougent
   // d'un import à l'autre.
+  const openName = open ? card.name : null
+  if (useChanged(openName) && openName !== null) {
+    setPrintings(null)
+    setFailed(false)
+  }
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setPrintings(null)
-    setFailed(false)
     printingsAction({ name: card.name })
       .then((result) => {
         if (cancelled) return

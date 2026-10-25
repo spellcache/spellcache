@@ -20,6 +20,7 @@ import { QtyStepper } from '@/components/cards/qty-stepper'
 import { Sheet } from '@/components/ui/sheet'
 import { largeUrl } from '@spellcache/core/images'
 import { ZoomableCardImage } from '@/components/cards/zoomable-card-image'
+import { useChanged } from '@/components/ui/use-changed'
 import { useSwipe } from '@/components/ui/use-swipe'
 import { formatMoney, type Currency } from '@/lib/format/money'
 
@@ -56,19 +57,21 @@ export function CardPreviewSheet({
   const [detail, setDetail] = useState<CardDetail | null>(null)
   const swipe = useSwipe({ onPrevious, onNext, keyboard: open })
 
+  // Clé par carte, pas par objet : un appelant qui reconstruit `tile` à
+  // chaque rendu ne relance pas le chargement du détail.
+  const shownCardId = open ? (tile?.cardId ?? null) : null
+  if (useChanged(shownCardId) && shownCardId === null) setDetail(null)
+
   useEffect(() => {
-    if (!open || !tile) {
-      setDetail(null)
-      return
-    }
+    if (shownCardId === null) return
     let cancelled = false
-    getCardDetailAction(tile.cardId).then((result) => {
+    getCardDetailAction(shownCardId).then((result) => {
       if (!cancelled) setDetail(result)
     })
     return () => {
       cancelled = true
     }
-  }, [open, tile])
+  }, [shownCardId])
 
   if (!tile) return null
 

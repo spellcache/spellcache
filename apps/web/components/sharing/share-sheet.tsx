@@ -13,6 +13,7 @@ import { Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 
 import {
   getSharingStateAction,
@@ -37,11 +38,15 @@ export function ShareSheet({
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'done' | 'failed' | null>(null)
 
+  const openContainerId = open ? containerId : null
+  if (useChanged(openContainerId) && openContainerId !== null) {
+    setError(null)
+    setState(null)
+  }
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setError(null)
-    setState(null)
     void getSharingStateAction({ containerId }).then((result) => {
       if (cancelled) return
       if (!result.ok) {

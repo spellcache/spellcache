@@ -167,9 +167,11 @@ export function UsersList({
   const selected = accounts.find((account) => account.id === selectedId) ?? null
 
   // Statistiques calculées sur la liste déjà chargée — aucune requête de
-  // plus pour quelques compteurs.
+  // plus pour quelques compteurs. « Récents » se compte depuis l'affichage de
+  // l'écran : un instant figé, pas une horloge relue à chaque rendu.
+  const [renderedAt] = useState(() => Date.now())
   const stats = useMemo(() => {
-    const since = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
+    const since = renderedAt - RECENT_DAYS * 24 * 60 * 60 * 1000
     return {
       total: accounts.length,
       active: accounts.filter((account) => !isPending(account)).length,
@@ -177,7 +179,7 @@ export function UsersList({
       admins: accounts.filter((account) => account.role === 'admin').length,
       recent: accounts.filter((account) => account.createdAt.getTime() >= since).length,
     }
-  }, [accounts])
+  }, [accounts, renderedAt])
 
   const shown = useMemo(() => {
     const filtered = accounts.filter((account) =>

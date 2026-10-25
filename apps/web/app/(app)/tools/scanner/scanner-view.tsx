@@ -278,6 +278,7 @@ export function ScannerView({
   // Lus après l'hydratation : ni le user agent ni `sessionStorage` n'existent
   // au rendu serveur.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lu après l'hydratation
     setCanScan(hasScannerShell())
     setLines(loadPending())
   }, [])

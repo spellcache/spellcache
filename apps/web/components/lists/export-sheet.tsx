@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 
 import { Segmented } from '@/components/ui/segmented'
 import { Sheet } from '@/components/ui/sheet'
+import { useChanged } from '@/components/ui/use-changed'
 
 import type { DeckZone } from '@spellcache/db/schema'
 
@@ -102,11 +103,15 @@ export function ListExportSheet({
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
+  const openContainerId = open ? containerId : null
+  if (useChanged(openContainerId) && openContainerId !== null) {
+    setError(null)
+    setLines(null)
+  }
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setError(null)
-    setLines(null)
     void getContainerListAction({ containerId }).then((result) => {
       if (cancelled) return
       if (!result.ok) {

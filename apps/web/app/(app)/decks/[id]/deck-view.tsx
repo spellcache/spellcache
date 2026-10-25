@@ -33,7 +33,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { LookSheet } from '@/components/binders/look-sheet'
 import { ImportSheet } from '@/components/lists/import-sheet'
@@ -483,20 +483,14 @@ export function DeckView({
   const previewOrder = [...deck.commanders, ...visibleMainboard, ...sideSlots]
   const previewIndex = previewOrder.findIndex((slot) => slot.holdingId === previewHoldingId)
   const previewSlot = previewIndex === -1 ? null : previewOrder[previewIndex]!
-  const previewTile = useMemo(
-    () =>
-      previewSlot
-        ? {
-            cardId: previewSlot.cardId,
-            name: previewSlot.name,
-            artUrl: previewSlot.thumbUrl,
-            priceMinor: previewSlot.priceMinor,
-          }
-        : null,
-    // `deck` est un état : la ligne garde son identité tant que le deck ne
-    // change pas, la feuille ne recharge donc pas son détail à chaque rendu.
-    [previewSlot],
-  )
+  const previewTile = previewSlot
+    ? {
+        cardId: previewSlot.cardId,
+        name: previewSlot.name,
+        artUrl: previewSlot.thumbUrl,
+        priceMinor: previewSlot.priceMinor,
+      }
+    : null
   const previewStep = (step: 1 | -1) => {
     const target = previewIndex === -1 ? undefined : previewOrder[previewIndex + step]
     return target ? () => setPreviewHoldingId(target.holdingId) : undefined

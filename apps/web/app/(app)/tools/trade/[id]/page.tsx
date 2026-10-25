@@ -26,11 +26,13 @@ export default async function TradePage({
   if (!tools.trading_mode) notFound()
   if (!z.uuid().safeParse(id).success) notFound()
 
+  let trade: Awaited<ReturnType<typeof getTradeView>>
   try {
-    const trade = await getTradeView(session.id, id)
-    return <TradeScreen initial={trade} step={step.success ? step.data : null} />
+    trade = await getTradeView(session.id, id)
   } catch (error) {
     if (error instanceof TradeError && error.code === 'not_found') notFound()
     throw error
   }
+
+  return <TradeScreen initial={trade} step={step.success ? step.data : null} />
 }

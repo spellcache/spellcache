@@ -50,8 +50,10 @@ export default async function ContainerPage({
   const rawSearchParams = await searchParams
   const viewState = parseViewState(toURLSearchParams(rawSearchParams))
 
+  let header: Awaited<ReturnType<typeof getContainerHeader>>
+  let page: Awaited<ReturnType<typeof listHoldings>>
   try {
-    const [header, page] = await Promise.all([
+    ;[header, page] = await Promise.all([
       getContainerHeader(user.id, id),
       listHoldings(user.id, id, {
         query: viewState.query,
@@ -60,16 +62,16 @@ export default async function ContainerPage({
         groupBy: viewState.groupBy,
       }),
     ])
-
-    // `canEdit` de la collection de CE container, pas de l'active (lien direct).
-    return (
-      <CollectionAccessProvider canEdit={header.canEdit}>
-        <Suspense>
-          <ContainerView containerId={id} initial={{ header, page }} />
-        </Suspense>
-      </CollectionAccessProvider>
-    )
   } catch {
     return <ContainerErrorState />
   }
+
+  // `canEdit` de la collection de CE container, pas de l'active (lien direct).
+  return (
+    <CollectionAccessProvider canEdit={header.canEdit}>
+      <Suspense>
+        <ContainerView containerId={id} initial={{ header, page }} />
+      </Suspense>
+    </CollectionAccessProvider>
+  )
 }

@@ -32,6 +32,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { useCanEdit } from '@/lib/collections/access-context'
 import type { DeckStatus } from '@/lib/decks/legality'
 import { SheetGroup, SheetRow } from '@/components/ui/sheet-controls'
+import { useLatest } from '@/components/ui/use-latest'
 
 import {
   createFolderAction,
@@ -231,8 +232,7 @@ export function FoldersView({ initial }: { initial: FolderShelvesResult }) {
   // Miroir synchrone de `shelves` pour les mises à jour optimistes : la
   // restauration en cas d'échec repart de l'état réel, pas de celui figé à la
   // création du rappel.
-  const shelvesRef = useRef(shelves)
-  shelvesRef.current = shelves
+  const shelvesRef = useLatest(shelves)
 
   // Déplacement d'un deck d'une étagère à l'autre — optimiste (docs/development.md :
   // « mises à jour optimistes... avec retour arrière en cas d'échec ») : la
@@ -274,7 +274,7 @@ export function FoldersView({ initial }: { initial: FolderShelvesResult }) {
       folderId: keyToFolderId(toKey),
     })
     if (!result.ok) setShelves(snapshot)
-  }, [])
+  }, [shelvesRef])
 
   function startPress(event: React.PointerEvent<HTMLElement>, open: () => void) {
     pressRef.current = { x: event.clientX, y: event.clientY, timer: null, fired: false }

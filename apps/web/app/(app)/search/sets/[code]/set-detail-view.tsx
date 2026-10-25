@@ -13,7 +13,7 @@
 // set, triée par numéro de collectionneur naturel — jamais le classement par
 // nom groupé de l'onglet `Search` (`lib/search/search-cards.ts`).
 import { SlidersHorizontal } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { AddCardSheet } from '@/app/(app)/container/[id]/add-card-sheet'
 import { SearchRow } from '@/components/search/search-row'
@@ -25,6 +25,8 @@ import {
 } from '@/components/search/search-filters-sheet'
 import { Screen } from '@/components/ui/screen'
 import { ScreenHeader } from '@/components/ui/screen-header'
+import { useChanged } from '@/components/ui/use-changed'
+import { useLatest } from '@/components/ui/use-latest'
 import type { Currency } from '@/lib/format/money'
 import type { CardSearchItem } from '@/lib/search/search-cards'
 
@@ -74,41 +76,38 @@ export function SetDetailView({ set }: { set: SetSummary }) {
 
   const filterCount = activeFilterCount(filters)
 
-  const run = useCallback(
-    (nextFilters: SearchFilters) => {
-      const requestId = ++latestRequestId.current
-      setStatus('loading')
-      setItems([])
-      setNextCursor(null)
-
-      searchCatalogAction({
-        query: '',
-        scope: 'set',
-        filters: toApiFilters(nextFilters, set.code),
-      })
-        .then((data) => {
-          if (requestId !== latestRequestId.current) return
-          if ('error' in data) {
-            setStatus('error')
-            return
-          }
-          setItems(data.items)
-          setNextCursor(data.nextCursor)
-          setTotalEstimate(data.totalEstimate)
-          setCurrency(data.currency)
-          setStatus(data.items.length === 0 ? 'empty' : 'results')
-        })
-        .catch(() => {
-          if (requestId !== latestRequestId.current) return
-          setStatus('error')
-        })
-    },
-    [set.code],
-  )
+  const filtersChanged = useChanged(filters)
+  const setChanged = useChanged(set.code)
+  if (filtersChanged || setChanged) {
+    setStatus('loading')
+    setItems([])
+    setNextCursor(null)
+  }
 
   useEffect(() => {
-    run(filters)
-  }, [filters, run])
+    const requestId = ++latestRequestId.current
+    searchCatalogAction({
+      query: '',
+      scope: 'set',
+      filters: toApiFilters(filters, set.code),
+    })
+      .then((data) => {
+        if (requestId !== latestRequestId.current) return
+        if ('error' in data) {
+          setStatus('error')
+          return
+        }
+        setItems(data.items)
+        setNextCursor(data.nextCursor)
+        setTotalEstimate(data.totalEstimate)
+        setCurrency(data.currency)
+        setStatus(data.items.length === 0 ? 'empty' : 'results')
+      })
+      .catch(() => {
+        if (requestId !== latestRequestId.current) return
+        setStatus('error')
+      })
+  }, [filters, set.code])
 
   function handleLoadMore() {
     if (!nextCursor || loadingMore) return
@@ -136,8 +135,7 @@ export function SetDetailView({ set }: { set: SetSummary }) {
   // bouton `Load more` : une sentinelle sous la dernière ligne déclenche la
   // page suivante dès qu'elle approche de l'écran. La ref garde la dernière
   // version du gestionnaire sans réabonner l'observateur à chaque rendu.
-  const loadMoreRef = useRef(handleLoadMore)
-  loadMoreRef.current = handleLoadMore
+  const loadMoreRef = useLatest(handleLoadMore)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const hasMore = status === 'results' && nextCursor !== null
 
@@ -152,7 +150,7 @@ export function SetDetailView({ set }: { set: SetSummary }) {
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, items.length])
+  }, [hasMore, items.length, loadMoreRef])
 
   return (
     <Screen

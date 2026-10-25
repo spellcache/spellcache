@@ -22,7 +22,9 @@ const MIN_TRACK_HEIGHT = 120
 const FADE_OUT_DELAY_MS = 900
 
 export function OverlayScrollbar({
-  target,
+  // Nommée `targetRef` : le suffixe signale au compilateur une ref reçue en
+  // prop, mutable hors du rendu.
+  target: targetRef,
   trackTop,
 }: {
   target: React.RefObject<HTMLElement | null>
@@ -44,7 +46,7 @@ export function OverlayScrollbar({
   const dragStart = useRef<{ pointerY: number; scrollTop: number } | null>(null)
 
   const measure = useCallback(() => {
-    const node = target.current
+    const node = targetRef.current
     if (!node) return
     const { scrollTop, scrollHeight, clientHeight } = node
     // Rien à montrer tant que le contenu tient dans la boîte.
@@ -76,7 +78,7 @@ export function OverlayScrollbar({
         ? previous
         : next,
     )
-  }, [target])
+  }, [targetRef])
 
   // Re-mesure à CHAQUE rendu : un filtre
   // qui rétrécit la liste redimensionne le curseur sans qu'aucun événement de
@@ -86,7 +88,7 @@ export function OverlayScrollbar({
   })
 
   useEffect(() => {
-    const node = target.current
+    const node = targetRef.current
     if (!node) return
 
     const show = () => {
@@ -109,7 +111,7 @@ export function OverlayScrollbar({
       observer.disconnect()
       if (hideTimer.current) clearTimeout(hideTimer.current)
     }
-  }, [measure, target])
+  }, [measure, targetRef])
 
   if (!thumb) return null
 
@@ -123,7 +125,7 @@ export function OverlayScrollbar({
       } ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{ top: thumb.top, height: thumb.height, touchAction: 'none' }}
       onPointerDown={(event) => {
-        const node = target.current
+        const node = targetRef.current
         if (!node) return
         event.preventDefault()
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -131,7 +133,7 @@ export function OverlayScrollbar({
         setDragging(true)
       }}
       onPointerMove={(event) => {
-        const node = target.current
+        const node = targetRef.current
         const start = dragStart.current
         if (!node || !start) return
         const trackTravel = thumb.travel

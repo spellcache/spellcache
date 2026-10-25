@@ -22,3 +22,15 @@ updates:
     groups:
       actions:
         patterns: ['*']
+
+  # Images de base épinglées par digest dans les Dockerfiles.
+  - package-ecosystem: docker
+    directories: [/apps/web, /apps/worker]
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      base-images:
+        patterns: ['*']

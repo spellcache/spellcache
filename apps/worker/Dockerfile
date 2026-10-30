@@ -14,7 +14,7 @@
 # Le worker n'applique JAMAIS les migrations : c'est `web` qui les applique,
 # une seule fois (deux migrateurs en parallèle se disputent le verrou).
 
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS base
 RUN apk add --no-cache libc6-compat
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -35,7 +35,7 @@ COPY packages/db/package.json ./packages/db/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @spellcache/worker...
 
 # --- Image finale ------------------------------------------------------------
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS runner
 RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production
 WORKDIR /app

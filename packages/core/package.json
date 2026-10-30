@@ -12,7 +12,7 @@
     "./scryfall/schemas": "./src/scryfall/schemas.ts"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
